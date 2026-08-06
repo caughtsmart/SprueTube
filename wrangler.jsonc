@@ -1,0 +1,71 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "spruetube",
+  "main": "./workers/app.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+
+  // Decays Discover scores and rescues videos whose Stream webhook went missing.
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+
+  // spruetube.app is canonical. www is attached here too and redirected to the
+  // apex by a Redirect Rule at the edge — see docs/DEPLOY.md step 6.
+  "routes": [
+    { "pattern": "spruetube.app", "custom_domain": true },
+    { "pattern": "www.spruetube.app", "custom_domain": true }
+  ],
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "spruetube",
+      // Replace with the id printed by `wrangler d1 create spruetube`.
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "spruetube-media"
+    }
+  ],
+
+  "kv_namespaces": [
+    {
+      // Rate limiting counters, feed caches, ephemeral upload tokens.
+      "binding": "CACHE",
+      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+    }
+  ],
+
+  "vars": {
+    "SITE_URL": "https://spruetube.app",
+    "SITE_NAME": "SprueTube",
+    // Loaded Dice storefront used for the "paints used" affiliate links.
+    "SHOP_URL": "https://www.loadeddice.uk",
+    "SHOP_NAME": "Loaded Dice",
+    // Cloudflare account id — needed for the Images and Stream REST APIs.
+    "CF_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
+    // Public account hash from Images → the imagedelivery.net URL prefix.
+    "CF_IMAGES_ACCOUNT_HASH": "REPLACE_WITH_IMAGES_ACCOUNT_HASH",
+    // Public Stream customer subdomain, e.g. customer-xxxx.cloudflarestream.com
+    "CF_STREAM_CUSTOMER_SUBDOMAIN": "REPLACE_WITH_STREAM_SUBDOMAIN",
+    // Leave empty until AdSense approves the site; ad slots render house ads.
+    "ADSENSE_CLIENT": "",
+    "ENVIRONMENT": "production"
+  }
+
+  // Secrets (set with `wrangler secret put <NAME>`):
+  //   BETTER_AUTH_SECRET        — 32+ random bytes, signs sessions
+  //   CF_API_TOKEN              — Images + Stream edit permissions
+  //   CF_STREAM_WEBHOOK_SECRET  — from the Stream webhook settings page
+  //   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
+  //   APPLE_CLIENT_ID / APPLE_CLIENT_SECRET  (needed before iOS submission)
+}

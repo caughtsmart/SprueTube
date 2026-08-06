@@ -1,0 +1,254 @@
+@import "tailwindcss";
+
+/*
+ * SprueTube visual identity.
+ *
+ * Dark by default and deliberately so: this is a site full of photographs of
+ * miniatures, and a dark surround makes painted models read the way a display
+ * cabinet does. Light mode exists for anyone who wants it.
+ *
+ * The accent is a warm primer orange — the colour of a rattle-can undercoat —
+ * which keeps SprueTube visually separate from Loaded Dice's own branding.
+ */
+
+@theme {
+  --color-sprue-950: #0b0d10;
+  --color-sprue-900: #101318;
+  --color-sprue-850: #151920;
+  --color-sprue-800: #1b2029;
+  --color-sprue-700: #262d39;
+  --color-sprue-600: #384352;
+  --color-sprue-500: #5b6879;
+  --color-sprue-400: #8895a6;
+  --color-sprue-300: #b3bdc9;
+  --color-sprue-100: #e7ebf0;
+  --color-sprue-50: #f5f7fa;
+
+  --color-primer-400: #ff9b5c;
+  --color-primer-500: #ff7a2f;
+  --color-primer-600: #ea5c0c;
+  --color-primer-700: #b84508;
+
+  --color-wash-400: #4fd1c5;
+  --color-wash-500: #2bb3a5;
+
+  --font-display:
+    "Inter Tight", "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  :root {
+    --surface-page: var(--color-sprue-950);
+    --surface-card: var(--color-sprue-900);
+    --surface-raised: var(--color-sprue-850);
+    --surface-input: var(--color-sprue-850);
+    --line: var(--color-sprue-700);
+    --line-soft: var(--color-sprue-800);
+    --text-strong: var(--color-sprue-50);
+    --text-body: var(--color-sprue-100);
+    --text-muted: var(--color-sprue-400);
+    color-scheme: dark;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --surface-page: #f4f6f9;
+      --surface-card: #ffffff;
+      --surface-raised: #ffffff;
+      --surface-input: #ffffff;
+      --line: #d9dee6;
+      --line-soft: #e8ecf1;
+      --text-strong: #0d1117;
+      --text-body: #1f2733;
+      --text-muted: #5b6879;
+      color-scheme: light;
+    }
+  }
+
+  :root[data-theme="light"] {
+    --surface-page: #f4f6f9;
+    --surface-card: #ffffff;
+    --surface-raised: #ffffff;
+    --surface-input: #ffffff;
+    --line: #d9dee6;
+    --line-soft: #e8ecf1;
+    --text-strong: #0d1117;
+    --text-body: #1f2733;
+    --text-muted: #5b6879;
+    color-scheme: light;
+  }
+
+  html {
+    background: var(--surface-page);
+    color: var(--text-body);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    min-height: 100dvh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    color: var(--text-strong);
+    letter-spacing: -0.015em;
+  }
+
+  /* Never lose the keyboard focus ring; plenty of people navigate this way. */
+  :focus-visible {
+    outline: 2px solid var(--color-primer-500);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--color-primer-500);
+    color: #12141a;
+  }
+}
+
+@layer components {
+  .st-card {
+    background: var(--surface-card);
+    border: 1px solid var(--line-soft);
+    border-radius: 0.875rem;
+  }
+
+  .st-input {
+    width: 100%;
+    background: var(--surface-input);
+    border: 1px solid var(--line);
+    border-radius: 0.625rem;
+    padding: 0.625rem 0.75rem;
+    color: var(--text-body);
+    font-size: 0.9375rem;
+  }
+
+  .st-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .st-input:focus {
+    border-color: var(--color-primer-500);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primer-500) 25%, transparent);
+  }
+
+  .st-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.625rem;
+    padding: 0.5625rem 1rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.2;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      opacity 120ms ease;
+    cursor: pointer;
+  }
+
+  .st-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .st-btn-primary {
+    background: var(--color-primer-500);
+    color: #14161b;
+  }
+
+  .st-btn-primary:hover:not(:disabled) {
+    background: var(--color-primer-400);
+  }
+
+  .st-btn-ghost {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--text-body);
+  }
+
+  .st-btn-ghost:hover:not(:disabled) {
+    border-color: var(--color-sprue-500);
+  }
+
+  .st-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.375rem;
+  }
+
+  .st-error {
+    color: #ff8080;
+    font-size: 0.8125rem;
+    margin-top: 0.25rem;
+  }
+
+  .st-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  /* The one place a link is allowed to be a plain colour block. */
+  .st-link {
+    color: var(--color-primer-400);
+  }
+
+  .st-link:hover {
+    text-decoration: underline;
+  }
+}
+
+@layer utilities {
+  .st-surface {
+    background: var(--surface-card);
+  }
+
+  .st-raised {
+    background: var(--surface-raised);
+  }
+
+  .st-border {
+    border-color: var(--line-soft);
+  }
+
+  .st-text-muted {
+    color: var(--text-muted);
+  }
+
+  .st-text-strong {
+    color: var(--text-strong);
+  }
+
+  /* Blurs sensitive media until the viewer opts in. */
+  .st-sensitive {
+    filter: blur(28px);
+    transform: scale(1.03);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

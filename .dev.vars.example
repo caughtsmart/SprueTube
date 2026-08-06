@@ -1,0 +1,28 @@
+# Copy to .dev.vars for local development. Never commit .dev.vars.
+#
+# In production these are set with `wrangler secret put <NAME>` instead.
+
+# Signs session cookies. Generate with:  openssl rand -base64 32
+BETTER_AUTH_SECRET="replace-me-with-32-random-bytes"
+
+# Cloudflare API token with Images:Edit and Stream:Edit on your account.
+# Uploads fail without it; everything else works.
+CF_API_TOKEN=""
+
+# From the Stream webhook settings page, once you have registered the webhook.
+CF_STREAM_WEBHOOK_SECRET=""
+
+# Social sign-in. Leave blank to hide the buttons — email sign-in still works.
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+
+# Sign in with Apple. Required before the iOS app can be submitted, because
+# App Store guideline 4.8 demands it alongside any other social login.
+APPLE_CLIENT_ID=""
+APPLE_CLIENT_SECRET=""
+
+# Local dev overrides. These shadow the vars in wrangler.jsonc so that auth
+# origins, links and the sitemap all point at the dev server rather than at
+# the live domain.
+ENVIRONMENT="development"
+SITE_URL="http://localhost:5173"
