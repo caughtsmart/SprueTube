@@ -41,7 +41,6 @@ Everything runs on Cloudflare, in one Worker.
 | Auth | better-auth |
 | Images | Cloudflare Images, direct creator upload |
 | Video | Cloudflare Stream, direct creator upload + webhook |
-| Blobs | R2 |
 | Rate limits / cache | Workers KV |
 
 Why one Worker rather than two: a single deploy, one set of bindings, and the

@@ -8,32 +8,37 @@ Everything below assumes `npx wrangler login` has been run, or that
 
 ---
 
-## 1. Create the storage
+## 1. Storage — already done
+
+The D1 database and the KV namespace exist, their ids are in `wrangler.jsonc`,
+the schema is applied and the house ads are seeded. Nothing to do here.
+
+| Resource | Name | Id |
+| --- | --- | --- |
+| D1 (region WEUR) | `spruetube` | `d15396fa-e98d-46c5-9212-1c38dbbb1c2f` |
+| KV | `spruetube-cache` | `6f09e2419a8f44c5a5114fa204cac13c` |
+
+To confirm:
 
 ```bash
-npx wrangler d1 create spruetube
-npx wrangler r2 bucket create spruetube-media
-npx wrangler kv namespace create CACHE
+npx wrangler d1 execute spruetube --remote \
+  --command "SELECT count(*) AS tables FROM sqlite_master WHERE type='table'"
 ```
 
-Each command prints an id. Put them into `wrangler.jsonc`, replacing:
-
-- `REPLACE_WITH_D1_DATABASE_ID`
-- `REPLACE_WITH_KV_NAMESPACE_ID`
-
-Then apply the schema:
-
-```bash
-npm run db:migrate:remote
-```
+There is no R2 bucket, on purpose. Photos go to Cloudflare Images and video to
+Stream, so nothing in the codebase reads a bucket, and an unused binding
+pointing at a bucket that does not exist fails the deploy. R2 also has to be
+enabled once from the dashboard before any bucket can be created. Add the
+binding back when there is a reason to — untouched originals, or data exports.
 
 ## 2. Fill in the account vars
 
-In `wrangler.jsonc` under `vars`:
+Three placeholders remain in `wrangler.jsonc` under `vars`. They are the only
+ones left.
 
 | Var | Where to find it |
 | --- | --- |
-| `CF_ACCOUNT_ID` | Dashboard sidebar, or `npx wrangler whoami` |
+| `CF_ACCOUNT_ID` | `npx wrangler whoami` after logging in |
 | `CF_IMAGES_ACCOUNT_HASH` | Images → any delivery URL: `imagedelivery.net/<hash>/…` |
 | `CF_STREAM_CUSTOMER_SUBDOMAIN` | Stream → an embed URL: `customer-xxxx.cloudflarestream.com` |
 
@@ -163,6 +168,9 @@ Do this immediately after your first sign-up. Until someone is an admin, reports
 pile up with nobody able to action them.
 
 ## 10. Seed the house ads
+
+Already applied to the remote database — four Loaded Dice promos across the
+feed, sidebar and post slots. Re-running is harmless (`INSERT OR IGNORE`):
 
 ```bash
 npx wrangler d1 execute spruetube --remote --file=./scripts/seed.sql

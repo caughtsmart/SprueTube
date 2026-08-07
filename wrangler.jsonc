@@ -20,20 +20,14 @@
     { "pattern": "www.spruetube.app", "custom_domain": true }
   ],
 
+  // Created in the WEUR region — the audience is UK and European, and D1 reads
+  // are served from wherever the primary lives.
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "spruetube",
-      // Replace with the id printed by `wrangler d1 create spruetube`.
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "d15396fa-e98d-46c5-9212-1c38dbbb1c2f",
       "migrations_dir": "migrations"
-    }
-  ],
-
-  "r2_buckets": [
-    {
-      "binding": "MEDIA",
-      "bucket_name": "spruetube-media"
     }
   ],
 
@@ -41,9 +35,15 @@
     {
       // Rate limiting counters, feed caches, ephemeral upload tokens.
       "binding": "CACHE",
-      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+      "id": "6f09e2419a8f44c5a5114fa204cac13c"
     }
   ],
+
+  // No R2 binding yet, deliberately. Photos live in Cloudflare Images and video
+  // in Stream, so nothing in the codebase reads a bucket — and an unused
+  // binding pointing at a bucket that does not exist fails the deploy. Add it
+  // back (bucket "spruetube-media", binding "MEDIA") when there is a reason to,
+  // e.g. keeping untouched originals or serving data exports.
 
   "vars": {
     "SITE_URL": "https://spruetube.app",
@@ -51,9 +51,10 @@
     // Loaded Dice storefront used for the "paints used" affiliate links.
     "SHOP_URL": "https://www.loadeddice.uk",
     "SHOP_NAME": "Loaded Dice",
-    // Cloudflare account id — needed for the Images and Stream REST APIs.
+    // Needed for the Images and Stream REST APIs. From `wrangler whoami`.
     "CF_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
     // Public account hash from Images → the imagedelivery.net URL prefix.
+    // Uploads work without it; the feed cannot build image URLs.
     "CF_IMAGES_ACCOUNT_HASH": "REPLACE_WITH_IMAGES_ACCOUNT_HASH",
     // Public Stream customer subdomain, e.g. customer-xxxx.cloudflarestream.com
     "CF_STREAM_CUSTOMER_SUBDOMAIN": "REPLACE_WITH_STREAM_SUBDOMAIN",

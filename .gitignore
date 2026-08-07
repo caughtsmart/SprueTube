@@ -3,6 +3,7 @@ build/
 .react-router/
 .wrangler/
 dist/
+*.tsbuildinfo
 
 # Local secrets. Never commit this — see .dev.vars.example.
 .dev.vars
