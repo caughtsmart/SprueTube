@@ -1,22 +1,26 @@
 /*
  * Transactional email.
  *
- * Resend, over its HTTP API rather than SMTP — Workers cannot open a raw TCP
- * socket to port 587, so every SMTP library is out. A plain `fetch` is all this
- * needs, which also means no dependency to keep current.
+ * Cloudflare Email Sending, through the `EMAIL` binding declared in
+ * wrangler.jsonc. The binding is the credential — there is no API key to mint,
+ * store, rotate or leak, which removes the single most awkward step in setting
+ * this up and the most likely thing to be sitting in a git history somewhere.
+ *
+ * The sending domain is onboarded once with `wrangler email sending enable
+ * spruetube.app`, which writes the SPF and DKIM records into Cloudflare DNS
+ * directly. Nothing to copy between two dashboards and nothing to get wrong.
  *
  * Only two messages exist, and both are a link the recipient has to click.
  * Marketing mail, digests and notification email are a different problem with
- * different rules (unsubscribe headers, consent records, send reputation) and
- * do not belong in this file when they arrive.
+ * different rules — consent records, unsubscribe headers, send reputation — and
+ * do not belong in this file when they arrive. Cloudflare say the same: Email
+ * Sending is for transactional mail only.
  */
-
-const API_URL = "https://api.resend.com/emails";
 
 export class EmailError extends Error {
   constructor(
     message: string,
-    readonly detail?: unknown,
+    readonly code?: string,
   ) {
     super(message);
     this.name = "EmailError";
@@ -33,45 +37,65 @@ export type Message = {
 /**
  * True when the mailer can actually send.
  *
- * The key is a secret, so it is empty on a fresh deploy until someone runs
- * `wrangler secret put RESEND_API_KEY`. Everything else on the site works
- * without it, so this is checked rather than assumed.
+ * Guards against the binding having been dropped from wrangler.jsonc rather
+ * than against a missing key — there is no key. If this is false the Worker was
+ * deployed with a broken config, which is worth a loud log line.
  */
 export function canSendEmail(env: Env): boolean {
-  return Boolean(env.RESEND_API_KEY);
+  return Boolean(env.EMAIL);
 }
 
 /**
- * Send one message.
+ * Send one message. Throws on failure.
  *
- * Throws on failure. Callers reached from an auth endpoint should catch —
- * see the note on `deliver` below for why.
+ * The binding throws plain `Error` objects carrying a string `code`, so the
+ * useful part is pulled out and rethrown as something typed. Callers reached
+ * from an auth endpoint should use `deliver` instead — see the note there.
  */
 export async function sendEmail(env: Env, message: Message): Promise<void> {
   if (!canSendEmail(env)) {
-    throw new EmailError("RESEND_API_KEY is not set");
+    throw new EmailError("the EMAIL binding is missing from wrangler.jsonc");
   }
 
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      from: env.EMAIL_FROM,
-      to: [message.to],
+  try {
+    await env.EMAIL.send({
+      to: message.to,
+      from: { email: env.EMAIL_FROM, name: env.SITE_NAME },
       subject: message.subject,
       html: message.html,
       text: message.text,
-    }),
-  });
+    });
+  } catch (error) {
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code: unknown }).code)
+        : undefined;
+    throw new EmailError(
+      error instanceof Error ? error.message : "email send failed",
+      code,
+    );
+  }
+}
 
-  if (!response.ok) {
-    // Resend returns { name, message } on error. Read it as text so a proxy
-    // error page — which is not JSON — does not throw inside the error path.
-    const detail = await response.text().catch(() => "");
-    throw new EmailError(`Resend returned ${response.status}`, detail);
+/**
+ * Turn each error code into something a person can act on.
+ *
+ * A bare "E_SENDER_NOT_VERIFIED" in the logs at 11pm is a puzzle; the fix
+ * belongs next to the symptom.
+ */
+function explain(code: string | undefined): string {
+  switch (code) {
+    case "E_SENDER_NOT_VERIFIED":
+    case "E_SENDER_DOMAIN_NOT_AVAILABLE":
+      return "the sending domain is not onboarded — run `wrangler email sending enable spruetube.app`";
+    case "E_DAILY_LIMIT_EXCEEDED":
+      return "the daily sending quota is used up";
+    case "E_RATE_LIMIT_EXCEEDED":
+      return "rate limited by Email Sending";
+    case "E_CONTENT_TOO_LARGE":
+      return "the message is over the size limit";
+    default:
+      return code ?? "no error code";
   }
 }
 
@@ -84,32 +108,35 @@ export async function sendEmail(env: Env, message: Message): Promise<void> {
  * rejection taking down the isolate mid-request. Logging keeps the failure
  * visible in Workers observability, which is on.
  *
- * Outside production the link is printed instead, so local development and
- * preview deploys have a working reset flow with no API key at all.
+ * `wrangler dev` simulates the binding and writes each message to a file rather
+ * than sending it, so local development needs no configuration at all. The link
+ * is logged as well, because reading it out of the console beats digging the
+ * file out of a temp directory.
  */
 export async function deliver(
   env: Env,
   message: Message,
   link: string,
 ): Promise<void> {
+  if (env.ENVIRONMENT !== "production") {
+    console.info(`email: "${message.subject}" to ${message.to}`);
+    console.info(`email: link is ${link}`);
+  }
+
   if (!canSendEmail(env)) {
-    if (env.ENVIRONMENT === "production") {
-      console.error(
-        `email: RESEND_API_KEY unset, dropped "${message.subject}" to ${message.to}`,
-      );
-    } else {
-      console.info(`email: would send "${message.subject}" to ${message.to}`);
-      console.info(`email: link is ${link}`);
-    }
+    console.error(
+      `email: no EMAIL binding, dropped "${message.subject}" to ${message.to}`,
+    );
     return;
   }
 
   try {
     await sendEmail(env, message);
   } catch (error) {
+    const code = error instanceof EmailError ? error.code : undefined;
     console.error(
-      `email: failed to send "${message.subject}" to ${message.to}`,
-      error instanceof EmailError ? error.detail : error,
+      `email: failed to send "${message.subject}" to ${message.to} — ${explain(code)}`,
+      error instanceof Error ? error.message : error,
     );
   }
 }

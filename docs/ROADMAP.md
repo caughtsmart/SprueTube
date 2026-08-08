@@ -8,10 +8,11 @@ These are gaps in what is already built, and the site should not be public
 without them.
 
 - **Transactional email.** Built — reset and confirmation both send through
-  Resend. What remains is configuration: verify the domain, set
-  `RESEND_API_KEY`, and reset your own password to prove it. Then grandfather in
-  the existing accounts and set `requireEmailVerification: true`, in that order
-  — see `docs/DEPLOY.md` step 11 for why the order matters.
+  Cloudflare Email Sending, with no API key anywhere. What remains is one
+  command, `wrangler email sending enable spruetube.app`, and then resetting
+  your own password to prove it. After that, grandfather in the existing
+  accounts and set `requireEmailVerification: true`, in that order — see
+  `docs/DEPLOY.md` step 11 for why the order matters.
 - **Legal entity in the documents.** `app/routes/privacy.tsx` and
   `app/routes/terms.tsx` contain `[LEGAL ENTITY]` placeholders. See
   `docs/COMPLIANCE.md`.

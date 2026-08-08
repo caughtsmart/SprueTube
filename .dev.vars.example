@@ -9,11 +9,6 @@ BETTER_AUTH_SECRET="replace-me-with-32-random-bytes"
 # Photo uploads fail without it; everything else works.
 CF_API_TOKEN=""
 
-# Resend API key, from resend.com/api-keys. Leave blank locally: without it the
-# reset and confirmation links are printed to the dev server console instead of
-# being emailed, which is usually what you want while working on the flow.
-RESEND_API_KEY=""
-
 # Social sign-in. Leave blank to hide the buttons — email sign-in still works.
 GOOGLE_CLIENT_ID=""
 GOOGLE_CLIENT_SECRET=""

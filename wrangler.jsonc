@@ -31,6 +31,25 @@
     }
   ],
 
+  /*
+   * Transactional email — password resets and address confirmation.
+   *
+   * The binding is the credential, so there is no API key anywhere in this
+   * project. `allowed_sender_addresses` pins it to the one address the code
+   * ever uses: a bug that got a user-supplied string into the `from` field
+   * would be refused by the platform rather than sent as a plausible-looking
+   * SprueTube email.
+   *
+   * Requires `wrangler email sending enable spruetube.app` once, and the
+   * Workers Paid plan — Email Sending is not offered on the free plan.
+   */
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": ["noreply@spruetube.app"]
+    }
+  ],
+
   "kv_namespaces": [
     {
       // Rate limiting counters, feed caches, ephemeral upload tokens.
@@ -56,9 +75,10 @@
     // Public account hash from Images → the imagedelivery.net URL prefix.
     // Uploads work without it; the feed cannot build image URLs.
     "CF_IMAGES_ACCOUNT_HASH": "MTceR3C16CyQmjHH6ME2VA",
-    // Envelope sender for password resets and email confirmation. The domain
-    // has to be verified in Resend or every message is rejected outright.
-    "EMAIL_FROM": "SprueTube <noreply@spruetube.app>",
+    // Envelope sender for password resets and email confirmation. Address only
+    // — the display name comes from SITE_NAME. Must be on a domain onboarded to
+    // Email Sending, and must match allowed_sender_addresses above.
+    "EMAIL_FROM": "noreply@spruetube.app",
     // Leave empty until AdSense approves the site; ad slots render house ads.
     "ADSENSE_CLIENT": "",
     "ENVIRONMENT": "production"

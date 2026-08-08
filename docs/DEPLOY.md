@@ -52,10 +52,10 @@ openssl rand -base64 32 | npx wrangler secret put BETTER_AUTH_SECRET
 
 # API token with Cloudflare Images:Edit on this account.
 npx wrangler secret put CF_API_TOKEN
-
-# Resend API key. Without it there is no password reset — see step 11.
-npx wrangler secret put RESEND_API_KEY
 ```
+
+There is no email API key. Transactional email goes through the Cloudflare
+`EMAIL` binding, which is authorised by being bound — see step 11.
 
 Create that token at **My Profile → API Tokens → Create Token → Custom token**
 with exactly one permission: *Account · Cloudflare Images · Edit*. Nothing else
@@ -236,28 +236,37 @@ CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... \
 
 Two directions, two different services. Both are needed.
 
-### Sending — Resend
+### Sending — Cloudflare Email Sending
 
-Password resets and email confirmation. Workers cannot open an SMTP connection,
-so this goes over Resend's HTTP API.
+Password resets and email confirmation, through the `send_email` binding in
+`wrangler.jsonc`. There is no API key: the binding is the credential, so nothing
+has to be minted, stored or rotated, and nothing can leak into git.
 
-1. Sign up at [resend.com](https://resend.com). The free tier is 3,000 messages
-   a month, which is far more than a community this size will send.
-2. **Domains → Add Domain →** `spruetube.app`. Resend shows a set of DNS
-   records — an MX, a TXT for SPF, and a CNAME or TXT for DKIM.
-3. Add them in Cloudflare DNS. Set every one of them to **DNS only** (grey
-   cloud, not orange). Proxying a mail record breaks it.
-4. Wait for Resend to show the domain as *Verified*. Usually minutes.
-5. **API Keys → Create API Key**, permission **Sending access**, then
-   `npx wrangler secret put RESEND_API_KEY`.
+**Requires the Workers Paid plan.** Email Sending is not offered on the free
+plan. 3,000 messages a month are included, then $0.35 per 1,000 — far beyond
+what a community this size will send on resets alone.
 
-`EMAIL_FROM` in `wrangler.jsonc` is `SprueTube <noreply@spruetube.app>`. The
-address has to be on the verified domain or Resend rejects the send.
+Onboard the domain once:
 
-Until the key is set, nothing breaks and nobody is told: the site still offers
-"reset my password", still says "check your email", and the message is dropped
-with an error in the Workers log. Verify it properly by actually resetting your
-own password.
+```bash
+npx wrangler email sending enable spruetube.app
+npx wrangler email sending dns get spruetube.app   # confirm SPF and DKIM landed
+```
+
+That writes the SPF and DKIM records straight into Cloudflare DNS, which is the
+whole reason this is less trouble than a third-party sender: no records to copy
+between two dashboards, and no chance of leaving one proxied by mistake. Usually
+live within 5–15 minutes.
+
+`EMAIL_FROM` in `wrangler.jsonc` is `noreply@spruetube.app` — the address only,
+because the binding takes the display name separately and reads it from
+`SITE_NAME`. The address must be on the onboarded domain, and must match
+`allowed_sender_addresses` on the binding.
+
+Until the domain is onboarded, nothing breaks and nobody is told: the site still
+offers "reset my password", still says "check your email", and the send fails
+with `E_SENDER_NOT_VERIFIED` in the Workers log. Verify it properly by actually
+resetting your own password.
 
 ### Receiving — Cloudflare Email Routing
 
@@ -265,8 +274,9 @@ own password.
 in the legal pages. They must reach a human. Cloudflare **Email Routing** will
 forward them to an existing mailbox for free.
 
-These two coexist fine: Email Routing owns the inbound MX for the domain and
-Resend only sends. Add Resend's records alongside, do not replace anything.
+These two coexist fine — they are halves of the same Cloudflare product.
+Routing owns the inbound MX, Sending adds SPF and DKIM for outbound. Enabling
+one does not disturb the other.
 
 ### Turning on mandatory verification
 
