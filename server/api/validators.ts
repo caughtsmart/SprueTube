@@ -3,6 +3,7 @@ import {
   GAME_SYSTEMS,
   MAX_BODY_LENGTH,
   MAX_IMAGES_PER_POST,
+  PROJECT_STATUSES,
   REPORT_REASONS,
   SCALES,
   USERNAME_MAX,
@@ -18,6 +19,8 @@ import {
 export {
   GAME_SYSTEMS,
   GAME_SYSTEM_LABELS,
+  PROJECT_STATUSES,
+  PROJECT_STATUS_LABELS,
   SCALES,
   WIP_STAGES,
   WIP_STAGE_LABELS,
@@ -153,6 +156,21 @@ export const projectSchema = z.object({
   summary: optionalTrimmed(500),
   gameSystem: z.enum(GAME_SYSTEMS).nullish(),
   scale: z.enum(SCALES).nullish(),
-  status: z.enum(["active", "finished", "abandoned"]).default("active"),
+  status: z.enum(PROJECT_STATUSES).default("active"),
+  coverImageId: z.string().max(100).nullish(),
+});
+
+/*
+ * Every field optional, because an edit form sends only what changed — and
+ * `.partial()` on the schema above would make `status` optional while keeping
+ * its default, so omitting it would silently reset a finished project to
+ * active.
+ */
+export const projectPatchSchema = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+  summary: optionalTrimmed(500),
+  gameSystem: z.enum(GAME_SYSTEMS).nullish(),
+  scale: z.enum(SCALES).nullish(),
+  status: z.enum(PROJECT_STATUSES).optional(),
   coverImageId: z.string().max(100).nullish(),
 });

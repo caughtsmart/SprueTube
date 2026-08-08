@@ -135,6 +135,27 @@ export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
   other: "Something else",
 };
 
+/*
+ * What state a build log is in.
+ *
+ * "Abandoned" earns its place. Every painter has a box of half-finished things,
+ * and a project list that only admits success is a list people stop updating —
+ * they quietly leave the dead ones marked active rather than admit to them.
+ * Naming it makes it ordinary.
+ */
+export const PROJECT_STATUSES = ["active", "finished", "abandoned"] as const;
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
+export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  active: "On the workbench",
+  finished: "Finished",
+  abandoned: "Shelved",
+};
+
+/** Limits enforced by the API and mirrored by the composer. */
+export const MAX_PROJECT_TITLE_LENGTH = 120;
+export const MAX_PROJECT_SUMMARY_LENGTH = 500;
+
 /* Limits enforced by the API and mirrored by the composer. */
 export const MAX_BODY_LENGTH = 5000;
 export const MAX_IMAGES_PER_POST = 8;

@@ -13,7 +13,11 @@ import { useRoot } from "../root";
 import { pickAd } from "../../server/services/ads";
 import { getProfilePosts } from "../../server/services/feed";
 import { block, follow, profile, project } from "../../server/db/schema";
-import { GAME_SYSTEM_LABELS } from "../lib/taxonomy";
+import {
+  GAME_SYSTEM_LABELS,
+  PROJECT_STATUS_LABELS,
+  type ProjectStatus,
+} from "../lib/taxonomy";
 
 export function meta({ loaderData: loaded }: Route.MetaArgs) {
   if (!loaded?.person) return [{ title: "Profile — SprueTube" }];
@@ -280,20 +284,42 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
         </div>
       </header>
 
-      {loaderData.projects.length ? (
-        <section className="mt-5" aria-label="Projects">
-          <h2 className="mb-2 text-sm font-semibold">Build logs</h2>
-          <ul className="flex flex-wrap gap-2">
-            {loaderData.projects.map((entry) => (
-              <li key={entry.id} className="st-card px-3 py-2">
-                <p className="text-sm font-medium">{entry.title}</p>
-                <p className="st-text-muted text-xs">
-                  {entry.postCount} {entry.postCount === 1 ? "post" : "posts"} ·{" "}
-                  {entry.status}
-                </p>
-              </li>
-            ))}
-          </ul>
+      {loaderData.projects.length || loaderData.isSelf ? (
+        <section className="mt-5" aria-label="Build logs">
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <h2 className="text-sm font-semibold">Build logs</h2>
+            {loaderData.isSelf ? (
+              <Link to="/projects/new" className="st-link text-xs font-medium">
+                New build log
+              </Link>
+            ) : null}
+          </div>
+
+          {loaderData.projects.length ? (
+            <ul className="flex flex-wrap gap-2">
+              {loaderData.projects.map((entry) => (
+                <li key={entry.id}>
+                  <Link
+                    to={`/@${person.username}/projects/${entry.slug}`}
+                    className="st-card block px-3 py-2 transition hover:border-[var(--color-primer-500)]"
+                  >
+                    <p className="text-sm font-medium">{entry.title}</p>
+                    <p className="st-text-muted text-xs">
+                      {entry.postCount}{" "}
+                      {entry.postCount === 1 ? "entry" : "entries"} ·{" "}
+                      {PROJECT_STATUS_LABELS[entry.status as ProjectStatus] ??
+                        entry.status}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="st-text-muted text-sm">
+              Group a long build into one place — an army, a single model, or
+              something you keep coming back to.
+            </p>
+          )}
         </section>
       ) : null}
 

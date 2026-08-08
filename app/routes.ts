@@ -23,12 +23,20 @@ export default [
   route("saved", "routes/saved.tsx"),
   route("settings", "routes/settings.tsx"),
   route("posts/:postId", "routes/post.tsx"),
+  route("projects/new", "routes/project-new.tsx"),
   route("tags/:tag", "routes/tag.tsx"),
   route("systems/:system", "routes/system.tsx"),
 
   // Profiles live at /@username. React Router only matches a whole segment as
   // a param, so the '@' is captured as part of the value and validated in the
   // loader. Declared last: every static route above wins the match first.
+  //
+  // Build logs hang off the handle — /@graham/projects/death-guard — so the URL
+  // says whose work it is. These are more specific than the bare :handle below
+  // and match first regardless of order, but they are kept above it to read in
+  // the order a person would guess.
+  route(":handle/projects/:slug", "routes/project.tsx"),
+  route(":handle/projects/:slug/edit", "routes/project-edit.tsx"),
   route(":handle", "routes/profile.tsx"),
 
   // Moderation

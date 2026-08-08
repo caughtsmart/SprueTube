@@ -15,6 +15,7 @@ import {
   getBookmarks,
   getFeed,
   getPost,
+  getProjectPosts,
   type FeedTab,
 } from "../../services/feed";
 import {
@@ -25,7 +26,12 @@ import {
   setBookmark,
   setPostLike,
 } from "../../services/posts";
-import { commentSchema, createPostSchema, projectSchema } from "../validators";
+import {
+  commentSchema,
+  createPostSchema,
+  projectPatchSchema,
+  projectSchema,
+} from "../validators";
 
 export const content = new Hono<ApiEnv>();
 
@@ -392,14 +398,122 @@ content.get("/profiles/:username/projects", async (c) => {
   return c.json({ projects: rows });
 });
 
-function slugify(value: string) {
+/** One build log, by owner and slug. Public — anyone can read a build log. */
+content.get("/projects/:username/:slug", async (c) => {
+  const db = c.get("db");
+  const found = await loadProject(db, c.req.param("username"), c.req.param("slug"));
+  return c.json({ project: found.project, owner: found.owner });
+});
+
+/**
+ * The posts in a build log, oldest first.
+ *
+ * Deliberately not the feed order. See getProjectPosts for why — and note the
+ * cursor is not interchangeable with a feed cursor because of it.
+ */
+content.get("/projects/:username/:slug/posts", async (c) => {
+  const db = c.get("db");
+  const found = await loadProject(db, c.req.param("username"), c.req.param("slug"));
+  const page = await getProjectPosts(
+    db,
+    found.project.id,
+    c.get("user")?.id ?? null,
+    found.owner.userId,
+    c.req.query("cursor"),
+  );
+  return c.json(page);
+});
+
+content.patch("/projects/:id", requireAuth, async (c) => {
+  const parsed = projectPatchSchema.safeParse(await c.req.json());
+  if (!parsed.success) {
+    throw badRequest("Check the form.", {
+      fields: fieldErrors(parsed.error.issues),
+    });
+  }
+
+  const db = c.get("db");
+  const owned = await db.query.project.findFirst({
+    where: and(
+      eq(project.id, c.req.param("id")),
+      eq(project.ownerId, c.get("user")!.id),
+    ),
+  });
+  if (!owned) throw apiError(404, "not_found", "That build log is not yours.");
+
+  /*
+   * Only the keys actually sent. Spreading the parsed object would write
+   * `undefined` over every field the form left out — and the title is not
+   * nullable, so a status change alone would blank it.
+   */
+  const patch: Record<string, unknown> = { updatedAt: Math.floor(Date.now() / 1000) };
+  for (const key of [
+    "title",
+    "summary",
+    "gameSystem",
+    "scale",
+    "status",
+    "coverImageId",
+  ] as const) {
+    if (parsed.data[key] !== undefined) patch[key] = parsed.data[key];
+  }
+
+  await db.update(project).set(patch).where(eq(project.id, owned.id));
+  return c.json({ ok: true });
+});
+
+/**
+ * Delete a build log without deleting the work in it.
+ *
+ * The foreign key is `on delete set null`, so the posts survive and simply stop
+ * being grouped. Someone tidying up their project list is not asking to destroy
+ * a year of photographs, and the destructive reading of that button would be
+ * unrecoverable.
+ */
+content.delete("/projects/:id", requireAuth, async (c) => {
+  const db = c.get("db");
+  const owned = await db.query.project.findFirst({
+    where: and(
+      eq(project.id, c.req.param("id")),
+      eq(project.ownerId, c.get("user")!.id),
+    ),
+  });
+  if (!owned) throw apiError(404, "not_found", "That build log is not yours.");
+
+  await db.delete(project).where(eq(project.id, owned.id));
+  return c.json({ ok: true });
+});
+
+async function loadProject(db: Db, username: string, slug: string) {
+  const owner = await db.query.profile.findFirst({
+    where: sql`lower(${profile.username}) = ${username.toLowerCase()}`,
+  });
+  if (!owner) throw apiError(404, "not_found", "No such painter.");
+
+  const found = await db.query.project.findFirst({
+    where: and(eq(project.ownerId, owner.userId), eq(project.slug, slug)),
+  });
+  if (!found) throw apiError(404, "not_found", "No such build log.");
+
+  return { project: found, owner };
+}
+
+/** Exported for tests: this decides every build-log URL. */
+export function slugify(value: string) {
   return (
     value
       .toLowerCase()
+      // NFKD splits an accented letter into the letter plus a combining mark.
+      // Dropping the marks turns "Légion" into "legion"; without this line the
+      // mark survives to the next rule and becomes a dash, giving "le-gion".
       .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "project"
+      .slice(0, 60)
+      // The slice can leave a trailing dash behind if it lands on one, and a
+      // slug ending in '-' looks like a typo in a shared link.
+      .replace(/-+$/, "") || "project"
   );
 }
 

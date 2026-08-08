@@ -229,7 +229,9 @@ export async function deletePost(db: Db, postId: string, authorId: string) {
   if (!row || row.authorId !== authorId || row.deletedAt) return false;
 
   const nowSeconds = Math.floor(Date.now() / 1000);
-  await db.batch([
+  // `any[]` to match createPost above: drizzle's batch tuple type does not
+  // survive a heterogeneous array built with push.
+  const statements: any[] = [
     db
       .update(post)
       .set({ deletedAt: nowSeconds, status: "removed" })
@@ -238,7 +240,21 @@ export async function deletePost(db: Db, postId: string, authorId: string) {
       .update(profile)
       .set({ postCount: sql`max(0, ${profile.postCount} - 1)` })
       .where(eq(profile.userId, authorId)),
-  ]);
+  ];
+
+  // Creating a post increments the project's count, so deleting one has to
+  // give it back. Without this a build log slowly claims more entries than it
+  // shows, and the number is the first thing anyone reads on the card.
+  if (row.projectId) {
+    statements.push(
+      db
+        .update(project)
+        .set({ postCount: sql`max(0, ${project.postCount} - 1)` })
+        .where(eq(project.id, row.projectId)),
+    );
+  }
+
+  await db.batch(statements as [any, ...any[]]);
   return true;
 }
 

@@ -1,7 +1,9 @@
 import {
   and,
+  asc,
   desc,
   eq,
+  gt,
   inArray,
   isNull,
   lt,
@@ -532,4 +534,77 @@ export async function getBookmarks(
   return hydrated.sort(
     (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0),
   );
+}
+
+/**
+ * The posts in one build log, oldest first.
+ *
+ * Every other listing in this codebase is newest-first, because that is what a
+ * feed is for. A build log is the opposite: it is a story, and the interesting
+ * thing about it is the progression from bare plastic to finished model. Read
+ * newest-first it is a stack of disconnected photos; read oldest-first it is
+ * the reason someone follows the project at all.
+ *
+ * That flips the keyset comparison — `gt` rather than `lt`, ascending order —
+ * so the cursor is not interchangeable with a feed cursor even though it has
+ * the same shape.
+ */
+export async function getProjectPosts(
+  db: Db,
+  projectId: string,
+  viewerId: string | null,
+  ownerId: string,
+  cursorRaw?: string | null,
+  limit = PAGE_SIZE,
+): Promise<FeedPage> {
+  const cursor = decodeCursor(cursorRaw);
+  const isOwner = viewerId === ownerId;
+
+  const where = [
+    eq(post.projectId, projectId),
+    isNull(post.deletedAt),
+    ...(isOwner
+      ? []
+      : [eq(post.status, "published"), eq(post.visibility, "public")]),
+  ];
+  if (cursor) {
+    where.push(
+      or(
+        gt(post.publishedAt, cursor.score),
+        and(eq(post.publishedAt, cursor.score), gt(post.id, cursor.id)),
+      )!,
+    );
+  }
+
+  const rows = await db
+    .select({
+      post,
+      author: {
+        userId: profile.userId,
+        username: profile.username,
+        displayName: profile.displayName,
+        avatarImageId: profile.avatarImageId,
+      },
+      project: { id: project.id, title: project.title, slug: project.slug },
+    })
+    .from(post)
+    .innerJoin(profile, eq(profile.userId, post.authorId))
+    .leftJoin(project, eq(project.id, post.projectId))
+    .where(and(...where))
+    .orderBy(asc(post.publishedAt), asc(post.id))
+    .limit(limit + 1);
+
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+  if (!page.length) return { posts: [], nextCursor: null };
+
+  const posts = await hydrate(db, page as JoinedRow[], viewerId);
+  const last = page[page.length - 1]!;
+
+  return {
+    posts,
+    nextCursor: hasMore
+      ? encodeCursor({ score: last.post.publishedAt ?? 0, id: last.post.id })
+      : null,
+  };
 }
