@@ -1,0 +1,94 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "spruetube",
+  "main": "./workers/app.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+
+  // Decays Discover scores so posts nobody touches fall down the page.
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+
+  // spruetube.app is canonical. www is attached here too and redirected to the
+  // apex by a Redirect Rule at the edge — see docs/DEPLOY.md step 6.
+  "routes": [
+    { "pattern": "spruetube.app", "custom_domain": true },
+    { "pattern": "www.spruetube.app", "custom_domain": true }
+  ],
+
+  // Created in the WEUR region — the audience is UK and European, and D1 reads
+  // are served from wherever the primary lives.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "spruetube",
+      "database_id": "d15396fa-e98d-46c5-9212-1c38dbbb1c2f",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  /*
+   * Transactional email — password resets and address confirmation.
+   *
+   * The binding is the credential, so there is no API key anywhere in this
+   * project. `allowed_sender_addresses` pins it to the one address the code
+   * ever uses: a bug that got a user-supplied string into the `from` field
+   * would be refused by the platform rather than sent as a plausible-looking
+   * SprueTube email.
+   *
+   * Requires `wrangler email sending enable spruetube.app` once, and the
+   * Workers Paid plan — Email Sending is not offered on the free plan.
+   */
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": ["noreply@spruetube.app"]
+    }
+  ],
+
+  "kv_namespaces": [
+    {
+      // Rate limiting counters, feed caches, ephemeral upload tokens.
+      "binding": "CACHE",
+      "id": "6f09e2419a8f44c5a5114fa204cac13c"
+    }
+  ],
+
+  // No R2 binding yet, deliberately. Photos live in Cloudflare Images, so
+  // nothing in the codebase reads a bucket — and an unused binding pointing at
+  // a bucket that does not exist fails the deploy. Add it back (bucket
+  // "spruetube-media", binding "MEDIA") when there is a reason to, e.g. keeping
+  // untouched originals or serving data exports.
+
+  "vars": {
+    "SITE_URL": "https://spruetube.app",
+    "SITE_NAME": "SprueTube",
+    // Loaded Dice storefront used for the "paints used" affiliate links.
+    "SHOP_URL": "https://www.loadeddice.uk",
+    "SHOP_NAME": "Loaded Dice",
+    // Needed for the Cloudflare Images REST API. From `wrangler whoami`. Not a
+    // credential — an API token is what grants access; this only names the
+    // account — so it belongs in config rather than in a secret.
+    "CF_ACCOUNT_ID": "aff68b2217205f77d69c6cb284353704",
+    // Public account hash from Images → the imagedelivery.net URL prefix.
+    // Uploads work without it; the feed cannot build image URLs.
+    "CF_IMAGES_ACCOUNT_HASH": "MTceR3C16CyQmjHH6ME2VA",
+    // Envelope sender for password resets and email confirmation. Address only
+    // — the display name comes from SITE_NAME. Must be on a domain onboarded to
+    // Email Sending, and must match allowed_sender_addresses above.
+    "EMAIL_FROM": "noreply@spruetube.app",
+    // Leave empty until AdSense approves the site; ad slots render house ads.
+    "ADSENSE_CLIENT": "",
+    "ENVIRONMENT": "production"
+  }
+
+  // Secrets (set with `wrangler secret put <NAME>`):
+  //   BETTER_AUTH_SECRET        — 32+ random bytes, signs sessions
+  //   CF_API_TOKEN              — Cloudflare Images edit permission
+  //   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
+  //   APPLE_CLIENT_ID / APPLE_CLIENT_SECRET  (needed before iOS submission)
+}

@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+#
+# First-deploy helper for SprueTube.
+#
+# Does the fiddly, get-it-wrong-once parts: resolves the account id rather than
+# making you paste it, generates the session secret, and refuses to deploy if
+# the code does not compile. Safe to re-run.
+#
+#   ./scripts/deploy.sh
+#
+# Requires `wrangler login` first (or CLOUDFLARE_API_TOKEN in the environment).
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+info() { printf '\033[1;36m→\033[0m %s\n' "$1"; }
+ok() { printf '\033[1;32m✓\033[0m %s\n' "$1"; }
+warn() { printf '\033[1;33m!\033[0m %s\n' "$1"; }
+die() {
+  printf '\033[1;31m✗\033[0m %s\n' "$1" >&2
+  exit 1
+}
+
+# --- Authentication ----------------------------------------------------------
+
+info "Checking Cloudflare authentication"
+if ! whoami_out=$(npx wrangler whoami 2>&1); then
+  die "wrangler could not run. Try 'npm install' first."
+fi
+if grep -qi "not authenticated" <<<"$whoami_out"; then
+  die "Not signed in. Run 'npx wrangler login', then re-run this script."
+fi
+ok "Signed in"
+
+# --- Account id --------------------------------------------------------------
+#
+# This script does not write to wrangler.jsonc, and must not start.
+#
+# It used to: it resolved the account id from `wrangler whoami` and patched the
+# placeholder in place. That left the file modified in the working tree after
+# every single deploy, so the next `git pull` refused with "your local changes
+# would be overwritten" — and a pull that aborts is quiet. Twice that meant a
+# deploy that looked perfect while shipping week-old code, and once it silently
+# reverted the Images hash and took photos down.
+#
+# A deploy script that edits a tracked file is a deploy script that fights git.
+# The account id is committed instead, and this only checks it.
+
+# `wrangler whoami` prints a table; the account id is the 32-hex cell.
+account_id=$(grep -oiE '\b[0-9a-f]{32}\b' <<<"$whoami_out" | head -1 || true)
+configured_id=$(grep -oE '"CF_ACCOUNT_ID": *"[^"]*"' wrangler.jsonc | grep -oE '[^"]*"$' | tr -d '"' || true)
+
+if [[ $configured_id == REPLACE_WITH_* || -z $configured_id ]]; then
+  die "CF_ACCOUNT_ID is not set in wrangler.jsonc.
+Set it to the account you are deploying to${account_id:+, which looks like $account_id}, then re-run."
+fi
+
+if [[ -n $account_id && $configured_id != "$account_id" ]]; then
+  warn "wrangler.jsonc deploys to account $configured_id"
+  warn "but you are signed in as $account_id."
+  warn "Photo uploads call the Images API on the configured one and will fail."
+else
+  ok "CF_ACCOUNT_ID matches the signed-in account"
+fi
+
+# --- Verify before shipping --------------------------------------------------
+
+info "Typechecking"
+npm run typecheck >/dev/null || die "Typecheck failed. Not deploying."
+ok "Types clean"
+
+info "Running tests"
+npm test >/dev/null 2>&1 || die "Tests failed. Not deploying."
+ok "Tests pass"
+
+# --- Deploy ------------------------------------------------------------------
+#
+# Deploy runs BEFORE the secrets are set, deliberately. On a fresh account the
+# Worker does not exist yet, and `wrangler secret put` against a Worker that is
+# not there fails. Secrets apply to a live Worker without needing a redeploy, so
+# this order works on both the first run and every later one.
+
+info "Deploying"
+if ! npm run deploy; then
+  echo
+  die "Deploy failed.
+
+If the error mentions a zone, a route or a custom domain, it is because
+wrangler.jsonc claims spruetube.app and www.spruetube.app, and one of them is
+not an active zone on this Cloudflare account. Two ways forward:
+
+  a) Add spruetube.app to this account first (Cloudflare dashboard → Add a
+     domain), then re-run this script.
+
+  b) Preview on workers.dev instead: delete the \"routes\" block from
+     wrangler.jsonc, set SITE_URL to
+     https://spruetube.<your-subdomain>.workers.dev, and re-run. SITE_URL has
+     to match the host you actually use or sign-in refuses the request."
+fi
+ok "Worker deployed"
+
+# --- Secrets -----------------------------------------------------------------
+
+secret_list=$(npx wrangler secret list 2>/dev/null || true)
+
+# Plain substring match on the name, not a quoted JSON match: if wrangler ever
+# changes this output format, a false *positive* only skips setting a secret and
+# prints a warning, whereas a false negative would silently rotate
+# BETTER_AUTH_SECRET and sign every existing user out.
+has_secret() { grep -q "$1" <<<"$secret_list"; }
+
+if has_secret BETTER_AUTH_SECRET; then
+  ok "BETTER_AUTH_SECRET already set (untouched — rotating it signs everyone out)"
+else
+  info "Generating BETTER_AUTH_SECRET"
+  openssl rand -base64 32 | npx wrangler secret put BETTER_AUTH_SECRET >/dev/null
+  ok "BETTER_AUTH_SECRET set"
+fi
+
+echo
+if ! has_secret CF_API_TOKEN; then
+  warn "CF_API_TOKEN not set — photo uploads will return 502."
+  warn "  npx wrangler secret put CF_API_TOKEN"
+  warn "  (a token with only Cloudflare Images:Edit)"
+fi
+if grep -q 'REPLACE_WITH_IMAGES_ACCOUNT_HASH' wrangler.jsonc; then
+  warn "CF_IMAGES_ACCOUNT_HASH still a placeholder — photos will not render."
+  warn "Avatars fall back to initials, so the site is usable meanwhile."
+fi
+
+# --- What is left ------------------------------------------------------------
+
+cat <<'NEXT'
+
+Next:
+  1. Open the site. wrangler.jsonc lists spruetube.app as a custom domain, so
+     the deploy above attached it — no dashboard step needed. DNS can take a
+     minute or two to answer the first time.
+  2. Sign up, then make yourself admin — until someone is, reports pile up
+     with nobody able to action them:
+       npx wrangler d1 execute spruetube --remote \
+         --command "UPDATE profile SET role='admin' WHERE username='you'"
+  3. Tell Claude the URL and it will run: npm run verify -- <url>
+NEXT

@@ -1,0 +1,52 @@
+{
+  "name": "spruetube",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SprueTube — the social network for model makers and miniature painters.",
+  "scripts": {
+    "dev": "react-router dev",
+    "build": "react-router build",
+    "preview": "npm run build && vite preview",
+    "deploy": "npm run build && wrangler deploy",
+    "build:ci": "npm run typecheck && npm test && npm run build",
+    "typecheck": "wrangler types && react-router typegen && tsc -b",
+    "lint": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply spruetube --local",
+    "db:migrate:remote": "wrangler d1 migrations apply spruetube --remote",
+    "db:studio": "drizzle-kit studio",
+    "db:seed:local": "wrangler d1 execute spruetube --local --file=./scripts/seed.sql",
+    "cf-typegen": "wrangler types",
+    "verify": "node scripts/verify-deployment.mjs"
+  },
+  "dependencies": {
+    "better-auth": "^1.6.26",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.13.0",
+    "isbot": "^5.2.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router": "^8.3.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.51.0",
+    "@react-router/dev": "^8.3.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "drizzle-kit": "^0.31.10",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.119.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
