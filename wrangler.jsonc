@@ -55,7 +55,7 @@
     "CF_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
     // Public account hash from Images → the imagedelivery.net URL prefix.
     // Uploads work without it; the feed cannot build image URLs.
-    "CF_IMAGES_ACCOUNT_HASH": "REPLACE_WITH_IMAGES_ACCOUNT_HASH",
+    "CF_IMAGES_ACCOUNT_HASH": "MTceR3C16CyQmjHH6ME2VA",
     // Leave empty until AdSense approves the site; ad slots render house ads.
     "ADSENSE_CLIENT": "",
     "ENVIRONMENT": "production"
