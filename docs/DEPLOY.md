@@ -313,9 +313,58 @@ the flag is the only thing left to change.
 
 ---
 
+## Continuous deployment
+
+Merging to `main` deploys the site. Cloudflare **Workers Builds** watches the
+repository, so nothing is deployed from anyone's laptop and no clone has to be
+kept in step.
+
+Set up once, in the dashboard: **Workers & Pages → spruetube → Settings →
+Builds → Connect repository**.
+
+| Field | Value |
+| --- | --- |
+| Repository | `caughtsmart/SprueTube` |
+| Branch | `main` |
+| Build command | `npm run build:ci` |
+| Deploy command | `npx wrangler deploy` |
+
+`build:ci` runs the typecheck, the unit tests and the build. A failure at any of
+those stops the deploy, so a red build leaves the previous version serving
+rather than replacing it with a broken one.
+
+Secrets are not touched by a deploy. They live on the Worker and survive every
+build, which is why none of them appear here.
+
+**This makes merging the same thing as deploying.** Two things keep that safe:
+
+- CI runs the same checks on every pull request, plus `wrangler deploy
+  --dry-run`, which validates `wrangler.jsonc` and catches a malformed or
+  missing binding before it can reach production.
+- The branch ruleset in `.github/ruleset-main.json` requires those checks to
+  pass before anything can merge. Apply it under **Settings → Rules → Rulesets
+  → New ruleset → Import**. Without it, merging is deploying with nothing in
+  between.
+
+### Everything else from a browser
+
+With Workers Builds connected, no part of running this site needs a terminal.
+
+| Task | Where |
+| --- | --- |
+| Review and merge changes | github.com |
+| Deploy | Automatic on merge |
+| Add or rotate a secret | Worker → Settings → Variables and Secrets |
+| Run SQL (make an admin, check counts) | Storage & Databases → D1 → spruetube → Console |
+| Read logs | Worker → Logs |
+| Email sending setup | Compute & AI → Email Service |
+
 ## Ongoing
 
-**Deploys**
+**Deploying from a laptop**
+
+Still supported, and useful when Workers Builds is not connected yet or you want
+to ship without merging. `scripts/deploy.sh` does the same checks first:
 
 ```bash
 npm run typecheck && npm test && npm run deploy

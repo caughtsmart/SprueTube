@@ -9,6 +9,7 @@
     "build": "react-router build",
     "preview": "npm run build && vite preview",
     "deploy": "npm run build && wrangler deploy",
+    "build:ci": "npm run typecheck && npm test && npm run build",
     "typecheck": "wrangler types && react-router typegen && tsc -b",
     "lint": "tsc -b",
     "test": "vitest run",
