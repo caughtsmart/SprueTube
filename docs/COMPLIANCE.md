@@ -12,17 +12,24 @@ from.
 
 ## Still needs a human — blocks launch
 
-- [ ] **Name the operating entity.** `[LEGAL ENTITY]` and `[REGISTERED ADDRESS]`
-      appear in `app/routes/privacy.tsx` and `app/routes/terms.tsx`. If Loaded
-      Dice Ltd operates SprueTube, say so; if it is a separate company, say that.
-- [ ] **ICO registration.** Most UK organisations processing personal data must
+- [x] **Name the operating entity.** Set `OPERATOR.legalName` in
+      `app/lib/legal.ts`. Both documents read from it, so they cannot disagree.
+      For a limited company that is the registered name plus `companyNumber`;
+      for a sole trader it is the trading name and `companyNumber` stays null.
+      The address is prefilled from the Loaded Dice Shopify billing record —
+      confirm it is the right address for service before publishing.
+      While `legalName` is unset, both pages carry a visible "not reviewed yet"
+      warning, which clears itself once it is filled in.
+- [x] **ICO registration.** Most UK organisations processing personal data must
       register with the Information Commissioner's Office and pay the annual
-      data protection fee. Add the registration number to the privacy notice.
+      data protection fee. Put the number in `OPERATOR.icoNumber`; the privacy
+      notice then states it, and omits the sentence entirely while it is null.
 - [ ] **Have the privacy notice and terms reviewed.** They are complete and
       accurate about the software's behaviour, which is the hard part — but a
       solicitor should read them before launch.
-- [ ] **Set the "last updated" dates.** Both pages say `[set this date before
-      launch]`.
+- [x] **Set the "last updated" date.** `LEGAL_UPDATED` in `app/lib/legal.ts`,
+      one value for both pages. Null until reviewed — a legal document carrying
+      a date from before anyone read it is worse than one carrying none.
 - [ ] **Make `safety@spruetube.app` and `privacy@spruetube.app` reach a human.**
       Cloudflare Email Routing does this for free. Both addresses are published
       in the app, so they must not bounce.
