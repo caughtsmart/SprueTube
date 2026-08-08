@@ -70,7 +70,22 @@ ok "Tests pass"
 # this order works on both the first run and every later one.
 
 info "Deploying"
-npm run deploy
+if ! npm run deploy; then
+  echo
+  die "Deploy failed.
+
+If the error mentions a zone, a route or a custom domain, it is because
+wrangler.jsonc claims spruetube.app and www.spruetube.app, and one of them is
+not an active zone on this Cloudflare account. Two ways forward:
+
+  a) Add spruetube.app to this account first (Cloudflare dashboard → Add a
+     domain), then re-run this script.
+
+  b) Preview on workers.dev instead: delete the \"routes\" block from
+     wrangler.jsonc, set SITE_URL to
+     https://spruetube.<your-subdomain>.workers.dev, and re-run. SITE_URL has
+     to match the host you actually use or sign-in refuses the request."
+fi
 ok "Worker deployed"
 
 # --- Secrets -----------------------------------------------------------------
@@ -107,10 +122,12 @@ fi
 cat <<'NEXT'
 
 Next:
-  1. Attach the domain — Workers & Pages → spruetube → Settings →
-     Domains & Routes → add spruetube.app
+  1. Open the site. wrangler.jsonc lists spruetube.app as a custom domain, so
+     the deploy above attached it — no dashboard step needed. DNS can take a
+     minute or two to answer the first time.
   2. Sign up, then make yourself admin — until someone is, reports pile up
      with nobody able to action them:
        npx wrangler d1 execute spruetube --remote \
          --command "UPDATE profile SET role='admin' WHERE username='you'"
+  3. Tell Claude the URL and it will run: npm run verify -- <url>
 NEXT
