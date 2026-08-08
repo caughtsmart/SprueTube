@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch makes the first run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # `npm run typecheck` regenerates worker-configuration.d.ts and the route
+      # types first, both of which are gitignored. It needs no Cloudflare
+      # credentials — the types come from wrangler.jsonc alone.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # A dry run needs no Cloudflare credentials. It validates wrangler.jsonc —
+      # catching a malformed or missing binding before a real deploy does — and
+      # reports the gzipped upload size, so a Worker growing towards the limit
+      # shows up as a step summary rather than as a failed deploy.
+      - name: Validate Worker config and report size
+        env:
+          WRANGLER_SEND_METRICS: false
+        run: |
+          npx wrangler deploy --dry-run 2>&1 | tee /tmp/dry-run.log
+          size=$(grep -o 'gzip: [0-9.]* KiB' /tmp/dry-run.log | tail -1)
+          echo "Worker upload — ${size:-unknown}" >> "$GITHUB_STEP_SUMMARY"
