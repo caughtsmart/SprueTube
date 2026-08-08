@@ -14,6 +14,8 @@
  *   4. we flip the post from `processing` to `published`
  */
 
+import { isConfigured } from "../../app/lib/media";
+
 const API_BASE = "https://api.cloudflare.com/client/v4";
 
 export type ImageUploadTicket = {
@@ -162,7 +164,7 @@ export function imageUrl(
   imageId: string | null | undefined,
   variant: ImageVariant = "public",
 ): string | null {
-  if (!imageId || !env.CF_IMAGES_ACCOUNT_HASH) return null;
+  if (!imageId || !isConfigured(env.CF_IMAGES_ACCOUNT_HASH)) return null;
   return `https://imagedelivery.net/${env.CF_IMAGES_ACCOUNT_HASH}/${imageId}/${variant}`;
 }
 
@@ -170,7 +172,7 @@ export function videoPlaybackUrl(
   env: Pick<Env, "CF_STREAM_CUSTOMER_SUBDOMAIN">,
   streamUid: string | null | undefined,
 ): string | null {
-  if (!streamUid || !env.CF_STREAM_CUSTOMER_SUBDOMAIN) return null;
+  if (!streamUid || !isConfigured(env.CF_STREAM_CUSTOMER_SUBDOMAIN)) return null;
   return `https://${env.CF_STREAM_CUSTOMER_SUBDOMAIN}/${streamUid}/manifest/video.m3u8`;
 }
 
@@ -178,7 +180,7 @@ export function videoIframeUrl(
   env: Pick<Env, "CF_STREAM_CUSTOMER_SUBDOMAIN">,
   streamUid: string | null | undefined,
 ): string | null {
-  if (!streamUid || !env.CF_STREAM_CUSTOMER_SUBDOMAIN) return null;
+  if (!streamUid || !isConfigured(env.CF_STREAM_CUSTOMER_SUBDOMAIN)) return null;
   return `https://${env.CF_STREAM_CUSTOMER_SUBDOMAIN}/${streamUid}/iframe`;
 }
 
@@ -187,7 +189,7 @@ export function videoThumbnailUrl(
   streamUid: string | null | undefined,
   atSecond = 1,
 ): string | null {
-  if (!streamUid || !env.CF_STREAM_CUSTOMER_SUBDOMAIN) return null;
+  if (!streamUid || !isConfigured(env.CF_STREAM_CUSTOMER_SUBDOMAIN)) return null;
   return `https://${env.CF_STREAM_CUSTOMER_SUBDOMAIN}/${streamUid}/thumbnails/thumbnail.jpg?time=${atSecond}s`;
 }
 

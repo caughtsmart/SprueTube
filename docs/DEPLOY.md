@@ -108,6 +108,58 @@ Pick one canonical host and redirect the other. `www` → apex is the convention
 Rules → **Redirect Rules** → `http.host eq "www.spruetube.app"` → dynamic
 redirect to `concat("https://spruetube.app", http.request.uri.path)`, 301.
 
+## 6a. Previewing behind Cloudflare Access (Zero Trust)
+
+Putting Access in front of `spruetube.app` is the right way to preview a UGC
+platform before it is ready for the public: no crawlers, no strangers signing
+up, no AdSense review happening early, and nothing to un-launch afterwards.
+
+Zero Trust → Access → Applications → **Add a self-hosted application**, domain
+`spruetube.app` (add `www.spruetube.app` too if it is attached), then a policy
+of Allow / Emails / your own address.
+
+### The one thing Access breaks
+
+**The Stream webhook.** `/api/v1/webhooks/stream` is a server-to-server callback
+from Cloudflare Stream with no browser and no session, so Access answers it with
+a login redirect and the callback never lands. Videos upload fine and then sit
+in `processing` forever.
+
+Fix it with a second Access application scoped to that path, with a **Bypass**
+policy for **Everyone**:
+
+- Application domain: `spruetube.app`, path `api/v1/webhooks/stream`
+- Policy: action **Bypass**, include **Everyone**
+
+Order matters — Access matches the most specific path first, so the bypass app
+must exist alongside the site-wide one rather than inside it. Bypassing is safe
+here because the endpoint verifies an HMAC signature and rejects anything
+unsigned, stale or replayed; Access was never what protected it.
+
+If you would rather not add the bypass during a preview, video still works:
+the 15-minute cron sweep reconciles anything stuck in `processing` by asking
+Stream directly. Publishing is just delayed by up to 15 minutes instead of
+being immediate.
+
+### What else changes, and does not matter yet
+
+- Crawlers cannot reach the site, so `robots.txt`, the sitemap and Open Graph
+  previews do nothing. All correct for a preview.
+- Link unfurls in Slack, Discord and WhatsApp will show the Access login page
+  rather than a post.
+- Google and Apple sign-in still work: the visitor is already through Access in
+  a browser, and the OAuth callback is a browser redirect.
+- The iOS app will not be able to reach the API through Access without a service
+  token. Worth remembering, not worth solving yet.
+
+### Preview without the real domain
+
+If you would rather not point `spruetube.app` at anything yet, deploy to the
+`workers.dev` subdomain instead: remove the `routes` block from
+`wrangler.jsonc`, deploy, and use `spruetube.<your-subdomain>.workers.dev`. Set
+`SITE_URL` to that host as well, or sign-in will refuse the request — the origin
+has to match what better-auth trusts.
+
 ## 7. Social sign-in
 
 Optional for web, **required before the iOS app can ship** — App Store guideline
@@ -251,7 +303,9 @@ restore without Cloudflare.
 
 | Symptom | Cause |
 | --- | --- |
-| Videos stay "processing" forever | Stream webhook not registered, or `CF_STREAM_WEBHOOK_SECRET` wrong. Check `wrangler tail` for `bad_signature`. |
+| Videos stay "processing" forever | Stream webhook not registered, or `CF_STREAM_WEBHOOK_SECRET` wrong. Check `wrangler tail` for `bad_signature`. If Access is on, the callback is being sent to a login page — add the bypass in step 6a. |
+| Broken image icons everywhere | `CF_IMAGES_ACCOUNT_HASH` still a placeholder. The URL builders return null for a placeholder so avatars fall back to initials, but an already-uploaded image cannot be shown. |
+| Every page is the Access login screen, including link previews | Working as intended; see step 6a. |
 | Images 404 after upload | Variant name missing in the Images dashboard. |
 | "Missing or null Origin" on sign-in | Request Origin is not in `trustedOrigins` — check `SITE_URL` matches the host being used. |
 | Everyone signed out at once | `BETTER_AUTH_SECRET` changed. |

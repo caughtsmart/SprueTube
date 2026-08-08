@@ -13,12 +13,26 @@ export type MediaConfig = {
 
 export type ImageVariant = "thumbnail" | "avatar" | "feed" | "full" | "public";
 
+/**
+ * True when a config value is actually usable.
+ *
+ * wrangler.jsonc ships `REPLACE_WITH_…` placeholders for the Images hash and the
+ * Stream subdomain, because both come from dashboards that may not be enabled
+ * yet. An empty check alone is not enough: a placeholder is a non-empty string,
+ * so it would happily build `imagedelivery.net/REPLACE_WITH_…/abc/feed` and the
+ * page would fill with broken images. Returning null instead lets the UI fall
+ * back — initials for avatars, no media block for posts.
+ */
+function isConfigured(value: string | null | undefined): value is string {
+  return Boolean(value) && !value!.startsWith("REPLACE_WITH_");
+}
+
 export function imageSrc(
   config: MediaConfig,
   imageId: string | null | undefined,
   variant: ImageVariant = "feed",
 ): string | null {
-  if (!imageId || !config.imagesAccountHash) return null;
+  if (!imageId || !isConfigured(config.imagesAccountHash)) return null;
   return `https://imagedelivery.net/${config.imagesAccountHash}/${imageId}/${variant}`;
 }
 
@@ -26,7 +40,7 @@ export function streamIframeSrc(
   config: MediaConfig,
   uid: string | null | undefined,
 ): string | null {
-  if (!uid || !config.streamSubdomain) return null;
+  if (!uid || !isConfigured(config.streamSubdomain)) return null;
   return `https://${config.streamSubdomain}/${uid}/iframe`;
 }
 
@@ -34,9 +48,11 @@ export function streamPosterSrc(
   config: MediaConfig,
   uid: string | null | undefined,
 ): string | null {
-  if (!uid || !config.streamSubdomain) return null;
+  if (!uid || !isConfigured(config.streamSubdomain)) return null;
   return `https://${config.streamSubdomain}/${uid}/thumbnails/thumbnail.jpg?time=1s`;
 }
+
+export { isConfigured };
 
 /**
  * A deterministic placeholder for someone with no avatar yet.

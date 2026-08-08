@@ -5,6 +5,7 @@ import { ageFromBirthdate } from "../server/services/moderation";
 import { adSlotIndices } from "../server/services/ads";
 import { idTimestamp, newId } from "../server/db/id";
 import { compactCount, excerpt, parseBody } from "../app/lib/format";
+import { imageSrc, streamIframeSrc, streamPosterSrc } from "../app/lib/media";
 import { decodeCursor, encodeCursor } from "../server/services/feed";
 import {
   suggestUsername,
@@ -210,6 +211,43 @@ describe("ad placement", () => {
     const indices = adSlotIndices(25);
     const gaps = indices.slice(1).map((value, i) => value - indices[i]!);
     expect(new Set(gaps).size).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("media URLs", () => {
+  const configured = {
+    imagesAccountHash: "abc123",
+    streamSubdomain: "customer-xyz.cloudflarestream.com",
+  };
+  const placeholders = {
+    imagesAccountHash: "REPLACE_WITH_IMAGES_ACCOUNT_HASH",
+    streamSubdomain: "REPLACE_WITH_STREAM_SUBDOMAIN",
+  };
+
+  it("builds a delivery URL when configured", () => {
+    expect(imageSrc(configured, "img1", "feed")).toBe(
+      "https://imagedelivery.net/abc123/img1/feed",
+    );
+  });
+
+  it("returns null rather than a URL built from a placeholder", () => {
+    // A preview deploy happens before Images and Stream are switched on. A
+    // placeholder is a non-empty string, so an emptiness check alone would ship
+    // a page full of broken images.
+    expect(imageSrc(placeholders, "img1")).toBeNull();
+    expect(streamIframeSrc(placeholders, "uid1")).toBeNull();
+    expect(streamPosterSrc(placeholders, "uid1")).toBeNull();
+  });
+
+  it("returns null when there is no media id at all", () => {
+    expect(imageSrc(configured, null)).toBeNull();
+    expect(imageSrc(configured, undefined)).toBeNull();
+  });
+
+  it("treats empty config as unconfigured", () => {
+    expect(
+      imageSrc({ imagesAccountHash: "", streamSubdomain: "" }, "img1"),
+    ).toBeNull();
   });
 });
 
