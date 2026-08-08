@@ -242,7 +242,30 @@ feed, sidebar and post slots. Re-running is harmless (`INSERT OR IGNORE`):
 npx wrangler d1 execute spruetube --remote --file=./scripts/seed.sql
 ```
 
-## 11. Set up the safety inboxes
+## 11. Verify the deployment
+
+```bash
+npm run verify -- https://spruetube.app
+```
+
+Drives the real API and the rendered pages: signup, the age gate, posting,
+hashtag extraction, all feed tabs, follows, idempotent likes, comments,
+notifications, followers-only visibility, reporting, moderation authorisation
+and blocking. 36 checks.
+
+It creates two throwaway accounts prefixed `verify-` and prints the one-line
+command to remove them.
+
+Behind Access, pass an Access service token or every request gets the login page
+instead of the app — the script detects that case and says so rather than
+reporting 36 confusing failures:
+
+```bash
+CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... \
+  npm run verify -- https://spruetube.app
+```
+
+## 12. Set up the safety inboxes
 
 `safety@spruetube.app` and `privacy@spruetube.app` are published in the app and
 in the legal pages. They must reach a human. Cloudflare **Email Routing** will

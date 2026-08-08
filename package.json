@@ -18,7 +18,8 @@
     "db:migrate:remote": "wrangler d1 migrations apply spruetube --remote",
     "db:studio": "drizzle-kit studio",
     "db:seed:local": "wrangler d1 execute spruetube --local --file=./scripts/seed.sql",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "verify": "node scripts/verify-deployment.mjs"
   },
   "dependencies": {
     "better-auth": "^1.6.26",

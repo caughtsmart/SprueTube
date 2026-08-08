@@ -60,6 +60,12 @@ npm run dev                        # http://localhost:5173
 
 Uploads need a real `CF_API_TOKEN`; everything else works without one.
 
+If every page suddenly 500s with `no such table`, the local database is empty
+because miniflare keys its local D1 file on the `database_id` in
+`wrangler.jsonc` — change that id and you get a different, unmigrated file. Run
+`npm run db:migrate:local && npm run db:seed:local` again and restart the dev
+server.
+
 To make yourself a moderator locally:
 
 ```bash
@@ -78,6 +84,7 @@ npx wrangler d1 execute spruetube --local \
 | `npm test` | Unit tests |
 | `npm run db:generate` | Generate a migration from the schema |
 | `npm run db:migrate:local` / `:remote` | Apply migrations |
+| `npm run verify` | End-to-end check against a running instance |
 
 ## Layout
 
