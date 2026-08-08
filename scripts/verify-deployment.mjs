@@ -16,6 +16,25 @@
  *   CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... node scripts/…
  */
 
+/*
+ * Node's fetch ignores HTTPS_PROXY unless explicitly told to honour it, so in a
+ * proxied environment every request goes direct and is refused. Re-exec once
+ * with the flag set rather than making the caller remember it.
+ */
+if (
+  (process.env.HTTPS_PROXY || process.env.https_proxy) &&
+  process.env.NODE_USE_ENV_PROXY !== "1"
+) {
+  const { spawnSync } = await import("node:child_process");
+  const { fileURLToPath } = await import("node:url");
+  const result = spawnSync(
+    process.execPath,
+    [fileURLToPath(import.meta.url), ...process.argv.slice(2)],
+    { stdio: "inherit", env: { ...process.env, NODE_USE_ENV_PROXY: "1" } },
+  );
+  process.exit(result.status ?? 1);
+}
+
 const base = (process.argv[2] ?? "http://localhost:5173").replace(/\/$/, "");
 const stamp = Date.now().toString(36);
 
@@ -87,11 +106,28 @@ async function call(path, { method = "GET", body, session, raw = false } = {}) {
   return { status: response.status, json, text };
 }
 
-function detectAccessWall(result) {
-  const looksLikeAccess =
+/*
+ * Something between here and the site can answer instead of the site, and the
+ * result looks like dozens of unrelated failures unless it is named. Worse, a
+ * proxy that answers 403 makes the "this endpoint should refuse me" checks pass
+ * for entirely the wrong reason. Detect it once, up front, and stop.
+ */
+function detectInterception(result) {
+  const body = result.text ?? "";
+
+  if (/not in allowlist|egress|blocked by the network/i.test(body)) {
+    throw new Error(
+      `Something between this machine and ${base} is refusing the request:\n` +
+        `      ${body.slice(0, 200)}\n` +
+        "      The site itself may be perfectly healthy — this is a network " +
+        "policy on the machine running this script.",
+    );
+  }
+
+  if (
     result.status === 302 ||
-    /cloudflareaccess\.com|Sign in to|Access denied/i.test(result.text ?? "");
-  if (looksLikeAccess) {
+    /cloudflareaccess\.com|Sign in to|Access denied/i.test(body)
+  ) {
     throw new Error(
       "Cloudflare Access is intercepting requests. Provide an Access service " +
         "token via CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET, or run this " +
@@ -104,15 +140,16 @@ function detectAccessWall(result) {
 
 console.log(`\nVerifying ${base}\n`);
 
-const health = await call("/api/v1/health");
-detectAccessWall(health);
+const health = await call("/api/v1/health", { raw: true });
+detectInterception(health);
 
 console.log("Public surface");
 
 await check("health endpoint", async () => {
   assert(health.status === 200, `expected 200, got ${health.status}`);
-  assert(health.json?.ok === true, "health did not report ok");
-  return `environment=${health.json.environment}`;
+  const payload = JSON.parse(health.text);
+  assert(payload.ok === true, "health did not report ok");
+  return `environment=${payload.environment}`;
 });
 
 await check("landing page renders server-side", async () => {
@@ -418,7 +455,13 @@ await check("report is accepted", async () => {
 await check("moderation queue rejects a normal account", async () => {
   const result = await call("/api/v1/moderation/reports", { session: bob });
   assert(result.status === 403, `expected 403, got ${result.status}`);
-  return "403 as expected";
+  // The body matters: any proxy in the way can also answer 403, and asserting
+  // on the status alone would let that count as a pass.
+  assert(
+    result.json?.error === "forbidden",
+    `403 came from something other than the app: ${result.text.slice(0, 120)}`,
+  );
+  return "403 from the app, as expected";
 });
 
 await check("moderation actions reject a normal account", async () => {
@@ -428,7 +471,11 @@ await check("moderation actions reject a normal account", async () => {
     body: { action: "remove_post", subjectType: "post", subjectId: postId },
   });
   assert(result.status === 403, `expected 403, got ${result.status}`);
-  return "403 as expected";
+  assert(
+    result.json?.error === "forbidden",
+    `403 came from something other than the app: ${result.text.slice(0, 120)}`,
+  );
+  return "403 from the app, as expected";
 });
 
 await check("blocking hides both directions and severs the follow", async () => {
@@ -454,6 +501,7 @@ await check("anonymous callers cannot post", async () => {
     body: { kind: "text", body: "should not work" },
   });
   assert(result.status === 401, `expected 401, got ${result.status}`);
+  assert(result.json?.error === "unauthorized", "401 did not come from the app");
   return undefined;
 });
 
