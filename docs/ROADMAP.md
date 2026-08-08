@@ -13,9 +13,10 @@ without them.
   verification. Grandfather in the existing accounts first, then set
   `requireEmailVerification: true` — `docs/DEPLOY.md` step 11 has the order, and
   doing it the other way round locks out every account including the admin.
-- **Legal entity in the documents.** `app/routes/privacy.tsx` and
-  `app/routes/terms.tsx` contain `[LEGAL ENTITY]` placeholders. See
-  `docs/COMPLIANCE.md`.
+- **Legal entity in the documents.** One file now: `OPERATOR` in
+  `app/lib/legal.ts`, read by both the privacy notice and the terms. Needs the
+  registered name, the company number if there is one, and the ICO number once
+  registered. See `docs/COMPLIANCE.md`.
 - **The safety inboxes.** `safety@` and `privacy@` are published in the app and
   must reach a person.
 - **Someone made admin.** Reports pile up unactionable until then.

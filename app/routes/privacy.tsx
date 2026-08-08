@@ -1,4 +1,10 @@
 import { Prose } from "../components/Prose";
+import {
+  LEGAL_UPDATED,
+  OPERATOR,
+  operatorLine,
+  operatorReady,
+} from "../lib/legal";
 
 export function meta() {
   return [
@@ -12,21 +18,27 @@ export function meta() {
 
 export default function Privacy() {
   return (
-    <Prose title="Privacy notice" updated="[set this date before launch]">
-      <p className="st-text-muted">
-        <strong>Before you publish this site:</strong> the operator's legal
-        entity, registered address and ICO registration number need to go in
-        below, and this notice should be read by someone qualified. It is a
-        complete and honest description of what the software actually does, but
-        it is not legal advice.
-      </p>
+    <Prose title="Privacy notice" updated={LEGAL_UPDATED ?? undefined}>
+      {operatorReady() ? null : (
+        <p className="st-text-muted">
+          <strong>Before you publish this site:</strong> set the operator in{" "}
+          <code>app/lib/legal.ts</code>, and have this notice read by someone
+          qualified. It is a complete and honest description of what the
+          software actually does, but it is not legal advice.
+        </p>
+      )}
 
       <h2>Who we are</h2>
       <p>
-        SprueTube is operated by [LEGAL ENTITY], [REGISTERED ADDRESS]. For
-        anything about your data, email{" "}
-        <a href="mailto:privacy@spruetube.app">privacy@spruetube.app</a>.
+        SprueTube is operated by {operatorLine()}. For anything about your data,
+        email <a href="mailto:privacy@spruetube.app">privacy@spruetube.app</a>.
       </p>
+      {OPERATOR.icoNumber ? (
+        <p>
+          We are registered with the Information Commissioner's Office under{" "}
+          {OPERATOR.icoNumber}.
+        </p>
+      ) : null}
 
       <h2>What we collect</h2>
       <ul>

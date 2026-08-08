@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { Prose } from "../components/Prose";
+import { LEGAL_UPDATED, operatorLine, operatorReady } from "../lib/legal";
 
 export function meta() {
   return [
@@ -10,16 +11,19 @@ export function meta() {
 
 export default function Terms() {
   return (
-    <Prose title="Terms of use" updated="[set this date before launch]">
-      <p className="st-text-muted">
-        <strong>Before you publish this site:</strong> fill in the operating
-        entity below and have these reviewed. They are written to be accurate
-        about what the software does, but they are not legal advice.
-      </p>
+    <Prose title="Terms of use" updated={LEGAL_UPDATED ?? undefined}>
+      {operatorReady() ? null : (
+        <p className="st-text-muted">
+          <strong>Before you publish this site:</strong> set the operator in{" "}
+          <code>app/lib/legal.ts</code> and have these reviewed. They are
+          written to be accurate about what the software does, but they are not
+          legal advice.
+        </p>
+      )}
 
       <h2>1. Who these are with</h2>
       <p>
-        SprueTube is operated by [LEGAL ENTITY] ("we", "us"). Using the site
+        SprueTube is operated by {operatorLine()} ("we", "us"). Using the site
         means you accept these terms.
       </p>
 

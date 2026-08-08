@@ -6,6 +6,7 @@ import { adSlotIndices } from "../server/services/ads";
 import { idTimestamp, newId } from "../server/db/id";
 import { compactCount, excerpt, parseBody } from "../app/lib/format";
 import { imageSrc } from "../app/lib/media";
+import { OPERATOR, operatorLine, operatorReady } from "../app/lib/legal";
 import {
   escapeHtml,
   resetPasswordEmail,
@@ -297,5 +298,29 @@ describe("transactional email", () => {
 
   it("escapes every character that could break out of an attribute", () => {
     expect(escapeHtml(`&<>"'`)).toBe("&amp;&lt;&gt;&quot;&#39;");
+  });
+});
+
+describe("operator details", () => {
+  it("refuses to look finished while the legal name is unset", () => {
+    // The banner on /privacy and /terms is driven by this, so a false here is
+    // what keeps the "not reviewed yet" warning on the page.
+    expect(operatorReady()).toBe(Boolean(OPERATOR.legalName && OPERATOR.address));
+  });
+
+  it("renders a visible placeholder rather than a gap", () => {
+    // A document that reads "SprueTube is operated by ." is worse than one that
+    // says plainly that nobody filled it in.
+    expect(operatorLine()).not.toBe("");
+    if (!OPERATOR.legalName) expect(operatorLine()).toContain("NOT SET");
+  });
+
+  it("includes the company number only when there is one", () => {
+    const line = operatorLine();
+    if (OPERATOR.companyNumber) {
+      expect(line).toContain(OPERATOR.companyNumber);
+    } else {
+      expect(line).not.toContain("company ");
+    }
   });
 });
