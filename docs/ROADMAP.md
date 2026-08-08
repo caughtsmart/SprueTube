@@ -14,7 +14,7 @@ without them.
   `requireEmailVerification: true` — `docs/DEPLOY.md` step 11 has the order, and
   doing it the other way round locks out every account including the admin.
 - ~~**Legal entity in the documents.**~~ Done. Loaded Dice Ltd, company
-  12429789, registered office in Sully, ICO 00014400307 — all in `OPERATOR` in
+  12429789, registered office in Sully, ICO ZB600982 — all in `OPERATOR` in
   `app/lib/legal.ts`, read by both documents. Still outstanding: a solicitor
   reading them. See `docs/COMPLIANCE.md`.
 - **The safety inboxes.** `safety@` and `privacy@` are published in the app and

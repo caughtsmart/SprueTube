@@ -41,7 +41,7 @@ export const OPERATOR: Operator = {
   // legal document.
   address:
     "Unit C4, Windmill Park, Hayes Rd, Sully, The Vale of Glamorgan, CF64 5AD",
-  icoNumber: "00014400307",
+  icoNumber: "ZB600982",
 };
 
 /**
