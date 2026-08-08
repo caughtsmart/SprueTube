@@ -34,21 +34,24 @@ export type Operator = {
 };
 
 export const OPERATOR: Operator = {
-  legalName: null,
-  companyNumber: null,
-  // Taken from the Loaded Dice Shopify billing address. Confirm this is the
-  // right address for service for SprueTube before publishing.
-  address: "28 Holton Road, Barry, CF63 4HD, Wales",
-  icoNumber: null,
+  legalName: "Loaded Dice Ltd",
+  companyNumber: "12429789",
+  // The registered office, not the shop. The Barry trading address on the
+  // Shopify account is a different place; this is the one that belongs in a
+  // legal document.
+  address:
+    "Unit C4, Windmill Park, Hayes Rd, Sully, The Vale of Glamorgan, CF64 5AD",
+  icoNumber: "00014400307",
 };
 
 /**
  * The date shown as "last updated" on both documents.
  *
- * Null until they are reviewed and published. A legal document carrying a date
- * from before anyone read it is worse than one carrying none.
+ * This is when the text was last changed, which is the ordinary meaning of the
+ * label and the only claim it makes. It does not assert that a solicitor has
+ * read them — that is still outstanding, and tracked in docs/COMPLIANCE.md.
  */
-export const LEGAL_UPDATED: string | null = null;
+export const LEGAL_UPDATED: string | null = "8 August 2026";
 
 /**
  * Whether the documents can stand on their own yet.
@@ -63,16 +66,29 @@ export function operatorReady(): boolean {
 }
 
 /**
- * "Loaded Dice Ltd (company 12345678), 28 Holton Road, Barry, CF63 4HD, Wales"
+ * "Loaded Dice Ltd (company 12345678)" — no address.
+ *
+ * For sentences that carry on afterwards. A registered office dropped into the
+ * middle of a clause pushes the rest of the sentence out of reach of the reader.
  *
  * Falls back to a visible placeholder rather than an empty string, so an
  * unconfigured build reads as obviously unfinished instead of as a document
  * with a hole where the operator should be.
  */
-export function operatorLine(): string {
+export function operatorName(): string {
   if (!OPERATOR.legalName) return "[OPERATOR NOT SET]";
-  const company = OPERATOR.companyNumber
+  return OPERATOR.companyNumber
     ? `${OPERATOR.legalName} (company ${OPERATOR.companyNumber})`
     : OPERATOR.legalName;
-  return OPERATOR.address ? `${company}, ${OPERATOR.address}` : company;
+}
+
+/**
+ * "Loaded Dice Ltd (company 12345678), Unit C4, …, CF64 5AD" — the full form,
+ * for where the sentence ends there.
+ */
+export function operatorLine(): string {
+  const company = operatorName();
+  return OPERATOR.legalName && OPERATOR.address
+    ? `${company}, ${OPERATOR.address}`
+    : company;
 }

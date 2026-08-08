@@ -1,6 +1,11 @@
 import { Link } from "react-router";
 import { Prose } from "../components/Prose";
-import { LEGAL_UPDATED, operatorLine, operatorReady } from "../lib/legal";
+import {
+  LEGAL_UPDATED,
+  OPERATOR,
+  operatorName,
+  operatorReady,
+} from "../lib/legal";
 
 export function meta() {
   return [
@@ -23,9 +28,12 @@ export default function Terms() {
 
       <h2>1. Who these are with</h2>
       <p>
-        SprueTube is operated by {operatorLine()} ("we", "us"). Using the site
+        SprueTube is operated by {operatorName()} ("we", "us"). Using the site
         means you accept these terms.
       </p>
+      {OPERATOR.address ? (
+        <p>Our registered office is at {OPERATOR.address}.</p>
+      ) : null}
 
       <h2>2. Your account</h2>
       <ul>
