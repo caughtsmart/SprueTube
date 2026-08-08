@@ -34,22 +34,34 @@ fi
 ok "Signed in"
 
 # --- Account id --------------------------------------------------------------
+#
+# This script does not write to wrangler.jsonc, and must not start.
+#
+# It used to: it resolved the account id from `wrangler whoami` and patched the
+# placeholder in place. That left the file modified in the working tree after
+# every single deploy, so the next `git pull` refused with "your local changes
+# would be overwritten" — and a pull that aborts is quiet. Twice that meant a
+# deploy that looked perfect while shipping week-old code, and once it silently
+# reverted the Images hash and took photos down.
+#
+# A deploy script that edits a tracked file is a deploy script that fights git.
+# The account id is committed instead, and this only checks it.
 
 # `wrangler whoami` prints a table; the account id is the 32-hex cell.
 account_id=$(grep -oiE '\b[0-9a-f]{32}\b' <<<"$whoami_out" | head -1 || true)
+configured_id=$(grep -oE '"CF_ACCOUNT_ID": *"[^"]*"' wrangler.jsonc | grep -oE '[^"]*"$' | tr -d '"' || true)
 
-if grep -q 'REPLACE_WITH_ACCOUNT_ID' wrangler.jsonc; then
-  [[ -n $account_id ]] || die "Could not read the account id from 'wrangler whoami'. Set CF_ACCOUNT_ID in wrangler.jsonc by hand, then re-run."
-  info "Writing account id into wrangler.jsonc"
-  # Done in Python to avoid the GNU/BSD `sed -i` portability difference.
-  python3 - "$account_id" <<'PY'
-import pathlib, sys
-p = pathlib.Path("wrangler.jsonc")
-p.write_text(p.read_text().replace("REPLACE_WITH_ACCOUNT_ID", sys.argv[1]))
-PY
-  ok "CF_ACCOUNT_ID set to $account_id"
+if [[ $configured_id == REPLACE_WITH_* || -z $configured_id ]]; then
+  die "CF_ACCOUNT_ID is not set in wrangler.jsonc.
+Set it to the account you are deploying to${account_id:+, which looks like $account_id}, then re-run."
+fi
+
+if [[ -n $account_id && $configured_id != "$account_id" ]]; then
+  warn "wrangler.jsonc deploys to account $configured_id"
+  warn "but you are signed in as $account_id."
+  warn "Photo uploads call the Images API on the configured one and will fail."
 else
-  ok "CF_ACCOUNT_ID already set"
+  ok "CF_ACCOUNT_ID matches the signed-in account"
 fi
 
 # --- Verify before shipping --------------------------------------------------

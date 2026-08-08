@@ -70,8 +70,10 @@
     // Loaded Dice storefront used for the "paints used" affiliate links.
     "SHOP_URL": "https://www.loadeddice.uk",
     "SHOP_NAME": "Loaded Dice",
-    // Needed for the Cloudflare Images REST API. From `wrangler whoami`.
-    "CF_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
+    // Needed for the Cloudflare Images REST API. From `wrangler whoami`. Not a
+    // credential — an API token is what grants access; this only names the
+    // account — so it belongs in config rather than in a secret.
+    "CF_ACCOUNT_ID": "aff68b2217205f77d69c6cb284353704",
     // Public account hash from Images → the imagedelivery.net URL prefix.
     // Uploads work without it; the feed cannot build image URLs.
     "CF_IMAGES_ACCOUNT_HASH": "MTceR3C16CyQmjHH6ME2VA",

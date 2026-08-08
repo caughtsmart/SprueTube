@@ -31,15 +31,25 @@ pointing at a bucket that does not exist fails the deploy. R2 also has to be
 enabled once from the dashboard before any bucket can be created. Add the
 binding back when there is a reason to — untouched originals, or data exports.
 
-## 2. Fill in the account vars
+## 2. The account vars
 
-Two placeholders remain in `wrangler.jsonc` under `vars`. They are the only
-ones left.
+`CF_ACCOUNT_ID` and `CF_IMAGES_ACCOUNT_HASH` are both committed in
+`wrangler.jsonc`. Neither is a credential — the account id only names the
+account, and the images hash appears in the `src` of every photo the site
+serves. An API token is what actually grants access, and that is a secret.
+
+Deploying to a *different* Cloudflare account means changing both by hand:
 
 | Var | Where to find it |
 | --- | --- |
 | `CF_ACCOUNT_ID` | `npx wrangler whoami` after logging in |
 | `CF_IMAGES_ACCOUNT_HASH` | Images → any delivery URL: `imagedelivery.net/<hash>/…` |
+
+`scripts/deploy.sh` warns if the configured account is not the one you are
+signed in as. It will not rewrite the file to match: a deploy script that edits
+a tracked file leaves the working tree dirty after every run, and the next
+`git pull` then refuses — quietly enough that you deploy stale code without
+noticing.
 
 Leave `ADSENSE_CLIENT` empty. It stays empty until AdSense approves the site —
 see step 7.
