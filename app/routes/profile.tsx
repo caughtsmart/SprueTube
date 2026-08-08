@@ -110,12 +110,12 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
       suspended: row.status === "suspended",
     },
     avatarUrl: imageSrc(
-      { imagesAccountHash: scope.env.CF_IMAGES_ACCOUNT_HASH, streamSubdomain: "" },
+      { imagesAccountHash: scope.env.CF_IMAGES_ACCOUNT_HASH },
       row.avatarImageId,
       "avatar",
     ),
     bannerUrl: imageSrc(
-      { imagesAccountHash: scope.env.CF_IMAGES_ACCOUNT_HASH, streamSubdomain: "" },
+      { imagesAccountHash: scope.env.CF_IMAGES_ACCOUNT_HASH },
       row.bannerImageId,
       "full",
     ),

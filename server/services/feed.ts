@@ -45,7 +45,7 @@ export function decodeCursor(raw: string | null | undefined): Cursor {
 
 export type FeedPost = {
   id: string;
-  kind: "text" | "images" | "video";
+  kind: "text" | "images";
   title: string | null;
   body: string | null;
   gameSystem: string | null;
@@ -65,14 +65,10 @@ export type FeedPost = {
   project: { id: string; title: string; slug: string } | null;
   media: {
     id: string;
-    type: "image" | "video";
-    imageId: string | null;
-    streamUid: string | null;
+    imageId: string;
     width: number | null;
     height: number | null;
-    thumbnailUrl: string | null;
     altText: string | null;
-    status: "pending" | "ready" | "failed";
   }[];
   products: {
     id: string;
@@ -333,14 +329,10 @@ async function hydrate(
         : null,
     media: (mediaByPost.get(row.post.id) ?? []).map((m) => ({
       id: m.id,
-      type: m.type,
       imageId: m.imageId,
-      streamUid: m.streamUid,
       width: m.width,
       height: m.height,
-      thumbnailUrl: m.thumbnailUrl,
       altText: m.altText,
-      status: m.status,
     })),
     products: (productsByPost.get(row.post.id) ?? []).map((p) => ({
       id: p.id,

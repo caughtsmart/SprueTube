@@ -12,9 +12,9 @@ server rather than a second implementation of it.
 
 - **Accounts** — email and password, plus Google and Sign in with Apple when
   configured. 13+ age gate.
-- **Posts** — text, up to eight photos, or a video. Tagged with the game system,
-  the scale, and the stage the model is at (sprue → assembled → primed →
-  … → finished).
+- **Posts** — text and up to eight photos. Tagged with the game system, the
+  scale, and the stage the model is at (sprue → assembled → primed → …
+  → finished).
 - **Projects** — group posts into one build log so a whole army reads as a story.
 - **Paints used** — name the paints on a post and they appear under the photo,
   optionally linked to the shop. This is the commercial layer, and it works
@@ -39,8 +39,7 @@ Everything runs on Cloudflare, in one Worker.
 | API | Hono, mounted at `/api` in the same Worker |
 | Database | D1 (SQLite) with Drizzle ORM |
 | Auth | better-auth |
-| Images | Cloudflare Images, direct creator upload |
-| Video | Cloudflare Stream, direct creator upload + webhook |
+| Photos | Cloudflare Images, direct creator upload |
 | Rate limits / cache | Workers KV |
 
 Why one Worker rather than two: a single deploy, one set of bindings, and the
@@ -58,7 +57,9 @@ npm run db:seed:local              # house ads only, no fake users
 npm run dev                        # http://localhost:5173
 ```
 
-Uploads need a real `CF_API_TOKEN`; everything else works without one.
+Photo uploads need a real `CF_API_TOKEN`; everything else works without one.
+
+No video, deliberately — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 If every page suddenly 500s with `no such table`, the local database is empty
 because miniflare keys its local D1 file on the `database_id` in

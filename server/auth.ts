@@ -1,6 +1,5 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { bearer } from "better-auth/plugins";
 import { createDb, schema } from "./db/client";
 import { newId } from "./db/id";
 import { reserveUsername, suggestUsername } from "./services/usernames";
@@ -85,9 +84,6 @@ function createAuth(env: Env) {
       env.ENVIRONMENT === "production"
         ? [env.SITE_URL, "https://www.spruetube.app"]
         : [env.SITE_URL, "http://localhost:5173", "http://127.0.0.1:5173"],
-    // Native clients cannot hold cookies as comfortably as a browser, so the
-    // bearer plugin lets iOS send `Authorization: Bearer <token>` instead.
-    plugins: [bearer()],
     databaseHooks: {
       user: {
         create: {

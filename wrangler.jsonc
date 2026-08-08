@@ -8,7 +8,7 @@
     "enabled": true
   },
 
-  // Decays Discover scores and rescues videos whose Stream webhook went missing.
+  // Decays Discover scores so posts nobody touches fall down the page.
   "triggers": {
     "crons": ["*/15 * * * *"]
   },
@@ -39,11 +39,11 @@
     }
   ],
 
-  // No R2 binding yet, deliberately. Photos live in Cloudflare Images and video
-  // in Stream, so nothing in the codebase reads a bucket — and an unused
-  // binding pointing at a bucket that does not exist fails the deploy. Add it
-  // back (bucket "spruetube-media", binding "MEDIA") when there is a reason to,
-  // e.g. keeping untouched originals or serving data exports.
+  // No R2 binding yet, deliberately. Photos live in Cloudflare Images, so
+  // nothing in the codebase reads a bucket — and an unused binding pointing at
+  // a bucket that does not exist fails the deploy. Add it back (bucket
+  // "spruetube-media", binding "MEDIA") when there is a reason to, e.g. keeping
+  // untouched originals or serving data exports.
 
   "vars": {
     "SITE_URL": "https://spruetube.app",
@@ -51,13 +51,11 @@
     // Loaded Dice storefront used for the "paints used" affiliate links.
     "SHOP_URL": "https://www.loadeddice.uk",
     "SHOP_NAME": "Loaded Dice",
-    // Needed for the Images and Stream REST APIs. From `wrangler whoami`.
+    // Needed for the Cloudflare Images REST API. From `wrangler whoami`.
     "CF_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
     // Public account hash from Images → the imagedelivery.net URL prefix.
     // Uploads work without it; the feed cannot build image URLs.
     "CF_IMAGES_ACCOUNT_HASH": "REPLACE_WITH_IMAGES_ACCOUNT_HASH",
-    // Public Stream customer subdomain, e.g. customer-xxxx.cloudflarestream.com
-    "CF_STREAM_CUSTOMER_SUBDOMAIN": "REPLACE_WITH_STREAM_SUBDOMAIN",
     // Leave empty until AdSense approves the site; ad slots render house ads.
     "ADSENSE_CLIENT": "",
     "ENVIRONMENT": "production"
@@ -65,8 +63,7 @@
 
   // Secrets (set with `wrangler secret put <NAME>`):
   //   BETTER_AUTH_SECRET        — 32+ random bytes, signs sessions
-  //   CF_API_TOKEN              — Images + Stream edit permissions
-  //   CF_STREAM_WEBHOOK_SECRET  — from the Stream webhook settings page
+  //   CF_API_TOKEN              — Cloudflare Images edit permission
   //   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
   //   APPLE_CLIENT_ID / APPLE_CLIENT_SECRET  (needed before iOS submission)
 }

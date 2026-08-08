@@ -5,12 +5,9 @@
 # Signs session cookies. Generate with:  openssl rand -base64 32
 BETTER_AUTH_SECRET="replace-me-with-32-random-bytes"
 
-# Cloudflare API token with Images:Edit and Stream:Edit on your account.
-# Uploads fail without it; everything else works.
+# Cloudflare API token with Images:Edit on your account.
+# Photo uploads fail without it; everything else works.
 CF_API_TOKEN=""
-
-# From the Stream webhook settings page, once you have registered the webhook.
-CF_STREAM_WEBHOOK_SECRET=""
 
 # Social sign-in. Leave blank to hide the buttons — email sign-in still works.
 GOOGLE_CLIENT_ID=""

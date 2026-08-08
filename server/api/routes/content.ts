@@ -102,7 +102,6 @@ content.post("/posts", requireAuth, async (c) => {
     scale: input.scale ?? null,
     wipStage: input.wipStage ?? null,
     projectId: input.projectId ?? null,
-    video: input.video ?? null,
   });
 
   return c.json(created, 201);

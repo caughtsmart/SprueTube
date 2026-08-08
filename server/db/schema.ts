@@ -189,7 +189,7 @@ export const post = sqliteTable(
     projectId: text("project_id").references(() => project.id, {
       onDelete: "set null",
     }),
-    kind: text("kind", { enum: ["text", "images", "video"] }).notNull(),
+    kind: text("kind", { enum: ["text", "images"] }).notNull(),
     title: text("title"),
     body: text("body"),
 
@@ -214,12 +214,8 @@ export const post = sqliteTable(
     })
       .notNull()
       .default("public"),
-    /**
-     * `processing` covers video sitting in Stream's transcode queue — the post
-     * exists but is not in anyone's feed until the ready webhook fires.
-     */
     status: text("status", {
-      enum: ["draft", "processing", "published", "removed"],
+      enum: ["draft", "published", "removed"],
     })
       .notNull()
       .default("draft"),
@@ -256,27 +252,14 @@ export const postMedia = sqliteTable(
       .notNull()
       .references(() => post.id, { onDelete: "cascade" }),
     position: integer("position").notNull().default(0),
-    type: text("type", { enum: ["image", "video"] }).notNull(),
-    /** Cloudflare Images id (images) — combine with a variant to build a URL. */
-    imageId: text("image_id"),
-    /** Cloudflare Stream uid (video). */
-    streamUid: text("stream_uid"),
-    /** R2 key, when we keep the untouched original. */
-    r2Key: text("r2_key"),
+    /** Cloudflare Images id — combine with a variant name to build a URL. */
+    imageId: text("image_id").notNull(),
     width: integer("width"),
     height: integer("height"),
-    durationSeconds: real("duration_seconds"),
-    thumbnailUrl: text("thumbnail_url"),
     altText: text("alt_text"),
-    status: text("status", { enum: ["pending", "ready", "failed"] })
-      .notNull()
-      .default("pending"),
     createdAt: integer("created_at").notNull().default(now),
   },
-  (t) => [
-    index("post_media_post_idx").on(t.postId, t.position),
-    index("post_media_stream_idx").on(t.streamUid),
-  ],
+  (t) => [index("post_media_post_idx").on(t.postId, t.position)],
 );
 
 /**
@@ -583,26 +566,6 @@ export const adPlacement = sqliteTable(
     createdAt: integer("created_at").notNull().default(now),
   },
   (t) => [index("ad_placement_slot_idx").on(t.slot, t.active)],
-);
-
-/* -------------------------------------------------------------------------- */
-/* Native app support                                                         */
-/* -------------------------------------------------------------------------- */
-
-/** APNs / FCM tokens. Unused by the web app; here so iOS needs no migration. */
-export const pushToken = sqliteTable(
-  "push_token",
-  {
-    id: text("id").primaryKey(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    platform: text("platform", { enum: ["ios", "android", "web"] }).notNull(),
-    token: text("token").notNull().unique(),
-    createdAt: integer("created_at").notNull().default(now),
-    lastSeenAt: integer("last_seen_at").notNull().default(now),
-  },
-  (t) => [index("push_token_user_idx").on(t.userId)],
 );
 
 export type User = typeof user.$inferSelect;

@@ -103,7 +103,7 @@ regardless of size. Small services have lighter duties, not no duties.
       to be identifiable as advertising — the existing label covers this, keep
       it.
 
-## Before the iOS app
+## Before an iOS app (deferred, but the list does not change)
 
 App Store guideline 1.2 applies to every app with user-generated content, and
 review does check:

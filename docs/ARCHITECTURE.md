@@ -17,9 +17,10 @@ The alternative was two Workers with a service binding. One Worker won because:
   exports a fetch handler. Moving it out is a new `wrangler.jsonc` and a service
   binding, not a rewrite.
 
-The API is versioned at `/api/v1` from day one because the iOS app will be
-installed on phones we do not control. Old clients have to keep working while
-the web app moves on, and that is only possible with a version in the path.
+The API is versioned at `/api/v1` from day one. It costs one path segment, and
+it means a client we do not control — a native app later, someone's script —
+can keep working while the web app moves on. There is no other iOS groundwork:
+that was cut until an app actually exists.
 
 ## Loaders call services, the browser calls the API
 
@@ -29,8 +30,8 @@ Server-rendered pages call `server/services/*` directly. The browser calls
 Both paths exist deliberately. A loader fetching its own Worker over HTTP would
 pay for a second request and a second session lookup to reach code already in
 the same isolate. But the HTTP API is not a second-class citizen — it is what
-the feed's infinite scroll, every like, every upload and the entire future iOS
-app run on, so it is exercised constantly.
+the feed's infinite scroll, every like and every photo upload run on, so it is
+exercised constantly.
 
 `app/lib/data.server.ts` is the bridge. The `.server.ts` suffix guarantees it
 cannot end up in the client bundle regardless of how a route imports it.
@@ -94,26 +95,22 @@ together or not at all.
 The trade is drift if a code path forgets. Decrements are all
 `max(0, count - 1)` so drift can never render as a negative.
 
-## Media never touches the Worker
+## Photos, not video
 
-Both Images and Stream mint one-time upload URLs. The browser posts the file
-straight to Cloudflare; the Worker only ever handles the id.
+Cloudflare Images mints a one-time upload URL. The browser posts the file
+straight to Cloudflare; the Worker only ever handles the id. A failed upload
+costs nothing and the Workers body-size limit never comes into it.
 
-This keeps a 400 MB video off the request path entirely, sidesteps the Workers
-body-size limit, and means a failed upload costs nothing.
+**There is no video, and that is a decision rather than an omission.** Video
+meant Cloudflare Stream, a signed webhook, a `processing` post state that hid
+posts from every feed until a callback arrived, a reconciliation sweep for the
+callbacks that never did, and a Cloudflare Access bypass so the callback could
+reach us at all. That is five moving parts and a bill that grows with the
+library forever, for a feature that is not what this hobby is about — miniature
+painting is photographs.
 
-Video has a two-phase lifecycle as a result:
-
-1. Client asks for a ticket, uploads, and creates the post. The post is
-   `processing` and appears in nobody's feed.
-2. Stream finishes transcoding and calls `/api/v1/webhooks/stream`. The handler
-   verifies an HMAC signature with a constant-time compare and a freshness
-   window, then flips the post to `published`.
-
-Webhooks get lost — a deploy mid-flight, a secret rotated at the wrong moment —
-so the cron sweep also reconciles anything stuck in `processing` for more than
-five minutes by asking Stream directly. Without that, a lost webhook means a
-painter's video disappears forever and they conclude the site ate it.
+It can come back when it earns its way. The shape to restore is in git history
+at commit `a974c37`.
 
 ## Safety is in the schema, not bolted on
 
@@ -169,6 +166,10 @@ crawler could only ever see as a redirect.
 
 ## What is deliberately missing
 
+- **Video.** See above.
+- **Native-app groundwork.** No bearer tokens, no push-token table. The API is
+  still versioned at `/api/v1`, which costs a path segment and means a future
+  client is not blocked — but nothing is built for an app that does not exist.
 - **Direct messages.** A DM system on a platform with one moderator is a
   harassment vector with no supervision.
 - **A recommendation algorithm.** Discover is a published formula in one file.

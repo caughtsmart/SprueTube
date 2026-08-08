@@ -48,43 +48,40 @@ static site with extra steps.
 6. **Email digests.** A weekly "what you missed" is the single most effective
    retention mechanic for a small community.
 
-## The iOS app
+## Deferred on purpose
 
-The API was built for this. `/api/v1` is versioned, the `bearer` plugin is
-already enabled in `server/auth.ts` so a native client can send
-`Authorization: Bearer <token>` instead of cookies, and the `push_token` table
-exists so registering for notifications needs no migration.
+**Video.** Cut before launch. It brought Cloudflare Stream, a signed webhook, a
+`processing` post state, a reconciliation sweep and an Access bypass — five
+moving parts and a bill that grows with the library forever, for something that
+is not what this hobby is. Bring it back when people ask for it, not before. The
+working implementation is in git history at `a974c37`.
 
-**Build it with Expo (React Native).** Not because native is worse, but because
-this codebase is already TypeScript and React, the taxonomy and API-client
-modules port directly, and one person can maintain it. If the app ever becomes
-the main surface, that is the point to reconsider.
+**The iOS app.** The API is versioned at `/api/v1`, which is all the groundwork
+worth having until an app exists. The bearer-token plugin and the push-token
+table were removed — they were scaffolding for something unbuilt, and untested
+scaffolding rots.
 
-Order of work:
+When it does happen, the order that works:
 
 1. **Read-only first.** Feed, post detail, profiles. Proves the API is complete
-   enough and gets you through App Store review once with something small.
-2. **Auth.** Sign in with Apple is mandatory (guideline 4.8) as soon as any
-   other social login exists. Set the Apple secrets before you submit — and note
-   that the Apple client secret is a JWT that expires every six months.
+   and gets you through App Store review once with something small.
+2. **Auth.** Sign in with Apple becomes mandatory (guideline 4.8) as soon as any
+   other social login exists. Re-add the bearer plugin then.
 3. **Posting.** The camera is the reason a hobby app exists on a phone. Direct
-   upload to Images and Stream works identically from a native client; the
-   tickets are just HTTP.
-4. **Push notifications.** APNs, keyed off the `push_token` table. A new server
-   endpoint to send them is the only missing piece.
-5. **Offline drafts.** People paint in sheds with bad wifi.
+   upload to Images works identically from a native client.
+4. **Push.** Re-add the token table and an APNs sender.
 
-**What App Store review will check, for a UGC app** (guideline 1.2): a way to
-filter objectionable content, a way to report it, a way to block abusive users,
-published contact details, and evidence that reports are acted on within 24
-hours. All of that exists on the web already — the app has to expose it, not
-invent it.
+Build it with **Expo** — this codebase is already TypeScript and React, and the
+taxonomy and API-client modules port straight across.
 
-**AdMob, not AdSense**, on mobile. `AdSlot` is where the switch goes; the house
-ad fallback works unchanged.
+**What App Store review checks for a UGC app** (guideline 1.2): content
+filtering, a report path, user blocking, published contact details, and evidence
+reports are acted on within 24 hours. All of that exists on the web already; the
+app has to expose it, not invent it.
 
 ## Further out
 
+- Video, if enough people ask for it.
 - Direct messages, only with moderation tooling built at the same time.
 - A paid tier — no ads, bigger uploads, custom profile themes. A community this
   specific will support one, and it is a healthier revenue line than ads alone.

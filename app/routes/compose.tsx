@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { redirect, useNavigate } from "react-router";
 import type { Route } from "./+types/compose";
-import { api, ApiError, uploadImage, uploadVideo } from "../lib/api";
+import { api, ApiError, uploadImage } from "../lib/api";
 import { getScope } from "../lib/data.server";
 import {
   GAME_SYSTEMS,
@@ -52,17 +52,10 @@ type PendingImage = {
 export default function Compose({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
   const imageInput = useRef<HTMLInputElement>(null);
-  const videoInput = useRef<HTMLInputElement>(null);
 
   const [body, setBody] = useState("");
   const [title, setTitle] = useState("");
   const [images, setImages] = useState<PendingImage[]>([]);
-  const [video, setVideo] = useState<{
-    file: File;
-    streamUid?: string;
-    progress: number;
-    error?: string;
-  } | null>(null);
 
   const [gameSystem, setGameSystem] = useState("");
   const [scale, setScale] = useState("");
@@ -75,11 +68,7 @@ export default function Compose({ loaderData }: Route.ComponentProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const kind: "text" | "images" | "video" = video
-    ? "video"
-    : images.length
-      ? "images"
-      : "text";
+  const kind: "text" | "images" = images.length ? "images" : "text";
 
   async function onPickImages(event: React.ChangeEvent<HTMLInputElement>) {
     const files = [...(event.target.files ?? [])].slice(
@@ -134,35 +123,9 @@ export default function Compose({ loaderData }: Route.ComponentProps) {
     );
   }
 
-  async function onPickVideo(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-
-    setVideo({ file, progress: 0 });
-    setImages([]);
-
-    try {
-      const result = await uploadVideo(file, (fraction) =>
-        setVideo((current) =>
-          current ? { ...current, progress: fraction } : current,
-        ),
-      );
-      setVideo((current) =>
-        current ? { ...current, streamUid: result.streamUid, progress: 1 } : current,
-      );
-    } catch {
-      setVideo((current) =>
-        current
-          ? { ...current, error: "Upload failed. Remove it and try again." }
-          : current,
-      );
-    }
-  }
-
-  const uploadsPending =
-    images.some((image) => !image.imageId && !image.error) ||
-    (video ? !video.streamUid && !video.error : false);
+  const uploadsPending = images.some(
+    (image) => !image.imageId && !image.error,
+  );
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -179,7 +142,7 @@ export default function Compose({ loaderData }: Route.ComponentProps) {
       .map((name) => ({ kind: "paint" as const, name, shopUrl: null }));
 
     try {
-      const result = await api.post<{ id: string; status: string }>("/posts", {
+      const result = await api.post<{ id: string }>("/posts", {
         kind,
         title: title.trim() || null,
         body: body.trim() || null,
@@ -198,12 +161,9 @@ export default function Compose({ loaderData }: Route.ComponentProps) {
             height: image.height,
             altText: image.altText.trim() || undefined,
           })),
-        video: video?.streamUid ? { streamUid: video.streamUid } : null,
       });
 
-      // A video post is not visible until Stream finishes, so send them
-      // somewhere that explains that rather than to a 404.
-      navigate(result.status === "processing" ? "/" : `/posts/${result.id}`);
+      navigate(`/posts/${result.id}`);
     } catch (caught) {
       setError(
         caught instanceof ApiError
@@ -234,19 +194,14 @@ export default function Compose({ loaderData }: Route.ComponentProps) {
           <button
             type="button"
             onClick={() => imageInput.current?.click()}
-            disabled={Boolean(video) || images.length >= MAX_IMAGES_PER_POST}
+            disabled={images.length >= MAX_IMAGES_PER_POST}
             className="st-btn st-btn-ghost text-sm"
           >
             📷 Add photos
           </button>
-          <button
-            type="button"
-            onClick={() => videoInput.current?.click()}
-            disabled={images.length > 0 || Boolean(video)}
-            className="st-btn st-btn-ghost text-sm"
-          >
-            🎬 Add video
-          </button>
+          <span className="st-text-muted self-center text-xs">
+            Up to {MAX_IMAGES_PER_POST}
+          </span>
           <input
             ref={imageInput}
             type="file"
@@ -254,13 +209,6 @@ export default function Compose({ loaderData }: Route.ComponentProps) {
             multiple
             hidden
             onChange={onPickImages}
-          />
-          <input
-            ref={videoInput}
-            type="file"
-            accept="video/*"
-            hidden
-            onChange={onPickVideo}
           />
         </div>
 
@@ -321,35 +269,6 @@ export default function Compose({ loaderData }: Route.ComponentProps) {
               </li>
             ))}
           </ul>
-        ) : null}
-
-        {video ? (
-          <div className="st-border rounded-lg border p-3">
-            <div className="flex items-center justify-between gap-3">
-              <p className="truncate text-sm">{video.file.name}</p>
-              <button
-                type="button"
-                onClick={() => setVideo(null)}
-                className="st-text-muted hover:st-text-strong text-sm"
-              >
-                Remove
-              </button>
-            </div>
-            {video.error ? (
-              <p className="st-error">{video.error}</p>
-            ) : video.streamUid ? (
-              <p className="mt-1 text-xs text-[var(--color-wash-400)]">
-                Uploaded. It will appear once Cloudflare finishes processing it.
-              </p>
-            ) : (
-              <div className="mt-2 h-1 rounded bg-black/40">
-                <div
-                  className="h-full rounded bg-[var(--color-primer-500)] transition-all"
-                  style={{ width: `${Math.round(video.progress * 100)}%` }}
-                />
-              </div>
-            )}
-          </div>
         ) : null}
 
         {/* Hobby metadata */}

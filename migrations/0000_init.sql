@@ -163,22 +163,15 @@ CREATE TABLE `post_media` (
 	`id` text PRIMARY KEY NOT NULL,
 	`post_id` text NOT NULL,
 	`position` integer DEFAULT 0 NOT NULL,
-	`type` text NOT NULL,
-	`image_id` text,
-	`stream_uid` text,
-	`r2_key` text,
+	`image_id` text NOT NULL,
 	`width` integer,
 	`height` integer,
-	`duration_seconds` real,
-	`thumbnail_url` text,
 	`alt_text` text,
-	`status` text DEFAULT 'pending' NOT NULL,
 	`created_at` integer DEFAULT (unixepoch()) NOT NULL,
 	FOREIGN KEY (`post_id`) REFERENCES `post`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE INDEX `post_media_post_idx` ON `post_media` (`post_id`,`position`);--> statement-breakpoint
-CREATE INDEX `post_media_stream_idx` ON `post_media` (`stream_uid`);--> statement-breakpoint
 CREATE TABLE `post_product` (
 	`id` text PRIMARY KEY NOT NULL,
 	`post_id` text NOT NULL,
@@ -244,18 +237,6 @@ CREATE TABLE `project` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `project_owner_slug_unique` ON `project` (`owner_id`,`slug`);--> statement-breakpoint
 CREATE INDEX `project_owner_idx` ON `project` (`owner_id`,`updated_at`);--> statement-breakpoint
-CREATE TABLE `push_token` (
-	`id` text PRIMARY KEY NOT NULL,
-	`user_id` text NOT NULL,
-	`platform` text NOT NULL,
-	`token` text NOT NULL,
-	`created_at` integer DEFAULT (unixepoch()) NOT NULL,
-	`last_seen_at` integer DEFAULT (unixepoch()) NOT NULL,
-	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX `push_token_token_unique` ON `push_token` (`token`);--> statement-breakpoint
-CREATE INDEX `push_token_user_idx` ON `push_token` (`user_id`);--> statement-breakpoint
 CREATE TABLE `report` (
 	`id` text PRIMARY KEY NOT NULL,
 	`reporter_id` text,

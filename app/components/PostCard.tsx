@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import type { FeedPost } from "../../server/services/feed";
 import { api } from "../lib/api";
 import { compactCount, parseBody, timeAgo } from "../lib/format";
-import { imageSrc, streamIframeSrc } from "../lib/media";
+import { imageSrc } from "../lib/media";
 import {
   GAME_SYSTEM_LABELS,
   WIP_STAGE_SHORT,
@@ -252,34 +252,7 @@ function BodyText({ body }: { body: string }) {
 
 function MediaBlock({ post }: { post: FeedPost }) {
   const { config } = useRoot();
-
-  if (post.kind === "video") {
-    const media = post.media[0];
-    if (!media?.streamUid) return null;
-
-    if (media.status !== "ready") {
-      return (
-        <div className="st-raised st-text-muted flex aspect-video items-center justify-center text-sm">
-          Video is still processing…
-        </div>
-      );
-    }
-
-    return (
-      <div className="aspect-video w-full bg-black">
-        <iframe
-          src={streamIframeSrc(config, media.streamUid) ?? ""}
-          title={media.altText ?? "Video"}
-          loading="lazy"
-          allow="accelerometer; gyroscope; encrypted-media; picture-in-picture;"
-          allowFullScreen
-          className="h-full w-full border-0"
-        />
-      </div>
-    );
-  }
-
-  const images = post.media.filter((m) => m.type === "image");
+  const images = post.media;
   if (!images.length) return null;
 
   if (images.length === 1) {
@@ -298,12 +271,7 @@ function MediaBlock({ post }: { post: FeedPost }) {
   }
 
   return (
-    <div
-      className={[
-        "grid gap-0.5",
-        images.length === 2 ? "grid-cols-2" : "grid-cols-2",
-      ].join(" ")}
-    >
+    <div className="grid grid-cols-2 gap-0.5">
       {images.slice(0, 4).map((image, index) => (
         <div key={image.id} className="relative">
           <img

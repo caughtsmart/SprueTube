@@ -88,7 +88,6 @@ export type PublicConfig = {
   shopUrl: string;
   adsenseClient: string | null;
   imagesAccountHash: string;
-  streamSubdomain: string;
 };
 
 /**
@@ -107,7 +106,6 @@ export function publicConfig(env: Env): PublicConfig {
     shopUrl: env.SHOP_URL,
     adsenseClient: env.ADSENSE_CLIENT || null,
     imagesAccountHash: env.CF_IMAGES_ACCOUNT_HASH,
-    streamSubdomain: env.CF_STREAM_CUSTOMER_SUBDOMAIN,
   };
 }
 

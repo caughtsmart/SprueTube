@@ -78,7 +78,7 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
     pickAd(scope.db, "post"),
   ]);
 
-  const firstImage = post.media.find((m) => m.type === "image" && m.imageId);
+  const firstImage = post.media[0];
   const ogImage =
     firstImage && !post.sensitive
       ? `https://imagedelivery.net/${scope.env.CF_IMAGES_ACCOUNT_HASH}/${firstImage.imageId}/full`

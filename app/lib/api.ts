@@ -2,7 +2,6 @@
  * Browser-side client for the SprueTube API.
  *
  * Same-origin and cookie-authenticated, so there is no token handling here.
- * The iOS app will hit the identical endpoints with a bearer token instead.
  */
 
 export class ApiError extends Error {
@@ -98,25 +97,9 @@ export async function uploadImage(
   return { imageId: ticket.imageId, ...dimensions };
 }
 
-export async function uploadVideo(
-  file: File,
-  onProgress?: (fraction: number) => void,
-): Promise<{ streamUid: string }> {
-  const ticket = await api.post<{ uploadUrl: string; streamUid: string }>(
-    "/uploads/videos",
-    {},
-  );
-
-  const form = new FormData();
-  form.append("file", file);
-
-  await uploadWithProgress(ticket.uploadUrl, form, onProgress);
-  return { streamUid: ticket.streamUid };
-}
-
 /**
- * XHR rather than fetch purely for upload progress — a painter sending a 200 MB
- * video over home broadband needs to see that something is happening.
+ * XHR rather than fetch purely for upload progress — a painter uploading eight
+ * photos of a squad over home broadband needs to see something is happening.
  */
 function uploadWithProgress(
   url: string,
@@ -159,22 +142,4 @@ function readImageDimensions(file: File) {
     };
     image.src = url;
   });
-}
-
-/** Polls until a Stream upload is playable, so the composer can report state. */
-export async function waitForVideo(
-  streamUid: string,
-  { timeoutMs = 10 * 60 * 1000, intervalMs = 4000 } = {},
-): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-
-  while (Date.now() < deadline) {
-    const status = await api
-      .get<{ ready: boolean; state: string }>(`/uploads/videos/${streamUid}`)
-      .catch(() => null);
-    if (status?.ready) return true;
-    if (status?.state === "error") return false;
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-  return false;
 }

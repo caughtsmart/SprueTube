@@ -93,20 +93,13 @@ fi
 
 echo
 if ! has_secret CF_API_TOKEN; then
-  warn "CF_API_TOKEN not set — photo and video uploads will return 502."
+  warn "CF_API_TOKEN not set — photo uploads will return 502."
   warn "  npx wrangler secret put CF_API_TOKEN"
-  warn "  (a token with only Images:Edit and Stream:Edit)"
-fi
-if ! has_secret CF_STREAM_WEBHOOK_SECRET; then
-  warn "CF_STREAM_WEBHOOK_SECRET not set — the Stream webhook refuses unsigned"
-  warn "callbacks, so video stays 'processing' until the 15-minute sweep."
+  warn "  (a token with only Cloudflare Images:Edit)"
 fi
 if grep -q 'REPLACE_WITH_IMAGES_ACCOUNT_HASH' wrangler.jsonc; then
   warn "CF_IMAGES_ACCOUNT_HASH still a placeholder — photos will not render."
   warn "Avatars fall back to initials, so the site is usable meanwhile."
-fi
-if grep -q 'REPLACE_WITH_STREAM_SUBDOMAIN' wrangler.jsonc; then
-  warn "CF_STREAM_CUSTOMER_SUBDOMAIN still a placeholder — video will not play."
 fi
 
 # --- What is left ------------------------------------------------------------
@@ -116,10 +109,7 @@ cat <<'NEXT'
 Next:
   1. Attach the domain — Workers & Pages → spruetube → Settings →
      Domains & Routes → add spruetube.app
-  2. Gating the preview with Access? Add the Bypass application for
-     /api/v1/webhooks/stream, or video will never publish.
-     See docs/DEPLOY.md step 6a.
-  3. Sign up, then make yourself admin — until someone is, reports pile up
+  2. Sign up, then make yourself admin — until someone is, reports pile up
      with nobody able to action them:
        npx wrangler d1 execute spruetube --remote \
          --command "UPDATE profile SET role='admin' WHERE username='you'"

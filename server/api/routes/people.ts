@@ -9,7 +9,7 @@ import {
   type ApiContext,
   type ApiEnv,
 } from "../context";
-import { follow, notification, profile, pushToken } from "../../db/schema";
+import { follow, notification, profile } from "../../db/schema";
 import { newId } from "../../db/id";
 import { getProfilePosts } from "../../services/feed";
 import { setFollow } from "../../services/posts";
@@ -24,11 +24,7 @@ import {
   usernameProblemMessage,
   validateUsername,
 } from "../../services/usernames";
-import {
-  onboardingSchema,
-  profileUpdateSchema,
-  pushTokenSchema,
-} from "../validators";
+import { onboardingSchema, profileUpdateSchema } from "../validators";
 
 export const people = new Hono<ApiEnv>();
 
@@ -318,31 +314,6 @@ async function toggleRelation(
     ? setBlock(db, viewer.id, target.userId, on)
     : setMute(db, viewer.id, target.userId, on);
 }
-
-/** Registered by the iOS app after the user accepts push permission. */
-people.post("/push/tokens", requireAuth, async (c) => {
-  const parsed = pushTokenSchema.safeParse(await c.req.json());
-  if (!parsed.success) throw badRequest("Invalid token payload.");
-
-  const db = c.get("db");
-  const user = c.get("user")!;
-  const nowSeconds = Math.floor(Date.now() / 1000);
-
-  await db
-    .insert(pushToken)
-    .values({
-      id: newId("pt"),
-      userId: user.id,
-      platform: parsed.data.platform,
-      token: parsed.data.token,
-    })
-    .onConflictDoUpdate({
-      target: pushToken.token,
-      set: { userId: user.id, lastSeenAt: nowSeconds },
-    });
-
-  return c.json({ ok: true });
-});
 
 /* -------------------------------------------------------------------------- */
 

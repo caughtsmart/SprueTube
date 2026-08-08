@@ -21,7 +21,7 @@ export function Landing({
 }) {
   const { config } = useRoot();
   const showcase = posts
-    .filter((post) => post.media.some((m) => m.type === "image" && m.imageId))
+    .filter((post) => post.media.length > 0)
     .slice(0, 6);
 
   return (
@@ -54,7 +54,7 @@ export function Landing({
         <section className="pb-12" aria-label="Recent work">
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {showcase.map((post) => {
-              const image = post.media.find((m) => m.type === "image");
+              const image = post.media[0];
               return (
                 <Link
                   key={post.id}

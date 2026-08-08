@@ -67,7 +67,7 @@ export const profileUpdateSchema = z.object({
 
 export const createPostSchema = z
   .object({
-    kind: z.enum(["text", "images", "video"]),
+    kind: z.enum(["text", "images"]),
     title: optionalTrimmed(120),
     body: z.string().trim().max(MAX_BODY_LENGTH).nullish(),
     gameSystem: z.enum(GAME_SYSTEMS).nullish(),
@@ -88,7 +88,6 @@ export const createPostSchema = z
       )
       .max(MAX_IMAGES_PER_POST)
       .optional(),
-    video: z.object({ streamUid: z.string().min(1).max(100) }).nullish(),
     products: z
       .array(
         z.object({
@@ -115,13 +114,6 @@ export const createPostSchema = z
         code: "custom",
         path: ["images"],
         message: "Add at least one photo.",
-      });
-    }
-    if (value.kind === "video" && !value.video) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["video"],
-        message: "Upload a video first.",
       });
     }
   });
@@ -163,9 +155,4 @@ export const projectSchema = z.object({
   scale: z.enum(SCALES).nullish(),
   status: z.enum(["active", "finished", "abandoned"]).default("active"),
   coverImageId: z.string().max(100).nullish(),
-});
-
-export const pushTokenSchema = z.object({
-  platform: z.enum(["ios", "android", "web"]),
-  token: z.string().min(10).max(400),
 });

@@ -4,17 +4,15 @@
  *
  * These are typed `string` rather than optional because `wrangler types` types
  * them that way whenever a .dev.vars file is present, and two declarations of
- * the same interface must agree. The optional ones can genuinely be unset at
+ * the same interface must agree. The social ones can genuinely be unset at
  * runtime, so the code checks them for truthiness rather than trusting the
- * type — see `createAuth` in server/auth.ts and the Stream webhook handler.
+ * type — see `createAuth` in server/auth.ts.
  */
 declare interface Env {
   /** 32+ random bytes. Signs session cookies — rotating it logs everyone out. */
   BETTER_AUTH_SECRET: string;
-  /** Cloudflare API token with Images:Edit and Stream:Edit. */
+  /** Cloudflare API token with Images:Edit. */
   CF_API_TOKEN: string;
-  /** Shared secret from the Stream webhook settings. Unset ⇒ webhook refuses. */
-  CF_STREAM_WEBHOOK_SECRET: string;
 
   /** Unset ⇒ the Google button is hidden. */
   GOOGLE_CLIENT_ID: string;

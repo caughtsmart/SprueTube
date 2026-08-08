@@ -14,9 +14,9 @@ import { safety } from "./routes/safety";
  * The whole HTTP API. Mounted at /api by workers/app.ts, which passes anything
  * that is not an /api path to the React Router SSR handler.
  *
- * Versioned at /api/v1 from the start. The iOS app will be shipped, installed
- * and out of our control, so old clients have to keep working while the web app
- * moves on — that is only possible if there is a version in the path.
+ * Versioned at /api/v1 from the start. It costs a path segment and it means a
+ * future client — a native app, a bookmarklet, someone else's script — can keep
+ * working while the web app moves on.
  */
 // basePath, not a mount: workers/app.ts hands over the untouched request, so
 // every route below is matched against the full "/api/..." path.
@@ -25,9 +25,9 @@ export const api = new Hono<ApiEnv>().basePath("/api");
 api.use("*", secureHeaders());
 
 /*
- * The web app is same-origin, so it does not need CORS at all. The native app
- * does: it sends `Origin: null` or a capacitor/file origin. Reflecting an
- * explicit allowlist rather than '*' keeps credentialed requests working.
+ * The web app is same-origin and needs no CORS at all. This exists so that a
+ * request from anywhere else is refused by default rather than by accident —
+ * an explicit allowlist, never '*', because these routes carry credentials.
  */
 api.use(
   "*",

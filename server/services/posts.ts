@@ -26,7 +26,7 @@ import {
 export { MAX_BODY_LENGTH, MAX_IMAGES_PER_POST };
 
 export type CreatePostInput = {
-  kind: "text" | "images" | "video";
+  kind: "text" | "images";
   title?: string | null;
   body?: string | null;
   gameSystem?: string | null;
@@ -37,7 +37,6 @@ export type CreatePostInput = {
   projectId?: string | null;
   tags?: string[];
   images?: { imageId: string; width?: number; height?: number; altText?: string }[];
-  video?: { streamUid: string } | null;
   products?: {
     kind?: "paint" | "kit" | "tool" | "other";
     name: string;
@@ -98,14 +97,14 @@ export async function createPost(
   db: Db,
   authorId: string,
   input: CreatePostInput,
-): Promise<{ id: string; status: "processing" | "published" }> {
+): Promise<{ id: string; status: "published" }> {
   const id = newId("p");
   const nowSeconds = Math.floor(Date.now() / 1000);
 
-  // A video post is not visible until Stream says the file is playable.
-  // Everything else goes live immediately.
-  const status = input.kind === "video" ? "processing" : "published";
-  const publishedAt = status === "published" ? nowSeconds : null;
+  // Photos are uploaded to Cloudflare Images before the post is created, so
+  // there is nothing to wait for — every post goes live immediately.
+  const status = "published" as const;
+  const publishedAt = nowSeconds;
 
   const body = input.body?.trim() || null;
   const tagNames = [
@@ -153,29 +152,14 @@ export async function createPost(
             id: newId("m"),
             postId: id,
             position: index,
-            type: "image" as const,
             imageId: image.imageId,
             width: image.width ?? null,
             height: image.height ?? null,
             altText: image.altText?.slice(0, 400) ?? null,
-            status: "ready" as const,
           })),
         ),
       );
     }
-  }
-
-  if (input.kind === "video" && input.video) {
-    statements.push(
-      db.insert(postMedia).values({
-        id: newId("m"),
-        postId: id,
-        position: 0,
-        type: "video",
-        streamUid: input.video.streamUid,
-        status: "pending",
-      }),
-    );
   }
 
   if (input.products?.length) {
@@ -237,75 +221,6 @@ export async function createPost(
   await notifyMentions(db, { authorId, postId: id, body });
 
   return { id, status };
-}
-
-/** Called by the Stream webhook once the transcode finishes. */
-export async function publishVideoPost(
-  db: Db,
-  streamUid: string,
-  details: {
-    durationSeconds?: number;
-    thumbnailUrl?: string;
-    width?: number;
-    height?: number;
-  },
-): Promise<string | null> {
-  const media = await db.query.postMedia.findFirst({
-    where: eq(postMedia.streamUid, streamUid),
-  });
-  if (!media) return null;
-
-  const nowSeconds = Math.floor(Date.now() / 1000);
-
-  await db.batch([
-    db
-      .update(postMedia)
-      .set({
-        status: "ready",
-        durationSeconds: details.durationSeconds ?? null,
-        thumbnailUrl: details.thumbnailUrl ?? null,
-        width: details.width ?? null,
-        height: details.height ?? null,
-      })
-      .where(eq(postMedia.id, media.id)),
-    db
-      .update(post)
-      .set({
-        status: "published",
-        publishedAt: nowSeconds,
-        updatedAt: nowSeconds,
-        hotScore: hotScore({
-          likeCount: 0,
-          commentCount: 0,
-          viewCount: 0,
-          publishedAt: nowSeconds,
-          now: nowSeconds,
-        }),
-      })
-      // Only promote a post that is still waiting. A removed post must not be
-      // resurrected by a late webhook.
-      .where(and(eq(post.id, media.postId), eq(post.status, "processing"))),
-  ]);
-
-  return media.postId;
-}
-
-export async function markVideoFailed(db: Db, streamUid: string) {
-  const media = await db.query.postMedia.findFirst({
-    where: eq(postMedia.streamUid, streamUid),
-  });
-  if (!media) return;
-
-  await db.batch([
-    db
-      .update(postMedia)
-      .set({ status: "failed" })
-      .where(eq(postMedia.id, media.id)),
-    db
-      .update(post)
-      .set({ status: "draft" })
-      .where(and(eq(post.id, media.postId), eq(post.status, "processing"))),
-  ]);
 }
 
 /** Soft delete — keeps the row so moderation history stays meaningful. */

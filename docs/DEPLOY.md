@@ -33,17 +33,16 @@ binding back when there is a reason to — untouched originals, or data exports.
 
 ## 2. Fill in the account vars
 
-Three placeholders remain in `wrangler.jsonc` under `vars`. They are the only
+Two placeholders remain in `wrangler.jsonc` under `vars`. They are the only
 ones left.
 
 | Var | Where to find it |
 | --- | --- |
 | `CF_ACCOUNT_ID` | `npx wrangler whoami` after logging in |
 | `CF_IMAGES_ACCOUNT_HASH` | Images → any delivery URL: `imagedelivery.net/<hash>/…` |
-| `CF_STREAM_CUSTOMER_SUBDOMAIN` | Stream → an embed URL: `customer-xxxx.cloudflarestream.com` |
 
 Leave `ADSENSE_CLIENT` empty. It stays empty until AdSense approves the site —
-see step 8.
+see step 7.
 
 ## 3. Set the secrets
 
@@ -51,14 +50,13 @@ see step 8.
 # 32 random bytes. Rotating this later signs everyone out.
 openssl rand -base64 32 | npx wrangler secret put BETTER_AUTH_SECRET
 
-# API token with Images:Edit and Stream:Edit on this account.
+# API token with Cloudflare Images:Edit on this account.
 npx wrangler secret put CF_API_TOKEN
 ```
 
 Create that token at **My Profile → API Tokens → Create Token → Custom token**
-with exactly two permissions: *Account · Cloudflare Images · Edit* and
-*Account · Stream · Edit*. Nothing else — this token is used by a Worker that
-serves the public internet.
+with exactly one permission: *Account · Cloudflare Images · Edit*. Nothing else
+— this token is used by a Worker that serves the public internet.
 
 ## 4. Configure Images
 
@@ -76,25 +74,7 @@ and an unknown variant is a 404, not a fallback.
 Leave "require signed URLs" **off**. Everything here is public content behind a
 public feed, and signing would break the plain `<img>` tags that keep it fast.
 
-## 5. Configure Stream and its webhook
-
-Stream → **Settings → Webhooks** → add:
-
-```
-https://spruetube.app/api/v1/webhooks/stream
-```
-
-Copy the signing secret it shows you, then:
-
-```bash
-npx wrangler secret put CF_STREAM_WEBHOOK_SECRET
-```
-
-This webhook is the only thing that moves a video post from `processing` to
-`published`. Without it, videos upload and never appear. (The 15-minute cron
-sweep catches stragglers, but do not rely on it as the primary path.)
-
-## 6. Deploy and attach the domain
+## 5. Deploy and attach the domain
 
 ```bash
 ./scripts/deploy.sh
@@ -122,7 +102,7 @@ Pick one canonical host and redirect the other. `www` → apex is the convention
 Rules → **Redirect Rules** → `http.host eq "www.spruetube.app"` → dynamic
 redirect to `concat("https://spruetube.app", http.request.uri.path)`, 301.
 
-## 6a. Previewing behind Cloudflare Access (Zero Trust)
+## 5a. Previewing behind Cloudflare Access (Zero Trust)
 
 Putting Access in front of `spruetube.app` is the right way to preview a UGC
 platform before it is ready for the public: no crawlers, no strangers signing
@@ -132,28 +112,12 @@ Zero Trust → Access → Applications → **Add a self-hosted application**, do
 `spruetube.app` (add `www.spruetube.app` too if it is attached), then a policy
 of Allow / Emails / your own address.
 
-### The one thing Access breaks
+### Nothing to work around
 
-**The Stream webhook.** `/api/v1/webhooks/stream` is a server-to-server callback
-from Cloudflare Stream with no browser and no session, so Access answers it with
-a login redirect and the callback never lands. Videos upload fine and then sit
-in `processing` forever.
-
-Fix it with a second Access application scoped to that path, with a **Bypass**
-policy for **Everyone**:
-
-- Application domain: `spruetube.app`, path `api/v1/webhooks/stream`
-- Policy: action **Bypass**, include **Everyone**
-
-Order matters — Access matches the most specific path first, so the bypass app
-must exist alongside the site-wide one rather than inside it. Bypassing is safe
-here because the endpoint verifies an HMAC signature and rejects anything
-unsigned, stale or replayed; Access was never what protected it.
-
-If you would rather not add the bypass during a preview, video still works:
-the 15-minute cron sweep reconciles anything stuck in `processing` by asking
-Stream directly. Publishing is just delayed by up to 15 minutes instead of
-being immediate.
+Access in front of the whole hostname used to break the Cloudflare Stream
+webhook, which needed a path-scoped Bypass application. With video gone there
+is no inbound machine-to-machine callback at all, so a single Allow policy over
+the whole site is enough.
 
 ### What else changes, and does not matter yet
 
@@ -163,8 +127,8 @@ being immediate.
   rather than a post.
 - Google and Apple sign-in still work: the visitor is already through Access in
   a browser, and the OAuth callback is a browser redirect.
-- The iOS app will not be able to reach the API through Access without a service
-  token. Worth remembering, not worth solving yet.
+- Anything automated you point at the site needs an Access service token,
+  including the verification script in step 10.
 
 ### Preview without the real domain
 
@@ -174,7 +138,7 @@ If you would rather not point `spruetube.app` at anything yet, deploy to the
 `SITE_URL` to that host as well, or sign-in will refuse the request — the origin
 has to match what better-auth trusts.
 
-## 7. Social sign-in
+## 6. Social sign-in
 
 Optional for web, **required before the iOS app can ship** — App Store guideline
 4.8 requires Sign in with Apple alongside any other third-party login.
@@ -209,7 +173,7 @@ npx wrangler secret put APPLE_CLIENT_SECRET
 Both buttons hide themselves when the secrets are absent, so partial setup is
 safe.
 
-## 8. Advertising
+## 7. Advertising
 
 AdSense will not approve an empty site. The order that works:
 
@@ -223,7 +187,7 @@ AdSense will not approve an empty site. The order that works:
 
 House ads keep running underneath as the fallback for unfilled impressions.
 
-## 9. Make yourself an admin
+## 8. Make yourself an admin
 
 ```bash
 npx wrangler d1 execute spruetube --remote \
@@ -233,7 +197,7 @@ npx wrangler d1 execute spruetube --remote \
 Do this immediately after your first sign-up. Until someone is an admin, reports
 pile up with nobody able to action them.
 
-## 10. Seed the house ads
+## 9. Seed the house ads
 
 Already applied to the remote database — four Loaded Dice promos across the
 feed, sidebar and post slots. Re-running is harmless (`INSERT OR IGNORE`):
@@ -242,7 +206,7 @@ feed, sidebar and post slots. Re-running is harmless (`INSERT OR IGNORE`):
 npx wrangler d1 execute spruetube --remote --file=./scripts/seed.sql
 ```
 
-## 11. Verify the deployment
+## 10. Verify the deployment
 
 ```bash
 npm run verify -- https://spruetube.app
@@ -265,7 +229,7 @@ CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... \
   npm run verify -- https://spruetube.app
 ```
 
-## 12. Set up the safety inboxes
+## 11. Set up the safety inboxes
 
 `safety@spruetube.app` and `privacy@spruetube.app` are published in the app and
 in the legal pages. They must reach a human. Cloudflare **Email Routing** will
@@ -340,10 +304,9 @@ restore without Cloudflare.
 
 | Symptom | Cause |
 | --- | --- |
-| Videos stay "processing" forever | Stream webhook not registered, or `CF_STREAM_WEBHOOK_SECRET` wrong. Check `wrangler tail` for `bad_signature`. If Access is on, the callback is being sent to a login page — add the bypass in step 6a. |
 | Broken image icons everywhere | `CF_IMAGES_ACCOUNT_HASH` still a placeholder. The URL builders return null for a placeholder so avatars fall back to initials, but an already-uploaded image cannot be shown. |
-| Every page is the Access login screen, including link previews | Working as intended; see step 6a. |
-| Images 404 after upload | Variant name missing in the Images dashboard. |
+| Every page is the Access login screen, including link previews | Working as intended; see step 5a. |
+| Photos 404 after upload | Variant name missing in the Images dashboard. |
 | "Missing or null Origin" on sign-in | Request Origin is not in `trustedOrigins` — check `SITE_URL` matches the host being used. |
 | Everyone signed out at once | `BETTER_AUTH_SECRET` changed. |
-| Uploads return 502 | `CF_API_TOKEN` missing, expired, or lacking Images/Stream Edit. |
+| Photo uploads return 502 | `CF_API_TOKEN` missing, expired, or lacking Images:Edit. |

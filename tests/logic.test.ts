@@ -5,7 +5,7 @@ import { ageFromBirthdate } from "../server/services/moderation";
 import { adSlotIndices } from "../server/services/ads";
 import { idTimestamp, newId } from "../server/db/id";
 import { compactCount, excerpt, parseBody } from "../app/lib/format";
-import { imageSrc, streamIframeSrc, streamPosterSrc } from "../app/lib/media";
+import { imageSrc } from "../app/lib/media";
 import { decodeCursor, encodeCursor } from "../server/services/feed";
 import {
   suggestUsername,
@@ -215,14 +215,8 @@ describe("ad placement", () => {
 });
 
 describe("media URLs", () => {
-  const configured = {
-    imagesAccountHash: "abc123",
-    streamSubdomain: "customer-xyz.cloudflarestream.com",
-  };
-  const placeholders = {
-    imagesAccountHash: "REPLACE_WITH_IMAGES_ACCOUNT_HASH",
-    streamSubdomain: "REPLACE_WITH_STREAM_SUBDOMAIN",
-  };
+  const configured = { imagesAccountHash: "abc123" };
+  const placeholders = { imagesAccountHash: "REPLACE_WITH_IMAGES_ACCOUNT_HASH" };
 
   it("builds a delivery URL when configured", () => {
     expect(imageSrc(configured, "img1", "feed")).toBe(
@@ -231,12 +225,10 @@ describe("media URLs", () => {
   });
 
   it("returns null rather than a URL built from a placeholder", () => {
-    // A preview deploy happens before Images and Stream are switched on. A
+    // A preview deploy happens before Cloudflare Images is switched on. A
     // placeholder is a non-empty string, so an emptiness check alone would ship
     // a page full of broken images.
     expect(imageSrc(placeholders, "img1")).toBeNull();
-    expect(streamIframeSrc(placeholders, "uid1")).toBeNull();
-    expect(streamPosterSrc(placeholders, "uid1")).toBeNull();
   });
 
   it("returns null when there is no media id at all", () => {
@@ -245,9 +237,7 @@ describe("media URLs", () => {
   });
 
   it("treats empty config as unconfigured", () => {
-    expect(
-      imageSrc({ imagesAccountHash: "", streamSubdomain: "" }, "img1"),
-    ).toBeNull();
+    expect(imageSrc({ imagesAccountHash: "" }, "img1")).toBeNull();
   });
 });
 
