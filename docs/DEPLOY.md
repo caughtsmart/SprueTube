@@ -97,8 +97,22 @@ sweep catches stragglers, but do not rely on it as the primary path.)
 ## 6. Deploy and attach the domain
 
 ```bash
-npm run deploy
+./scripts/deploy.sh
 ```
+
+That script resolves the account id from `wrangler whoami` and writes it into
+`wrangler.jsonc`, refuses to deploy if the typecheck or tests fail, deploys, and
+then generates `BETTER_AUTH_SECRET` if it is not already set — in that order,
+because on a fresh account the Worker has to exist before a secret can attach to
+it. It warns about anything still missing rather than failing, so a first preview
+gets up with only these two commands:
+
+```bash
+npx wrangler login
+./scripts/deploy.sh
+```
+
+Plain `npm run deploy` still works if you would rather do the steps yourself.
 
 Then Workers & Pages → `spruetube` → **Settings → Domains & Routes** → add
 `spruetube.app` and `www.spruetube.app` as custom domains. Cloudflare creates
