@@ -203,6 +203,37 @@ npm run db:migrate:remote
 D1 has no transactional DDL rollback. Read the generated SQL in `migrations/`
 before applying it to production, especially anything that drops a column.
 
+**Branch protection**
+
+`main` should only move through a pull request with green CI. The rule is kept
+in `.github/ruleset-main.json` so the setting is reviewable in git rather than
+being invisible dashboard state. Apply it once with the `gh` CLI:
+
+```bash
+gh api --method POST /repos/caughtsmart/SprueTube/rulesets \
+  --input .github/ruleset-main.json
+```
+
+Or by hand: Settings → Rules → Rulesets → New branch ruleset.
+
+What it does, and why each part:
+
+- **Require a pull request**, with **zero required approvals**. There is one
+  developer; demanding an approval nobody can give would block every merge.
+  Zero still forces the PR flow, so CI always runs before anything lands.
+- **Require the `Typecheck, test, build` check**, strict — the branch must be up
+  to date with `main`, so the checks that pass are the checks for the merge
+  result rather than for a stale snapshot. If that becomes annoying with several
+  PRs open at once, set `strict_required_status_checks_policy` to `false`.
+- **Block deletion and force-pushes** on `main`.
+- **Repository admins can bypass**, which mirrors GitHub's own default. A rule
+  you cannot ever get past during a genuine emergency tends to get deleted
+  rather than worked around. Drop the `bypass_actors` entry if you would rather
+  be locked in.
+
+Rulesets rather than classic branch protection, because classic protected
+branches need a paid plan on a private repository and rulesets do not.
+
 **Backups**
 
 ```bash
