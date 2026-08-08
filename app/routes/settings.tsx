@@ -6,7 +6,12 @@ import { api, ApiError, uploadImage } from "../lib/api";
 import { getScope } from "../lib/data.server";
 import { imageSrc } from "../lib/media";
 import { useRoot } from "../root";
-import { GAME_SYSTEMS, GAME_SYSTEM_LABELS, MAX_BIO_LENGTH } from "../lib/taxonomy";
+import {
+  GAME_SYSTEMS,
+  GAME_SYSTEM_LABELS,
+  MAX_BIO_LENGTH,
+  MIN_PASSWORD_LENGTH,
+} from "../lib/taxonomy";
 
 export function meta() {
   return [
@@ -19,8 +24,20 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const scope = await getScope(context, request);
   if (!scope.viewer) throw redirect("/login?next=/settings");
 
+  /*
+   * Somebody who only ever signed in with Google has no password to change.
+   * Offering them a "current password" field they can never fill in is worse
+   * than showing nothing, so ask the account table which kind they are.
+   */
+  const credential = await scope.db.query.account.findFirst({
+    where: (a, { and, eq }) =>
+      and(eq(a.userId, scope.viewer!.userId), eq(a.providerId, "credential")),
+    columns: { id: true },
+  });
+
   const { profile } = scope.viewer;
   return {
+    hasPassword: Boolean(credential),
     profile: {
       username: profile.username,
       displayName: profile.displayName,
@@ -245,11 +262,20 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
         </div>
       </form>
 
+      {loaderData.hasPassword ? <ChangePassword /> : null}
+
       <section className="st-card mt-5 p-4 sm:p-5">
         <h2 className="text-base font-semibold">Your account</h2>
         <p className="st-text-muted mt-1 text-sm">
           You are signed in as @{profile.username}.
         </p>
+
+        {loaderData.hasPassword ? null : (
+          <p className="st-text-muted mt-2 text-sm">
+            You sign in with Google, so there is no password on this account to
+            change.
+          </p>
+        )}
 
         <Form method="post" action="/logout" className="mt-4">
           <button type="submit" className="st-btn st-btn-ghost">
@@ -258,5 +284,149 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
         </Form>
       </section>
     </div>
+  );
+}
+
+/**
+ * Change the password from inside the account.
+ *
+ * Distinct from the reset flow, which exists for people who cannot sign in at
+ * all. This one is for the ordinary case — you know the old password and want a
+ * different one — and it asks for the current password so that a borrowed
+ * unlocked laptop cannot be used to take the account over.
+ *
+ * Every other session is revoked. better-auth issues this browser a fresh
+ * cookie in the same response, so the person changing it stays signed in here
+ * and is signed out everywhere else, which is what someone doing this after
+ * losing a phone actually wants.
+ */
+function ChangePassword() {
+  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const newPassword = String(data.get("newPassword") ?? "");
+
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setError(`Passwords need to be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      return;
+    }
+    if (newPassword !== String(data.get("confirm") ?? "")) {
+      setError("Those two passwords do not match.");
+      return;
+    }
+
+    setStatus("saving");
+
+    try {
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: String(data.get("currentPassword") ?? ""),
+          newPassword,
+          revokeOtherSessions: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          code?: string;
+        } | null;
+        setError(
+          payload?.code === "INVALID_PASSWORD"
+            ? "That current password is not right."
+            : "Could not change the password. Try again in a moment.",
+        );
+        setStatus("idle");
+        return;
+      }
+
+      form.reset();
+      setStatus("saved");
+    } catch {
+      setError("Could not reach the server. Check your connection.");
+      setStatus("idle");
+    }
+  }
+
+  return (
+    <section className="st-card mt-5 p-4 sm:p-5">
+      <h2 className="text-base font-semibold">Password</h2>
+      <p className="st-text-muted mt-1 text-sm">
+        Changing it signs you out on every other device.
+      </p>
+
+      <form onSubmit={onSubmit} className="mt-4 max-w-sm space-y-4">
+        <div>
+          <label htmlFor="currentPassword" className="st-label">
+            Current password
+          </label>
+          <input
+            id="currentPassword"
+            name="currentPassword"
+            type="password"
+            required
+            autoComplete="current-password"
+            className="st-input"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="newPassword" className="st-label">
+            New password
+          </label>
+          <input
+            id="newPassword"
+            name="newPassword"
+            type="password"
+            required
+            minLength={MIN_PASSWORD_LENGTH}
+            autoComplete="new-password"
+            className="st-input"
+          />
+          <p className="st-text-muted mt-1 text-xs">
+            At least {MIN_PASSWORD_LENGTH} characters.
+          </p>
+        </div>
+
+        <div>
+          <label htmlFor="confirm" className="st-label">
+            Confirm new password
+          </label>
+          <input
+            id="confirm"
+            name="confirm"
+            type="password"
+            required
+            minLength={MIN_PASSWORD_LENGTH}
+            autoComplete="new-password"
+            className="st-input"
+          />
+        </div>
+
+        {error ? <p className="st-error">{error}</p> : null}
+
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={status === "saving"}
+            className="st-btn st-btn-primary"
+          >
+            {status === "saving" ? "Changing…" : "Change password"}
+          </button>
+          {status === "saved" ? (
+            <span className="text-sm text-[var(--color-wash-400)]">
+              Password changed
+            </span>
+          ) : null}
+        </div>
+      </form>
+    </section>
   );
 }
