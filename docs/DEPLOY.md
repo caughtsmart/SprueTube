@@ -52,6 +52,9 @@ openssl rand -base64 32 | npx wrangler secret put BETTER_AUTH_SECRET
 
 # API token with Cloudflare Images:Edit on this account.
 npx wrangler secret put CF_API_TOKEN
+
+# Resend API key. Without it there is no password reset — see step 11.
+npx wrangler secret put RESEND_API_KEY
 ```
 
 Create that token at **My Profile → API Tokens → Create Token → Custom token**
@@ -215,25 +218,78 @@ npm run verify -- https://spruetube.app
 Drives the real API and the rendered pages: signup, the age gate, posting,
 hashtag extraction, all feed tabs, follows, idempotent likes, comments,
 notifications, followers-only visibility, reporting, moderation authorisation
-and blocking. 36 checks.
+and blocking. 39 checks.
 
 It creates two throwaway accounts prefixed `verify-` and prints the one-line
 command to remove them.
 
 Behind Access, pass an Access service token or every request gets the login page
 instead of the app — the script detects that case and says so rather than
-reporting 36 confusing failures:
+reporting 39 confusing failures:
 
 ```bash
 CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... \
   npm run verify -- https://spruetube.app
 ```
 
-## 11. Set up the safety inboxes
+## 11. Email
+
+Two directions, two different services. Both are needed.
+
+### Sending — Resend
+
+Password resets and email confirmation. Workers cannot open an SMTP connection,
+so this goes over Resend's HTTP API.
+
+1. Sign up at [resend.com](https://resend.com). The free tier is 3,000 messages
+   a month, which is far more than a community this size will send.
+2. **Domains → Add Domain →** `spruetube.app`. Resend shows a set of DNS
+   records — an MX, a TXT for SPF, and a CNAME or TXT for DKIM.
+3. Add them in Cloudflare DNS. Set every one of them to **DNS only** (grey
+   cloud, not orange). Proxying a mail record breaks it.
+4. Wait for Resend to show the domain as *Verified*. Usually minutes.
+5. **API Keys → Create API Key**, permission **Sending access**, then
+   `npx wrangler secret put RESEND_API_KEY`.
+
+`EMAIL_FROM` in `wrangler.jsonc` is `SprueTube <noreply@spruetube.app>`. The
+address has to be on the verified domain or Resend rejects the send.
+
+Until the key is set, nothing breaks and nobody is told: the site still offers
+"reset my password", still says "check your email", and the message is dropped
+with an error in the Workers log. Verify it properly by actually resetting your
+own password.
+
+### Receiving — Cloudflare Email Routing
 
 `safety@spruetube.app` and `privacy@spruetube.app` are published in the app and
 in the legal pages. They must reach a human. Cloudflare **Email Routing** will
 forward them to an existing mailbox for free.
+
+These two coexist fine: Email Routing owns the inbound MX for the domain and
+Resend only sends. Add Resend's records alongside, do not replace anything.
+
+### Turning on mandatory verification
+
+`requireEmailVerification` in `server/auth.ts` is `false`, and flipping it is a
+one-way door for anyone who already has an account. better-auth refuses the
+sign-in of a user whose `emailVerified` is false — it does not prompt them to
+verify, it just says no. Every account created before the flip, yours included,
+is locked out.
+
+So do it in this order:
+
+```bash
+# 1. Confirm sending works — reset your own password end to end first.
+
+# 2. Grandfather in everyone who signed up before verification existed.
+npx wrangler d1 execute spruetube --remote \
+  --command "UPDATE user SET email_verified = 1"
+
+# 3. Only now set requireEmailVerification: true in server/auth.ts and deploy.
+```
+
+New sign-ups already receive a confirmation email — `sendOnSignUp` is on — so
+the flag is the only thing left to change.
 
 ---
 

@@ -72,6 +72,12 @@ export default function Login({ loaderData }: Route.ComponentProps) {
         action="Sign in"
       />
 
+      {searchParams.get("reset") ? (
+        <p className="st-text-muted mb-4 text-sm">
+          Password changed. Sign in with the new one.
+        </p>
+      ) : null}
+
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label htmlFor="email" className="st-label">
@@ -88,9 +94,14 @@ export default function Login({ loaderData }: Route.ComponentProps) {
         </div>
 
         <div>
-          <label htmlFor="password" className="st-label">
-            Password
-          </label>
+          <div className="flex items-baseline justify-between">
+            <label htmlFor="password" className="st-label">
+              Password
+            </label>
+            <Link to="/forgot-password" className="st-link text-xs">
+              Forgot it?
+            </Link>
+          </div>
           <input
             id="password"
             name="password"

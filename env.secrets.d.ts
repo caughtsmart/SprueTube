@@ -13,6 +13,8 @@ declare interface Env {
   BETTER_AUTH_SECRET: string;
   /** Cloudflare API token with Images:Edit. */
   CF_API_TOKEN: string;
+  /** Resend API key. Unset ⇒ no password reset, so this is a launch blocker. */
+  RESEND_API_KEY: string;
 
   /** Unset ⇒ the Google button is hidden. */
   GOOGLE_CLIENT_ID: string;

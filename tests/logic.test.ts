@@ -6,6 +6,11 @@ import { adSlotIndices } from "../server/services/ads";
 import { idTimestamp, newId } from "../server/db/id";
 import { compactCount, excerpt, parseBody } from "../app/lib/format";
 import { imageSrc } from "../app/lib/media";
+import {
+  escapeHtml,
+  resetPasswordEmail,
+  verifyEmail,
+} from "../server/services/email";
 import { decodeCursor, encodeCursor } from "../server/services/feed";
 import {
   suggestUsername,
@@ -254,5 +259,43 @@ describe("formatting", () => {
     const trimmed = excerpt(long, 50);
     expect(trimmed.length).toBe(50);
     expect(trimmed.endsWith("…")).toBe(true);
+  });
+});
+
+describe("transactional email", () => {
+  const url = "https://spruetube.app/api/auth/reset-password/tok?callbackURL=%2F";
+
+  it("puts the link in both the HTML and the plain text part", () => {
+    const message = resetPasswordEmail({
+      to: "painter@example.com",
+      name: "Graham",
+      url,
+    });
+    expect(message.html).toContain(url);
+    expect(message.text).toContain(url);
+  });
+
+  it("escapes a display name before interpolating it into the HTML", () => {
+    // Display names are user-controlled and never sanitised on the way in.
+    const message = verifyEmail({
+      to: "painter@example.com",
+      name: '<img src=x onerror="alert(1)">',
+      url,
+    });
+    expect(message.html).not.toContain("<img src=x");
+    expect(message.html).toContain("&lt;img src=x");
+  });
+
+  it("keeps the plain text part free of markup", () => {
+    const message = resetPasswordEmail({
+      to: "painter@example.com",
+      name: "Graham",
+      url,
+    });
+    expect(message.text).not.toContain("<");
+  });
+
+  it("escapes every character that could break out of an attribute", () => {
+    expect(escapeHtml(`&<>"'`)).toBe("&amp;&lt;&gt;&quot;&#39;");
   });
 });

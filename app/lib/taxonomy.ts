@@ -143,5 +143,11 @@ export const MAX_COMMENT_LENGTH = 2000;
 export const MAX_BIO_LENGTH = 280;
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
+/**
+ * Shared by the sign-up form, the reset form and better-auth itself. A UI that
+ * accepts a password the server then rejects is a bug that only shows up to the
+ * user, so all three read this.
+ */
+export const MIN_PASSWORD_LENGTH = 10;
 /** Minimum age for an account, per the Online Safety Act and the App Store. */
 export const MINIMUM_AGE = 13;

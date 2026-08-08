@@ -56,6 +56,9 @@
     // Public account hash from Images → the imagedelivery.net URL prefix.
     // Uploads work without it; the feed cannot build image URLs.
     "CF_IMAGES_ACCOUNT_HASH": "MTceR3C16CyQmjHH6ME2VA",
+    // Envelope sender for password resets and email confirmation. The domain
+    // has to be verified in Resend or every message is rejected outright.
+    "EMAIL_FROM": "SprueTube <noreply@spruetube.app>",
     // Leave empty until AdSense approves the site; ad slots render house ads.
     "ADSENSE_CLIENT": "",
     "ENVIRONMENT": "production"

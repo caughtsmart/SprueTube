@@ -12,6 +12,9 @@ export default [
   route("login", "routes/login.tsx"),
   route("logout", "routes/logout.tsx"),
   route("welcome", "routes/onboarding.tsx"),
+  route("forgot-password", "routes/forgot-password.tsx"),
+  // Where the emailed reset link lands, after better-auth has checked the token.
+  route("reset-password", "routes/reset-password.tsx"),
 
   // Core app
   route("explore", "routes/explore.tsx"),

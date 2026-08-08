@@ -175,6 +175,10 @@ for (const path of [
   "/terms",
   "/login",
   "/signup",
+  "/forgot-password",
+  // Reached with no token, so it renders the "link no longer works" branch —
+  // which still has to be a 200 rather than a crash.
+  "/reset-password",
 ]) {
   await check(`${path} responds`, async () => {
     const page = await call(path, { raw: true });
@@ -182,6 +186,26 @@ for (const path of [
     return undefined;
   });
 }
+
+await check("password reset does not leak which addresses exist", async () => {
+  // Both answers must be identical, or this endpoint becomes a way to test an
+  // address for an account.
+  const bodies = [];
+  for (const email of ["definitely-not-a-user@example.com", "root@example.com"]) {
+    const result = await call("/api/auth/request-password-reset", {
+      method: "POST",
+      body: { email, redirectTo: "/reset-password" },
+      raw: true,
+    });
+    assert(result.status === 200, `expected 200, got ${result.status}`);
+    bodies.push(result.text);
+  }
+  assert(
+    bodies[0] === bodies[1],
+    "responses differed between known and unknown addresses",
+  );
+  return undefined;
+});
 
 await check("robots.txt points at the sitemap", async () => {
   const page = await call("/robots.txt", { raw: true });

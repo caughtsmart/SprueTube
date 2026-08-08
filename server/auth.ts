@@ -2,7 +2,9 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createDb, schema } from "./db/client";
 import { newId } from "./db/id";
+import { deliver, resetPasswordEmail, verifyEmail } from "./services/email";
 import { reserveUsername, suggestUsername } from "./services/usernames";
+import { MIN_PASSWORD_LENGTH } from "../app/lib/taxonomy";
 
 export type Auth = ReturnType<typeof createAuth>;
 
@@ -57,9 +59,47 @@ function createAuth(env: Env) {
     }),
     emailAndPassword: {
       enabled: true,
-      minPasswordLength: 10,
-      // Turn this on once transactional email is wired up (see docs/DEPLOY.md).
+      minPasswordLength: MIN_PASSWORD_LENGTH,
+      /*
+       * Still false, deliberately, even though verification email now sends.
+       *
+       * Flipping this locks out every account created before it — including
+       * yours — because their `emailVerified` is false and better-auth refuses
+       * the sign-in rather than prompting. Mark the existing accounts verified
+       * first, then flip. docs/DEPLOY.md has the order and the SQL.
+       */
       requireEmailVerification: false,
+      resetPasswordTokenExpiresIn: 60 * 60,
+      // A reset is what someone does when they suspect they have been turned
+      // out of their own account. Leaving the intruder's sessions alive would
+      // defeat the point of it.
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: async ({ user, url }) => {
+        await deliver(
+          env,
+          resetPasswordEmail({
+            to: user.email,
+            name: user.name?.trim() || "there",
+            url,
+          }),
+          url,
+        );
+      },
+    },
+    emailVerification: {
+      sendOnSignUp: true,
+      autoSignInAfterVerification: true,
+      sendVerificationEmail: async ({ user, url }) => {
+        await deliver(
+          env,
+          verifyEmail({
+            to: user.email,
+            name: user.name?.trim() || "there",
+            url,
+          }),
+          url,
+        );
+      },
     },
     socialProviders,
     session: {

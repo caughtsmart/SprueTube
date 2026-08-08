@@ -3,6 +3,7 @@ import { Link, redirect, useNavigate } from "react-router";
 import type { Route } from "./+types/signup";
 import { AuthCard, OAuthButtons } from "../components/AuthCard";
 import { getScope } from "../lib/data.server";
+import { MIN_PASSWORD_LENGTH } from "../lib/taxonomy";
 
 export function meta() {
   return [
@@ -40,8 +41,8 @@ export default function Signup({ loaderData }: Route.ComponentProps) {
     const password = String(form.get("password") ?? "");
     const name = String(form.get("name") ?? "").trim();
 
-    if (password.length < 10) {
-      setError("Passwords need to be at least 10 characters.");
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Passwords need to be at least ${MIN_PASSWORD_LENGTH} characters.`);
       setSubmitting(false);
       return;
     }
@@ -121,12 +122,13 @@ export default function Signup({ loaderData }: Route.ComponentProps) {
             name="password"
             type="password"
             required
-            minLength={10}
+            minLength={MIN_PASSWORD_LENGTH}
             autoComplete="new-password"
             className="st-input"
           />
           <p className="st-text-muted mt-1 text-xs">
-            At least 10 characters. A short sentence beats a clever word.
+            At least {MIN_PASSWORD_LENGTH} characters. A short sentence beats
+            a clever word.
           </p>
         </div>
 
