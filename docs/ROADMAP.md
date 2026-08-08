@@ -7,12 +7,12 @@ Ordered by what blocks what, not by what is most exciting.
 These are gaps in what is already built, and the site should not be public
 without them.
 
-- **Transactional email.** Built — reset and confirmation both send through
-  Cloudflare Email Sending, with no API key anywhere. What remains is one
-  command, `wrangler email sending enable spruetube.app`, and then resetting
-  your own password to prove it. After that, grandfather in the existing
-  accounts and set `requireEmailVerification: true`, in that order — see
-  `docs/DEPLOY.md` step 11 for why the order matters.
+- ~~**Transactional email.**~~ Done. Reset and confirmation send through
+  Cloudflare Email Sending; the domain is onboarded and a real reset has been
+  run end to end. Still optional and deliberately off: mandatory email
+  verification. Grandfather in the existing accounts first, then set
+  `requireEmailVerification: true` — `docs/DEPLOY.md` step 11 has the order, and
+  doing it the other way round locks out every account including the admin.
 - **Legal entity in the documents.** `app/routes/privacy.tsx` and
   `app/routes/terms.tsx` contain `[LEGAL ENTITY]` placeholders. See
   `docs/COMPLIANCE.md`.
