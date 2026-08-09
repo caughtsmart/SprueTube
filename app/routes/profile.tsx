@@ -169,7 +169,7 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
   if (person.suspended) {
     return (
       <div className="st-card mx-auto max-w-2xl p-10 text-center">
-        <p className="text-4xl">🚫</p>
+        <div aria-hidden className="st-hazard-muted mx-auto h-2.5 w-32 rounded-sm" />
         <h1 className="mt-4 text-lg font-semibold">Account suspended</h1>
         <p className="st-text-muted mt-2 text-sm">
           This account has been suspended for breaking the community rules.
@@ -331,7 +331,7 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
           ad={loaderData.ad}
           emptyState={
             <>
-              <p className="text-4xl">🧱</p>
+              <div aria-hidden className="st-hazard mx-auto h-2.5 w-32 rounded-sm" />
               <h2 className="mt-4 text-lg font-semibold">Nothing posted yet</h2>
               <p className="st-text-muted mt-2 text-sm">
                 {loaderData.isSelf

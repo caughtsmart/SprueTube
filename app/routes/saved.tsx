@@ -28,7 +28,7 @@ export default function Saved({ loaderData }: Route.ComponentProps) {
         </div>
       ) : (
         <div className="st-card p-10 text-center">
-          <p className="text-4xl">☆</p>
+          <div aria-hidden className="st-hazard mx-auto h-2.5 w-32 rounded-sm" />
           <h2 className="mt-4 text-lg font-semibold">Nothing saved yet</h2>
           <p className="st-text-muted mt-2 text-sm">
             Save a technique you want to try and it will wait here for you.

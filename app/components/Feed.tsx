@@ -83,7 +83,7 @@ export function Feed({
       <div className="st-card p-10 text-center">
         {emptyState ?? (
           <>
-            <p className="text-4xl">🎨</p>
+            <div aria-hidden className="st-hazard mx-auto h-2.5 w-32 rounded-sm" />
             <h2 className="mt-4 text-lg font-semibold">Nothing here yet</h2>
             <p className="st-text-muted mt-2 text-sm">
               Be the first to post something.

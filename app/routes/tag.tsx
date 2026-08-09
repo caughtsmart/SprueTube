@@ -41,7 +41,7 @@ export default function TagPage({ loaderData }: Route.ComponentProps) {
         ad={loaderData.ad}
         emptyState={
           <>
-            <p className="text-4xl">🏷</p>
+            <div aria-hidden className="st-hazard mx-auto h-2.5 w-32 rounded-sm" />
             <h2 className="mt-4 text-lg font-semibold">
               Nothing tagged #{loaderData.tag} yet
             </h2>

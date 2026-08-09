@@ -289,7 +289,7 @@ export function ProjectForm({
             type="button"
             onClick={onDelete}
             disabled={submitting || deleting}
-            className="st-btn st-btn-ghost ml-auto text-sm text-[#ff8080]"
+            className="st-btn st-btn-ghost ml-auto text-sm text-[var(--color-error)]"
           >
             {deleting ? "Deleting…" : "Delete"}
           </button>

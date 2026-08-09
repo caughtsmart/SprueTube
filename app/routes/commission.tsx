@@ -336,7 +336,7 @@ function OwnerControls({
           type="button"
           onClick={() => void remove()}
           disabled={busy}
-          className="st-btn st-btn-ghost ml-auto text-sm text-[#ff8080]"
+          className="st-btn st-btn-ghost ml-auto text-sm text-[var(--color-error)]"
         >
           Take it down
         </button>

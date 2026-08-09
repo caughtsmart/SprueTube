@@ -30,6 +30,12 @@ export function Landing({
 
   return (
     <div className="mx-auto max-w-3xl">
+      {/*
+        The concept opens every screen with a 10px band of tape. On the page a
+        stranger sees first, it is the whole identity in one element.
+      */}
+      <div aria-hidden className="st-hazard mt-6 h-2.5 rounded-sm" />
+
       <section className="py-10 text-center sm:py-16">
         <h1 className="font-display text-4xl leading-tight font-bold sm:text-5xl">
           From sprue to

@@ -124,7 +124,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         emptyState={
           active === "following" ? (
             <>
-              <p className="text-4xl">👋</p>
+              <div aria-hidden className="st-hazard mx-auto h-2.5 w-32 rounded-sm" />
               <h2 className="mt-4 text-lg font-semibold">
                 Your feed is empty
               </h2>
