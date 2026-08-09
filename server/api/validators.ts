@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  CONTACT_TOPICS,
   GAME_SYSTEMS,
   MAX_BODY_LENGTH,
   MAX_IMAGES_PER_POST,
@@ -137,6 +138,27 @@ export const reportSchema = z.object({
   subjectId: z.string().min(1).max(60),
   reason: z.enum(REPORT_REASONS),
   details: z.string().trim().max(2000).nullish(),
+});
+
+/*
+ * The contact form. Open to anyone, signed in or not.
+ *
+ * `website` is a honeypot: the field exists in the markup, is hidden from
+ * people and left empty by them, and is filled in by the sort of bot that
+ * walks a page looking for inputs. Anything in it is a bot, and the endpoint
+ * answers with a cheerful 200 rather than an error, because telling a spammer
+ * which of their submissions failed is how they find the field to leave alone.
+ */
+export const contactSchema = z.object({
+  topic: z.enum(CONTACT_TOPICS),
+  name: z.string().trim().min(1, "Tell us what to call you.").max(80),
+  email: z.string().trim().email("That does not look like an email address.").max(254),
+  message: z
+    .string()
+    .trim()
+    .min(10, "A little more than that — we want to be able to help.")
+    .max(4000),
+  website: z.string().max(200).optional(),
 });
 
 export const moderationSchema = z.object({

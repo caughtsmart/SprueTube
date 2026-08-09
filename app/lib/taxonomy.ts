@@ -136,6 +136,35 @@ export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
 };
 
 /*
+ * What the contact form is about.
+ *
+ * The topic ends up in the subject line, so an inbox shared by two people can
+ * be sorted and split without opening anything. Safety and moderation appeals
+ * are deliberately absent: those have their own address with its own promises
+ * attached, and quietly funnelling them through a general enquiries form would
+ * bury the urgent ones under questions about stockists.
+ */
+export const CONTACT_TOPICS = [
+  "general",
+  "account",
+  "bug",
+  "advertising",
+  "press",
+  "legal",
+] as const;
+
+export type ContactTopic = (typeof CONTACT_TOPICS)[number];
+
+export const CONTACT_TOPIC_LABELS: Record<ContactTopic, string> = {
+  general: "General enquiry",
+  account: "Help with my account",
+  bug: "Something is broken",
+  advertising: "Advertising or partnerships",
+  press: "Press",
+  legal: "Legal or data protection",
+};
+
+/*
  * What state a build log is in.
  *
  * "Abandoned" earns its place. Every painter has a box of half-finished things,

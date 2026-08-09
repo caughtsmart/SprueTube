@@ -8,8 +8,13 @@ import { compactCount, excerpt, parseBody } from "../app/lib/format";
 import { imageSrc } from "../app/lib/media";
 import { OPERATOR, operatorLine, operatorReady } from "../app/lib/legal";
 import { slugify } from "../server/api/routes/content";
-import { projectPatchSchema, projectSchema } from "../server/api/validators";
 import {
+  contactSchema,
+  projectPatchSchema,
+  projectSchema,
+} from "../server/api/validators";
+import {
+  contactEmail,
   escapeHtml,
   resetPasswordEmail,
   verifyEmail,
@@ -300,6 +305,104 @@ describe("transactional email", () => {
 
   it("escapes every character that could break out of an attribute", () => {
     expect(escapeHtml(`&<>"'`)).toBe("&amp;&lt;&gt;&quot;&#39;");
+  });
+});
+
+describe("contact email", () => {
+  const base = {
+    to: ["graham@loadeddice.uk", "leigh@loadeddice.uk"],
+    topic: "General enquiry",
+    name: "Graham",
+    email: "someone@example.com",
+    message: "Do you ship to Ireland?",
+    username: null,
+  };
+
+  it("keeps both recipients and replies to the person who wrote in", () => {
+    const message = contactEmail(base);
+    expect(message.to).toEqual([
+      "graham@loadeddice.uk",
+      "leigh@loadeddice.uk",
+    ]);
+    expect(message.replyTo).toBe("someone@example.com");
+  });
+
+  it("puts the topic and the name in the subject so the inbox sorts itself", () => {
+    const message = contactEmail(base);
+    expect(message.subject).toBe("SprueTube — General enquiry — Graham");
+  });
+
+  it("escapes every field a stranger typed", () => {
+    const message = contactEmail({
+      ...base,
+      name: '<img src=x onerror="alert(1)">',
+      message: "<script>alert(2)</script>",
+      email: "a<b@example.com",
+    });
+    expect(message.html).not.toContain("<img src=x");
+    expect(message.html).not.toContain("<script>");
+    expect(message.html).toContain("&lt;script&gt;");
+    expect(message.html).toContain("a&lt;b@example.com");
+  });
+
+  it("says plainly when the sender was not signed in", () => {
+    expect(contactEmail(base).text).toContain("Account: not signed in");
+  });
+
+  it("names the account when there is one, from the session rather than the form", () => {
+    const message = contactEmail({ ...base, username: "graham" });
+    expect(message.text).toContain("Account: @graham");
+    expect(message.html).toContain("https://spruetube.app/@graham");
+  });
+
+  it("carries no button, because there is nothing for the reader to click", () => {
+    expect(contactEmail(base).html).not.toContain("If the button does not work");
+  });
+});
+
+describe("contact form validation", () => {
+  const good = {
+    topic: "general",
+    name: "Graham",
+    email: "someone@example.com",
+    message: "Ten characters at least, which this is.",
+  };
+
+  it("accepts a filled-in form", () => {
+    expect(contactSchema.safeParse(good).success).toBe(true);
+  });
+
+  it("rejects an address that is not one", () => {
+    const result = contactSchema.safeParse({ ...good, email: "not an email" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a topic that is not on the list", () => {
+    // The topic goes straight into the subject line, so it has to come from
+    // the fixed set rather than from whatever was posted.
+    const result = contactSchema.safeParse({ ...good, topic: "anything" });
+    expect(result.success).toBe(false);
+  });
+
+  it("asks for more than a couple of words", () => {
+    const result = contactSchema.safeParse({ ...good, message: "help" });
+    expect(result.success).toBe(false);
+  });
+
+  it("trims before measuring, so whitespace is not a message", () => {
+    const result = contactSchema.safeParse({
+      ...good,
+      message: "            ",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("leaves the honeypot optional and keeps it when filled", () => {
+    expect(contactSchema.safeParse(good).data?.website).toBeUndefined();
+    expect(
+      contactSchema.safeParse({ ...good, website: "http://spam" }).data
+        ?.website,
+    ).toBe("http://spam");
   });
 });
 

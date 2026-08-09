@@ -10,11 +10,12 @@
  * spruetube.app`, which writes the SPF and DKIM records into Cloudflare DNS
  * directly. Nothing to copy between two dashboards and nothing to get wrong.
  *
- * Only two messages exist, and both are a link the recipient has to click.
- * Marketing mail, digests and notification email are a different problem with
- * different rules — consent records, unsubscribe headers, send reputation — and
- * do not belong in this file when they arrive. Cloudflare say the same: Email
- * Sending is for transactional mail only.
+ * Three messages exist: two account links the recipient has to click, and the
+ * contact form, which goes the other way — from a visitor to the people who run
+ * the place. Marketing mail, digests and notification email are a different
+ * problem with different rules — consent records, unsubscribe headers, send
+ * reputation — and do not belong in this file when they arrive. Cloudflare say
+ * the same: Email Sending is for transactional mail only.
  */
 
 export class EmailError extends Error {
@@ -28,11 +29,26 @@ export class EmailError extends Error {
 }
 
 export type Message = {
-  to: string;
+  /** One address, or several for a shared inbox. */
+  to: string | string[];
+  /**
+   * Where a reply should go.
+   *
+   * The `from` address cannot be the person writing — Email Sending only
+   * accepts a sender on an onboarded domain, and forging one would fail SPF
+   * anyway. So contact mail arrives from noreply@ and replying goes to them,
+   * which is the behaviour a person expects when they hit reply.
+   */
+  replyTo?: string;
   subject: string;
   html: string;
   text: string;
 };
+
+/** Readable in a log line whether `to` is one address or several. */
+function recipients(message: Message): string {
+  return Array.isArray(message.to) ? message.to.join(", ") : message.to;
+}
 
 /**
  * True when the mailer can actually send.
@@ -61,6 +77,7 @@ export async function sendEmail(env: Env, message: Message): Promise<void> {
     await env.EMAIL.send({
       to: message.to,
       from: { email: env.EMAIL_FROM, name: env.SITE_NAME },
+      ...(message.replyTo ? { replyTo: message.replyTo } : {}),
       subject: message.subject,
       html: message.html,
       text: message.text,
@@ -119,13 +136,13 @@ export async function deliver(
   link: string,
 ): Promise<void> {
   if (env.ENVIRONMENT !== "production") {
-    console.info(`email: "${message.subject}" to ${message.to}`);
+    console.info(`email: "${message.subject}" to ${recipients(message)}`);
     console.info(`email: link is ${link}`);
   }
 
   if (!canSendEmail(env)) {
     console.error(
-      `email: no EMAIL binding, dropped "${message.subject}" to ${message.to}`,
+      `email: no EMAIL binding, dropped "${message.subject}" to ${recipients(message)}`,
     );
     return;
   }
@@ -135,7 +152,7 @@ export async function deliver(
   } catch (error) {
     const code = error instanceof EmailError ? error.code : undefined;
     console.error(
-      `email: failed to send "${message.subject}" to ${message.to} — ${explain(code)}`,
+      `email: failed to send "${message.subject}" to ${recipients(message)} — ${explain(code)}`,
       error instanceof Error ? error.message : error,
     );
   }
@@ -168,11 +185,20 @@ export function escapeHtml(value: string): string {
  */
 function layout(options: {
   heading: string;
+  /** Already escaped, and may carry markup — see the contact template. */
   body: string;
-  buttonLabel: string;
-  buttonUrl: string;
+  /** Absent on mail that asks the reader to do nothing but read it. */
+  button?: { label: string; url: string };
   footer: string;
 }): string {
+  const button = options.button
+    ? `<a href="${options.button.url}" style="display:inline-block;background:#ff7a2f;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 20px;border-radius:8px;">${options.button.label}</a>
+    <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#78716c;">
+      If the button does not work, paste this into your browser:<br>
+      <span style="word-break:break-all;color:#57534e;">${options.button.url}</span>
+    </p>`
+    : "";
+
   return `<!doctype html>
 <html lang="en">
 <body style="margin:0;padding:24px;background:#f5f5f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1c1917;">
@@ -181,12 +207,8 @@ function layout(options: {
       Sprue<span style="color:#ff7a2f;">Tube</span>
     </p>
     <h1 style="margin:0 0 12px;font-size:18px;font-weight:700;">${options.heading}</h1>
-    <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#44403c;">${options.body}</p>
-    <a href="${options.buttonUrl}" style="display:inline-block;background:#ff7a2f;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 20px;border-radius:8px;">${options.buttonLabel}</a>
-    <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#78716c;">
-      If the button does not work, paste this into your browser:<br>
-      <span style="word-break:break-all;color:#57534e;">${options.buttonUrl}</span>
-    </p>
+    <div style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#44403c;">${options.body}</div>
+    ${button}
     <hr style="border:none;border-top:1px solid #e7e5e4;margin:24px 0;">
     <p style="margin:0;font-size:13px;line-height:1.6;color:#78716c;">${options.footer}</p>
   </div>
@@ -206,8 +228,7 @@ export function resetPasswordEmail(options: {
     html: layout({
       heading: `Hello ${name}`,
       body: "Someone asked to reset the password on your SprueTube account. Use the button below within the next hour.",
-      buttonLabel: "Choose a new password",
-      buttonUrl: options.url,
+      button: { label: "Choose a new password", url: options.url },
       footer:
         "If this was not you, ignore this email — your password stays as it is, and the link expires on its own.",
     }),
@@ -237,8 +258,7 @@ export function verifyEmail(options: {
     html: layout({
       heading: `Welcome, ${name}`,
       body: "Confirm this address so we can reach you about your account — and so you can get back in if you ever forget your password.",
-      buttonLabel: "Confirm my email",
-      buttonUrl: options.url,
+      button: { label: "Confirm my email", url: options.url },
       footer:
         "If you did not sign up for SprueTube, ignore this email and the account will go no further.",
     }),
@@ -251,6 +271,59 @@ export function verifyEmail(options: {
       options.url,
       "",
       "If you did not sign up for SprueTube, ignore this email.",
+    ].join("\n"),
+  };
+}
+
+/**
+ * The contact form, arriving in the Loaded Dice inbox.
+ *
+ * Everything here except the topic is typed by a stranger, so every field goes
+ * through `escapeHtml` — including the address, which is validated as an email
+ * but is still a string somebody chose. The subject line carries the topic and
+ * the sender's name so the inbox is sortable at a glance, and `replyTo` is set
+ * to the writer so hitting reply does the obvious thing.
+ */
+export function contactEmail(options: {
+  to: string[];
+  topic: string;
+  name: string;
+  email: string;
+  message: string;
+  /** Set when the sender was signed in — worth knowing before replying. */
+  username: string | null;
+}): Message {
+  const name = escapeHtml(options.name);
+  const from = escapeHtml(options.email);
+  const account = options.username
+    ? `<a href="https://spruetube.app/@${escapeHtml(options.username)}">@${escapeHtml(options.username)}</a>`
+    : "not signed in";
+
+  return {
+    to: options.to,
+    replyTo: options.email,
+    subject: `SprueTube — ${options.topic} — ${options.name}`,
+    html: layout({
+      heading: `${options.topic} from ${name}`,
+      body: [
+        `<p style="margin:0 0 16px;"><strong>From:</strong> ${name} &lt;${from}&gt;<br>`,
+        `<strong>Account:</strong> ${account}</p>`,
+        `<p style="margin:0;white-space:pre-wrap;">${escapeHtml(options.message)}</p>`,
+      ].join("\n"),
+      footer:
+        "Sent from the contact form on spruetube.app. Reply to this email and it goes straight back to them.",
+    }),
+    text: [
+      `${options.topic} from ${options.name}`,
+      "",
+      `From: ${options.name} <${options.email}>`,
+      `Account: ${options.username ? `@${options.username}` : "not signed in"}`,
+      "",
+      options.message,
+      "",
+      "—",
+      "Sent from the contact form on spruetube.app.",
+      "Reply to this email and it goes straight back to them.",
     ].join("\n"),
   };
 }
