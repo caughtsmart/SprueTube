@@ -42,15 +42,27 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const scope = await getScope(context, request);
   const isAdmin = scope.viewer?.profile.role === "admin";
 
+  const url = new URL(request.url);
+  const before = Number(url.searchParams.get("before"));
+  const category = readCategory(request);
+
   const page = await listNews(scope.db, {
-    category: readCategory(request),
+    category,
+    before: Number.isFinite(before) && before > 0 ? before : null,
     limit: 30,
     // Admins see hidden rows so they can put one back; everyone else sees the
     // page as it is meant to read.
     includeHidden: isAdmin,
   });
 
-  return { items: page.items, isAdmin };
+  const older = page.nextCursor
+    ? `/news?${new URLSearchParams({
+        ...(category ? { category } : {}),
+        before: String(page.nextCursor),
+      })}`
+    : null;
+
+  return { items: page.items, isAdmin, older };
 }
 
 const FILTERS: { label: string; value: NewsCategory | null }[] = [
@@ -114,6 +126,14 @@ export default function News({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
       )}
+
+      {loaderData.older ? (
+        <div className="mt-5 text-center">
+          <Link to={loaderData.older} className="st-btn st-btn-ghost">
+            Older items
+          </Link>
+        </div>
+      ) : null}
 
       <p className="st-text-muted mt-6 text-xs">
         Headlines and summaries remain the property of the publications named.

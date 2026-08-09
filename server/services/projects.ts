@@ -221,6 +221,8 @@ export async function getProjectEntries(
     viewerId: string | null;
     cursor?: string | null;
     limit?: number;
+    /** Fills in the "part of" line on each card without a join. */
+    projectRef?: { id: string; title: string; slug: string } | null;
   },
 ): Promise<{ posts: FeedPost[]; nextCursor: string | null }> {
   const limit = Math.min(options.limit ?? PAGE_SIZE, 50);
@@ -267,12 +269,19 @@ export async function getProjectEntries(
   const page = hasMore ? rows.slice(0, limit) : rows;
   if (!page.length) return { posts: [], nextCursor: null };
 
-  const owner = await db.query.project.findFirst({
-    where: eq(project.id, options.projectId),
-    columns: { id: true, title: true, slug: true },
-  });
-
-  const posts = await hydrateEntries(db, page, options.viewerId, owner ?? null);
+  /*
+   * Every entry belongs to the build log we were asked about, so the "part of"
+   * line on each card is the same three fields every time. The caller already
+   * has the project row — it had to load it to get here — so taking it as an
+   * argument saves a query per page rather than joining the same row twenty
+   * times.
+   */
+  const posts = await hydrateEntries(
+    db,
+    page,
+    options.viewerId,
+    options.projectRef ?? null,
+  );
   const last = page[page.length - 1]!;
 
   return {

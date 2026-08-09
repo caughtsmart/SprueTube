@@ -98,6 +98,7 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
       projectId: entry.id,
       ownerId: owner.userId,
       viewerId,
+      projectRef: { id: entry.id, title: entry.title, slug: entry.slug },
     }),
     pickAd(scope.db, "sidebar"),
     getProjectComments(scope.db, entry.id),

@@ -127,6 +127,11 @@ projects.get("/projects/:username/:slug/entries", async (c) => {
     viewerId,
     cursor: c.req.query("cursor"),
     limit: Number(c.req.query("limit")) || undefined,
+    projectRef: {
+      id: found.project.id,
+      title: found.project.title,
+      slug: found.project.slug,
+    },
   });
 
   return c.json({ ...page, pinnedPostId: found.project.pinnedPostId });
