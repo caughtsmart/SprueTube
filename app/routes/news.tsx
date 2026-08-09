@@ -91,6 +91,8 @@ export default function News({ loaderData }: Route.ComponentProps) {
         article, and the link goes straight to them.
       </p>
 
+      {loaderData.isAdmin ? <FetchNow /> : null}
+
       <nav
         className="st-border mt-4 flex gap-1 border-b pb-2"
         aria-label="Filter news"
@@ -223,5 +225,71 @@ function HideButton({ item }: { item: NewsListItem }) {
     >
       {hidden ? "Show again" : "Hide"}
     </button>
+  );
+}
+
+/**
+ * Run the daily ingest early.
+ *
+ * The brief builds itself at 06:00 UTC, which is right for readers and useless
+ * when you have just deployed and want to see whether the thing works. Admin
+ * only, and rate limited server-side to four an hour — every run is a dozen
+ * outbound fetches to other people's servers, and hammering them is how a
+ * useful aggregator becomes a blocked one.
+ *
+ * Nothing is duplicated by pressing it twice: items are deduplicated on the
+ * source URL, so a second run inserts only what is genuinely new.
+ */
+function FetchNow() {
+  const revalidator = useRevalidator();
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setResult(null);
+    try {
+      const outcome = await api.post<{
+        inserted: number;
+        split: Record<string, number>;
+        failures: { source: string; reason: string }[];
+      }>("/news/refresh");
+
+      const parts = [
+        `${outcome.inserted} added`,
+        `${outcome.split.warhammer ?? 0} Warhammer, ${outcome.split.wider ?? 0} wider`,
+      ];
+      // Name the count rather than the sources: one publisher being down is
+      // ordinary, and a wall of error text makes it look like a fault here.
+      if (outcome.failures.length) {
+        parts.push(
+          `${outcome.failures.length} ${
+            outcome.failures.length === 1 ? "source" : "sources"
+          } unreachable`,
+        );
+      }
+      setResult(parts.join(" · "));
+      void revalidator.revalidate();
+    } catch {
+      setResult("Could not run the ingest. Check the Worker logs.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="st-card mt-4 flex flex-wrap items-center gap-3 p-3">
+      <button
+        type="button"
+        onClick={run}
+        disabled={busy}
+        className="st-btn st-btn-ghost text-sm"
+      >
+        {busy ? "Fetching…" : "Fetch now"}
+      </button>
+      <p className="st-text-muted text-xs">
+        {result ?? "Admin only. The brief builds itself at 06:00 UTC."}
+      </p>
+    </div>
   );
 }
