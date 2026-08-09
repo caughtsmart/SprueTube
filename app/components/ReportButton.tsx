@@ -18,7 +18,7 @@ export function ReportButton({
   subjectId,
   className = "",
 }: {
-  subjectType: "post" | "comment" | "user";
+  subjectType: "post" | "comment" | "user" | "project" | "listing";
   subjectId: string;
   className?: string;
 }) {

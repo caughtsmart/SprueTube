@@ -10,11 +10,12 @@ import {
 } from "../context";
 import type { Db } from "../../db/client";
 import { newId } from "../../db/id";
-import { comment, like, post, profile, project } from "../../db/schema";
+import { block, comment, like, post, profile, project } from "../../db/schema";
 import {
   getBookmarks,
   getFeed,
   getPost,
+  getProjectPosts,
   type FeedTab,
 } from "../../services/feed";
 import {
@@ -25,7 +26,12 @@ import {
   setBookmark,
   setPostLike,
 } from "../../services/posts";
-import { commentSchema, createPostSchema, projectSchema } from "../validators";
+import {
+  commentSchema,
+  createPostSchema,
+  projectPatchSchema,
+  projectSchema,
+} from "../validators";
 
 export const content = new Hono<ApiEnv>();
 
@@ -171,10 +177,22 @@ content.delete("/posts/:id/bookmark", requireAuth, async (c) =>
 /* Comments                                                                   */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A post's thread.
+ *
+ * Visibility is delegated to getPost, which already knows the whole rule —
+ * drafts, private and followers-only posts, removed posts and blocks. This
+ * endpoint used to load nothing but the comments, so anyone holding an id could
+ * read the thread on a private post, complete with every commenter's name and
+ * avatar. A comment is no more public than the post it hangs off.
+ */
 content.get("/posts/:id/comments", async (c) => {
   const db = c.get("db");
   const postId = c.req.param("id");
   const viewerId = c.get("user")?.id ?? null;
+
+  const visible = await getPost(db, postId, viewerId);
+  if (!visible) throw apiError(404, "not_found", "That post is not here.");
 
   const rows = await db
     .select({
@@ -195,6 +213,13 @@ content.get("/posts/:id/comments", async (c) => {
     .where(
       and(
         eq(comment.postId, postId),
+        /*
+         * Comments on one photograph carry the post's id as well as the image's,
+         * so that moderation and the cascade still reach them. Without this they
+         * would surface a second time in the post's main thread, out of the
+         * context that made them make sense.
+         */
+        isNull(comment.mediaId),
         eq(comment.status, "published"),
         isNull(comment.deletedAt),
       ),
@@ -254,11 +279,23 @@ content.post("/posts/:id/comments", requireAuth, async (c) => {
     });
   }
 
+  const db = c.get("db");
+  const postId = c.req.param("id");
+
+  /*
+   * Same check as the read, exactly as the photo-comment route does it. Writing
+   * used to ask only whether the row existed and was not soft-deleted, so a
+   * blocked person could comment on the blocker's post — and notify them of it —
+   * and anyone holding an id could attach a comment to a draft or a private post.
+   */
+  const visible = await getPost(db, postId, c.get("user")!.id);
+  if (!visible) throw apiError(404, "not_found", "That post is not here.");
+
   try {
     const id = await addComment(
-      c.get("db"),
+      db,
       c.get("user")!.id,
-      c.req.param("id"),
+      postId,
       parsed.data.body,
       parsed.data.parentId,
     );
@@ -392,14 +429,158 @@ content.get("/profiles/:username/projects", async (c) => {
   return c.json({ projects: rows });
 });
 
-function slugify(value: string) {
+/** One build log, by owner and slug. Public — anyone can read a build log. */
+content.get("/projects/:username/:slug", async (c) => {
+  const db = c.get("db");
+  const found = await loadProject(
+    db,
+    c.req.param("username"),
+    c.req.param("slug"),
+    c.get("user")?.id ?? null,
+  );
+  return c.json({ project: found.project, owner: found.owner });
+});
+
+/**
+ * The posts in a build log, oldest first.
+ *
+ * Deliberately not the feed order. See getProjectPosts for why — and note the
+ * cursor is not interchangeable with a feed cursor because of it.
+ */
+content.get("/projects/:username/:slug/posts", async (c) => {
+  const db = c.get("db");
+  const found = await loadProject(
+    db,
+    c.req.param("username"),
+    c.req.param("slug"),
+    c.get("user")?.id ?? null,
+  );
+  const page = await getProjectPosts(
+    db,
+    found.project.id,
+    c.get("user")?.id ?? null,
+    found.owner.userId,
+    c.req.query("cursor"),
+  );
+  return c.json(page);
+});
+
+content.patch("/projects/:id", requireAuth, async (c) => {
+  const parsed = projectPatchSchema.safeParse(await c.req.json());
+  if (!parsed.success) {
+    throw badRequest("Check the form.", {
+      fields: fieldErrors(parsed.error.issues),
+    });
+  }
+
+  const db = c.get("db");
+  const owned = await db.query.project.findFirst({
+    where: and(
+      eq(project.id, c.req.param("id")),
+      eq(project.ownerId, c.get("user")!.id),
+    ),
+  });
+  if (!owned) throw apiError(404, "not_found", "That build log is not yours.");
+
+  /*
+   * Only the keys actually sent. Spreading the parsed object would write
+   * `undefined` over every field the form left out — and the title is not
+   * nullable, so a status change alone would blank it.
+   */
+  const patch: Record<string, unknown> = { updatedAt: Math.floor(Date.now() / 1000) };
+  for (const key of [
+    "title",
+    "summary",
+    "gameSystem",
+    "scale",
+    "status",
+    "coverImageId",
+  ] as const) {
+    if (parsed.data[key] !== undefined) patch[key] = parsed.data[key];
+  }
+
+  await db.update(project).set(patch).where(eq(project.id, owned.id));
+  return c.json({ ok: true });
+});
+
+/**
+ * Delete a build log without deleting the work in it.
+ *
+ * The foreign key is `on delete set null`, so the posts survive and simply stop
+ * being grouped. Someone tidying up their project list is not asking to destroy
+ * a year of photographs, and the destructive reading of that button would be
+ * unrecoverable.
+ */
+content.delete("/projects/:id", requireAuth, async (c) => {
+  const db = c.get("db");
+  const owned = await db.query.project.findFirst({
+    where: and(
+      eq(project.id, c.req.param("id")),
+      eq(project.ownerId, c.get("user")!.id),
+    ),
+  });
+  if (!owned) throw apiError(404, "not_found", "That build log is not yours.");
+
+  await db.delete(project).where(eq(project.id, owned.id));
+  return c.json({ ok: true });
+});
+
+/**
+ * A build log by owner and slug, with the same block rule the page applies.
+ *
+ * The block check is not decoration: without it, blocking someone still leaves
+ * this endpoint as a readable route to their work, and the API is a route like
+ * any other. The page loader has always checked; these endpoints did not.
+ */
+async function loadProject(
+  db: Db,
+  username: string,
+  slug: string,
+  viewerId: string | null,
+) {
+  const owner = await db.query.profile.findFirst({
+    where: sql`lower(${profile.username}) = ${username.toLowerCase()}`,
+  });
+  if (!owner) throw apiError(404, "not_found", "No such painter.");
+
+  if (viewerId && viewerId !== owner.userId) {
+    const blocked = await db
+      .select({ blockerId: block.blockerId })
+      .from(block)
+      .where(
+        sql`(${block.blockerId} = ${viewerId} and ${block.blockedId} = ${owner.userId})
+            or (${block.blockerId} = ${owner.userId} and ${block.blockedId} = ${viewerId})`,
+      )
+      .limit(1);
+    // Same 404 as a missing log, so the response cannot be used to detect a
+    // block that the other person chose not to announce.
+    if (blocked.length) throw apiError(404, "not_found", "No such build log.");
+  }
+
+  const found = await db.query.project.findFirst({
+    where: and(eq(project.ownerId, owner.userId), eq(project.slug, slug)),
+  });
+  if (!found) throw apiError(404, "not_found", "No such build log.");
+
+  return { project: found, owner };
+}
+
+/** Exported for tests: this decides every build-log URL. */
+export function slugify(value: string) {
   return (
     value
       .toLowerCase()
+      // NFKD splits an accented letter into the letter plus a combining mark.
+      // Dropping the marks turns "Légion" into "legion"; without this line the
+      // mark survives to the next rule and becomes a dash, giving "le-gion".
       .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "project"
+      .slice(0, 60)
+      // The slice can leave a trailing dash behind if it lands on one, and a
+      // slug ending in '-' looks like a typo in a shared link.
+      .replace(/-+$/, "") || "project"
   );
 }
 

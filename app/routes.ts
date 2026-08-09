@@ -23,13 +23,45 @@ export default [
   route("saved", "routes/saved.tsx"),
   route("settings", "routes/settings.tsx"),
   route("posts/:postId", "routes/post.tsx"),
+  route("projects/new", "routes/project-new.tsx"),
   route("tags/:tag", "routes/tag.tsx"),
   route("systems/:system", "routes/system.tsx"),
 
   // Profiles live at /@username. React Router only matches a whole segment as
   // a param, so the '@' is captured as part of the value and validated in the
   // loader. Declared last: every static route above wins the match first.
+  //
+  // Build logs hang off the handle — /@graham/projects/death-guard — so the URL
+  // says whose work it is. These are more specific than the bare :handle below
+  // and match first regardless of order, but they are kept above it to read in
+  // the order a person would guess.
+  route(":handle/projects/:slug", "routes/project.tsx"),
+  route(":handle/projects/:slug/edit", "routes/project-edit.tsx"),
   route(":handle", "routes/profile.tsx"),
+
+  // News — a daily digest of hobby news, each item linking to its source.
+  route("news", "routes/news.tsx"),
+  route("news/:slug", "routes/news-item.tsx"),
+
+  // Commission painting
+  route("commissions", "routes/commissions.tsx"),
+  route("commissions/new", "routes/commission-edit.tsx"),
+  route("commissions/:username/:slug", "routes/commission.tsx"),
+  route("commissions/:username/:slug/edit", "routes/commission-edit.tsx", {
+    id: "commission-edit-existing",
+  }),
+
+  // Buying and selling. Classified ads only — no payments pass through here.
+  route("market", "routes/market.tsx"),
+  route("market/new", "routes/listing-edit.tsx"),
+  route("market/:username/:slug", "routes/listing.tsx"),
+  route("market/:username/:slug/edit", "routes/listing-edit.tsx", {
+    id: "listing-edit-existing",
+  }),
+
+  // Private messages
+  route("messages", "routes/messages.tsx"),
+  route("messages/:conversationId", "routes/conversation.tsx"),
 
   // Moderation
   route("moderation", "routes/moderation.tsx"),

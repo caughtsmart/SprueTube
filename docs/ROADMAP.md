@@ -38,9 +38,10 @@ static site with extra steps.
 
 ## Next features, in order
 
-1. **Project pages.** The schema and the API are done; the UI is a stub on the
-   profile page. This is the differentiator against Instagram and it is nearly
-   free to finish.
+1. ~~**Project pages.**~~ Done. Build logs have their own page at
+   `/@user/projects/:slug`, read oldest-first, and can be created, edited and
+   deleted. Note the ordering is deliberate and contradicts every other listing
+   on the site — a build log is a story, not a feed.
 2. **Search.** D1 supports FTS5. Posts, tags and usernames.
 3. **Paint links that resolve.** Right now `shopUrl` is stored but never filled
    in. Match paint names against the Loaded Dice catalogue at write time, via the

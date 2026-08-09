@@ -140,11 +140,22 @@ export function fieldErrors(issues: { path: PropertyKey[]; message: string }[]) 
 /* Rate limiting                                                              */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Fixed-window counter in KV. Deliberately approximate: KV is eventually
- * consistent, so a determined client can exceed the limit briefly. It is here
- * to stop runaway loops and casual spam, not a motivated attacker — Cloudflare
- * WAF rules are the right tool for that.
+/*
+ * Fixed-window counter in KV, and it is weaker than a counter sounds.
+ *
+ * Read, compare, write is not atomic, and KV is eventually consistent on top of
+ * that: two requests that read before either writes both see the same number
+ * and both proceed. So a burst fired in parallel is not slowed to the limit
+ * plus a little — it passes almost entirely, because every request in it reads
+ * a count from before the burst started. What this stops is a client looping
+ * sequentially, which is what a runaway retry or a careless script actually
+ * looks like. It does not stop anyone who opens fifty sockets at once.
+ *
+ * A real fix needs a single serialisation point per subject, which on Workers
+ * means a Durable Object keyed by `action:subject` holding the count and
+ * deciding in its own single-threaded execution — or Cloudflare's own rate
+ * limiting binding. Either is a bigger change than this file, and until then
+ * WAF rules are the load-bearing defence against a motivated attacker.
  */
 export async function rateLimit(
   c: ApiContext,

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, notInArray, or, sql } from "drizzle-orm";
 import {
   apiError,
   badRequest,
@@ -12,6 +12,7 @@ import {
 import { notification, profile } from "../../db/schema";
 import {
   applyModerationAction,
+  blockedUserIds,
   getReportQueue,
   submitReport,
 } from "../../services/moderation";
@@ -91,9 +92,19 @@ safety.post("/moderation/actions", requireAuth, requireModerator, async (c) => {
 /* Notifications                                                              */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Filtered by block on the way out, not only on the way in.
+ *
+ * Fixing the write paths stops new notifications from a blocked person, but the
+ * rows already in the table keep surfacing their name and avatar every time the
+ * list is opened — and a block is supposed to be the end of hearing from
+ * somebody, not the start of a slow tail. `actorId` is null on system messages,
+ * which must stay.
+ */
 safety.get("/notifications", requireAuth, async (c) => {
   const db = c.get("db");
   const userId = c.get("user")!.id;
+  const hidden = await blockedUserIds(db, userId);
 
   const rows = await db
     .select({
@@ -112,7 +123,19 @@ safety.get("/notifications", requireAuth, async (c) => {
     })
     .from(notification)
     .leftJoin(profile, eq(profile.userId, notification.actorId))
-    .where(eq(notification.userId, userId))
+    .where(
+      and(
+        eq(notification.userId, userId),
+        ...(hidden.length
+          ? [
+              or(
+                isNull(notification.actorId),
+                notInArray(notification.actorId, hidden),
+              )!,
+            ]
+          : []),
+      ),
+    )
     .orderBy(desc(notification.createdAt))
     .limit(100);
 

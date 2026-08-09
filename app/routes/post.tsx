@@ -69,6 +69,9 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
       .where(
         and(
           eq(commentTable.postId, params.postId),
+          // Photo comments carry this post's id too — see the note on the same
+          // filter in server/api/routes/content.ts.
+          isNull(commentTable.mediaId),
           eq(commentTable.status, "published"),
           isNull(commentTable.deletedAt),
         ),

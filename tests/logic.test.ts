@@ -7,6 +7,8 @@ import { idTimestamp, newId } from "../server/db/id";
 import { compactCount, excerpt, parseBody } from "../app/lib/format";
 import { imageSrc } from "../app/lib/media";
 import { OPERATOR, operatorLine, operatorReady } from "../app/lib/legal";
+import { slugify } from "../server/api/routes/content";
+import { projectPatchSchema, projectSchema } from "../server/api/validators";
 import {
   escapeHtml,
   resetPasswordEmail,
@@ -322,5 +324,58 @@ describe("operator details", () => {
     } else {
       expect(line).not.toContain("company ");
     }
+  });
+});
+
+describe("build log slugs", () => {
+  it("makes a readable slug from a title", () => {
+    expect(slugify("Death Guard Kill Team")).toBe("death-guard-kill-team");
+  });
+
+  it("collapses punctuation rather than leaving it in the URL", () => {
+    expect(slugify("Sisters of Battle — 2nd attempt!")).toBe(
+      "sisters-of-battle-2nd-attempt",
+    );
+  });
+
+  it("strips accents instead of percent-encoding them", () => {
+    expect(slugify("Légion Impériale")).toBe("legion-imperiale");
+  });
+
+  it("never returns an empty slug", () => {
+    // A title of only emoji is entirely plausible, and an empty slug would
+    // collide with the profile route one segment up.
+    expect(slugify("🎨🖌️")).toBe("project");
+    expect(slugify("!!!")).toBe("project");
+  });
+
+  it("caps the length so a URL stays a URL", () => {
+    expect(slugify("a".repeat(200)).length).toBeLessThanOrEqual(60);
+  });
+
+  it("leaves no leading or trailing dash", () => {
+    const slug = slugify("  --- Orks ---  ");
+    expect(slug).toBe("orks");
+  });
+});
+
+describe("project validation", () => {
+  it("defaults a new build log to active", () => {
+    const parsed = projectSchema.parse({ title: "Orks" });
+    expect(parsed.status).toBe("active");
+  });
+
+  it("does not resurrect a finished build log when status is omitted", () => {
+    // The whole reason the patch schema exists separately: .partial() on the
+    // create schema keeps the `active` default, so an edit that only changed
+    // the title would quietly reopen a project the owner had finished.
+    const parsed = projectPatchSchema.parse({ title: "Orks, again" });
+    expect(parsed.status).toBeUndefined();
+  });
+
+  it("still rejects an unknown status", () => {
+    expect(projectPatchSchema.safeParse({ status: "on fire" }).success).toBe(
+      false,
+    );
   });
 });

@@ -1,8 +1,10 @@
 import { Link } from "react-router";
 import type { ServedAd } from "../../server/services/ads";
 import type { FeedPost } from "../../server/services/feed";
+import type { Highlights as HighlightData } from "../../server/services/highlights";
 import { imageSrc } from "../lib/media";
 import { useRoot } from "../root";
+import { Highlights } from "./Highlights";
 import { PostCard } from "./PostCard";
 
 /**
@@ -14,9 +16,11 @@ import { PostCard } from "./PostCard";
  */
 export function Landing({
   posts,
+  highlights,
   ad: _ad,
 }: {
   posts: FeedPost[];
+  highlights: HighlightData;
   ad: ServedAd | null;
 }) {
   const { config } = useRoot();
@@ -98,6 +102,15 @@ export function Landing({
           body="Report anything in two taps, block anyone, and a human looks at every report. No pile-ons."
         />
       </section>
+
+      {/* Below the "why" and above the recent posts: the grid up top is what
+          landed today, this is what people rated. Both are worth showing and
+          they answer different questions. */}
+      {highlights.projects.length || highlights.images.length ? (
+        <div className="pb-12">
+          <Highlights highlights={highlights} />
+        </div>
+      ) : null}
 
       {posts.length ? (
         <section className="pb-16">

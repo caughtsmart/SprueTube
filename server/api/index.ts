@@ -4,9 +4,14 @@ import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { getAuth } from "../auth";
 import { withDb, withSession, type ApiEnv } from "./context";
+import { commissions } from "./routes/commissions";
 import { content } from "./routes/content";
+import { market } from "./routes/market";
 import { media } from "./routes/media";
+import { messages } from "./routes/messages";
+import { news } from "./routes/news";
 import { people } from "./routes/people";
+import { projects } from "./routes/projects";
 import { promos } from "./routes/promos";
 import { safety } from "./routes/safety";
 
@@ -63,6 +68,11 @@ api.route("/v1", content);
 api.route("/v1", media);
 api.route("/v1", safety);
 api.route("/v1", promos);
+api.route("/v1", projects);
+api.route("/v1", news);
+api.route("/v1", commissions);
+api.route("/v1", messages);
+api.route("/v1", market);
 
 api.notFound((c) =>
   c.json({ error: "not_found", message: "No such endpoint." }, 404),

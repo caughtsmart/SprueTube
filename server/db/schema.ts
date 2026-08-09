@@ -166,6 +166,20 @@ export const project = sqliteTable(
       .notNull()
       .default("active"),
     postCount: integer("post_count").notNull().default(0),
+    commentCount: integer("comment_count").notNull().default(0),
+    /**
+     * The "where it is now" entry, held at the top.
+     *
+     * A build log reads oldest-first, which is right for the story and wrong
+     * for the question most visitors actually arrive with — what does it look
+     * like today? The pin answers that without reordering the history.
+     *
+     * No foreign key reference here: the post table is declared after this one,
+     * and a circular reference between two table definitions is a bootstrapping
+     * problem in Drizzle. Integrity is enforced on write instead — the pin is
+     * cleared when the post it names is deleted.
+     */
+    pinnedPostId: text("pinned_post_id"),
     createdAt: integer("created_at").notNull().default(now),
     updatedAt: integer("updated_at").notNull().default(now),
   },
@@ -189,6 +203,14 @@ export const post = sqliteTable(
     projectId: text("project_id").references(() => project.id, {
       onDelete: "set null",
     }),
+    /**
+     * Manual order within a build log. Null means "wherever the date puts it".
+     *
+     * Sparse on purpose: only entries someone has actually dragged get a value,
+     * and the query sorts by this first with a date fallback. Backfilling every
+     * row on the first drag would make an ordinary edit rewrite the whole log.
+     */
+    projectPosition: integer("project_position"),
     kind: text("kind", { enum: ["text", "images"] }).notNull(),
     title: text("title"),
     body: text("body"),
@@ -240,6 +262,10 @@ export const post = sqliteTable(
     index("post_published_idx").on(t.status, t.publishedAt),
     index("post_hot_idx").on(t.status, t.hotScore),
     index("post_project_idx").on(t.projectId, t.createdAt),
+    index("post_project_order_idx").on(t.projectId, t.projectPosition),
+    // Most-liked, for the homepage highlights. Without this the query is a
+    // full scan sorted in memory, which is fine at 100 posts and not at 100k.
+    index("post_liked_idx").on(t.status, t.likeCount),
     index("post_system_idx").on(t.gameSystem, t.publishedAt),
   ],
 );
@@ -291,13 +317,31 @@ export const postProduct = sqliteTable(
 /* Social graph and engagement                                                */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * Comments hang off one of three things, and exactly one is set:
+ *
+ *   postId  alone          — the post as a whole (every comment before this)
+ *   postId  + mediaId      — one photograph inside a post
+ *   projectId alone        — the build log itself
+ *
+ * postId had to become nullable to allow the third case. The invariant is
+ * enforced on write rather than by a constraint, because SQLite CHECKs cannot
+ * be added to an existing table without a rebuild and the rule is more legible
+ * in one place in the service than split across a migration.
+ */
 export const comment = sqliteTable(
   "comment",
   {
     id: text("id").primaryKey(),
-    postId: text("post_id")
-      .notNull()
-      .references(() => post.id, { onDelete: "cascade" }),
+    postId: text("post_id").references(() => post.id, { onDelete: "cascade" }),
+    /** Set when the comment is about one image rather than the whole post. */
+    mediaId: text("media_id").references(() => postMedia.id, {
+      onDelete: "cascade",
+    }),
+    /** Set when the comment is about a build log rather than a post. */
+    projectId: text("project_id").references(() => project.id, {
+      onDelete: "cascade",
+    }),
     authorId: text("author_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -315,6 +359,8 @@ export const comment = sqliteTable(
     index("comment_post_idx").on(t.postId, t.createdAt),
     index("comment_author_idx").on(t.authorId, t.createdAt),
     index("comment_parent_idx").on(t.parentId, t.createdAt),
+    index("comment_media_idx").on(t.mediaId, t.createdAt),
+    index("comment_project_idx").on(t.projectId, t.createdAt),
   ],
 );
 
@@ -408,9 +454,20 @@ export const notification = sqliteTable(
       onDelete: "cascade",
     }),
     type: text("type", {
-      enum: ["like", "comment", "reply", "follow", "mention", "system"],
+      enum: [
+        "like",
+        "comment",
+        "reply",
+        "follow",
+        "mention",
+        "system",
+        "message",
+        "listing_reply",
+      ],
     }).notNull(),
-    subjectType: text("subject_type", { enum: ["post", "comment", "user"] }),
+    subjectType: text("subject_type", {
+      enum: ["post", "comment", "user", "project", "listing", "message"],
+    }),
     subjectId: text("subject_id"),
     /** Short pre-rendered line, so the list needs no extra joins. */
     preview: text("preview"),
@@ -432,7 +489,7 @@ export const report = sqliteTable(
       onDelete: "set null",
     }),
     subjectType: text("subject_type", {
-      enum: ["post", "comment", "user"],
+      enum: ["post", "comment", "user", "project", "listing", "message"],
     }).notNull(),
     subjectId: text("subject_id").notNull(),
     reason: text("reason", {
@@ -524,7 +581,7 @@ export const moderationAction = sqliteTable(
       ],
     }).notNull(),
     subjectType: text("subject_type", {
-      enum: ["post", "comment", "user"],
+      enum: ["post", "comment", "user", "project", "listing", "message"],
     }).notNull(),
     subjectId: text("subject_id").notNull(),
     reportId: text("report_id"),
@@ -578,3 +635,239 @@ export type Comment = typeof comment.$inferSelect;
 export type Notification = typeof notification.$inferSelect;
 export type Report = typeof report.$inferSelect;
 export type AdPlacement = typeof adPlacement.$inferSelect;
+
+/* -------------------------------------------------------------------------- */
+/* News                                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Short, source-attributed hobby news.
+ *
+ * Every row is a summary of something somebody else published, with a link
+ * back. Nothing here is original reporting and the schema says so: `sourceUrl`
+ * and `sourceName` are not nullable, so an item that cannot say where it came
+ * from cannot be stored. That is the guardrail against a daily job quietly
+ * inventing news, which is the failure mode this feature invites.
+ */
+export const newsItem = sqliteTable(
+  "news_item",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    /** A few sentences. Not the source article — a pointer to it. */
+    summary: text("summary").notNull(),
+    sourceName: text("source_name").notNull(),
+    sourceUrl: text("source_url").notNull(),
+    /**
+     * The brief is half Warhammer, half everything else, so the balance has to
+     * be measurable rather than hoped for.
+     */
+    category: text("category", { enum: ["warhammer", "wider"] }).notNull(),
+    status: text("status", { enum: ["published", "hidden"] })
+      .notNull()
+      .default("published"),
+    /** From the feed, not from us — so ordering matches the real world. */
+    publishedAt: integer("published_at").notNull(),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex("news_item_slug_unique").on(t.slug),
+    // The ingest runs daily and feeds repeat themselves; this is what makes
+    // "have we already got this one?" a lookup rather than a scan.
+    uniqueIndex("news_item_source_url_unique").on(t.sourceUrl),
+    index("news_item_published_idx").on(t.status, t.publishedAt),
+    index("news_item_category_idx").on(t.category, t.publishedAt),
+  ],
+);
+
+/* -------------------------------------------------------------------------- */
+/* Commissions                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A painter advertising that they take work.
+ *
+ * Prices are stored in pence as integers. Money in floats is a bug waiting for
+ * a quiet afternoon, and £47.99 is not representable in binary floating point.
+ */
+export const commission = sqliteTable(
+  "commission",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    blurb: text("blurb").notNull(),
+    /** Pence. Null means "ask" rather than free. */
+    priceFromPence: integer("price_from_pence"),
+    priceToPence: integer("price_to_pence"),
+    /** What the price is per — a model, a unit, an army. */
+    priceUnit: text("price_unit", {
+      enum: ["model", "unit", "army", "hour", "project"],
+    })
+      .notNull()
+      .default("model"),
+    turnaroundDays: integer("turnaround_days"),
+    gameSystems: text("game_systems", { mode: "json" }).$type<string[]>(),
+    coverImageId: text("cover_image_id"),
+    location: text("location"),
+    /**
+     * Whether they are taking work right now. A painter with a full book wants
+     * to stay listed and stop the enquiries, not delete their listing and
+     * rebuild it in March.
+     */
+    openToWork: integer("open_to_work", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    status: text("status", { enum: ["active", "hidden", "removed"] })
+      .notNull()
+      .default("active"),
+    createdAt: integer("created_at").notNull().default(now),
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex("commission_owner_slug_unique").on(t.ownerId, t.slug),
+    index("commission_browse_idx").on(t.status, t.openToWork, t.updatedAt),
+  ],
+);
+
+/* -------------------------------------------------------------------------- */
+/* Marketplace                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Classified ads — models for sale, and wanted posts.
+ *
+ * Listings and contact only. No payments, no escrow, no fee: the moment money
+ * moves through the platform it becomes a marketplace in the legal sense, with
+ * the consumer-protection and dispute obligations that follow. People arrange
+ * between themselves, exactly as they do in a club or on a forum.
+ */
+export const listing = sqliteTable(
+  "listing",
+  {
+    id: text("id").primaryKey(),
+    sellerId: text("seller_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["sale", "wanted"] }).notNull(),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    body: text("body"),
+    /** Pence. Null on a wanted post, or on "offers". */
+    pricePence: integer("price_pence"),
+    condition: text("condition", {
+      enum: ["new_sealed", "new_sprue", "part_built", "painted", "damaged"],
+    }),
+    gameSystem: text("game_system"),
+    scale: text("scale"),
+    /** Free text, deliberately coarse — a town, not an address. */
+    location: text("location"),
+    postageOffered: integer("postage_offered", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    status: text("status", {
+      enum: ["open", "sold", "withdrawn", "removed"],
+    })
+      .notNull()
+      .default("open"),
+    viewCount: integer("view_count").notNull().default(0),
+    /**
+     * Sorting key, separate from createdAt so a seller can bump a stale listing
+     * without it claiming to be new.
+     */
+    bumpedAt: integer("bumped_at").notNull().default(now),
+    createdAt: integer("created_at").notNull().default(now),
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex("listing_seller_slug_unique").on(t.sellerId, t.slug),
+    index("listing_browse_idx").on(t.kind, t.status, t.bumpedAt),
+    index("listing_seller_idx").on(t.sellerId, t.createdAt),
+    index("listing_system_idx").on(t.gameSystem, t.bumpedAt),
+  ],
+);
+
+export const listingMedia = sqliteTable(
+  "listing_media",
+  {
+    id: text("id").primaryKey(),
+    listingId: text("listing_id")
+      .notNull()
+      .references(() => listing.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    imageId: text("image_id").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    altText: text("alt_text"),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [index("listing_media_idx").on(t.listingId, t.position)],
+);
+
+/* -------------------------------------------------------------------------- */
+/* Direct messages                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A one-to-one thread.
+ *
+ * The two participants are stored as `lowUserId` / `highUserId`, sorted by
+ * string comparison before insert. That makes the pair a natural unique key —
+ * without it, "did a thread between these two already exist?" has to be asked
+ * twice, and losing that race creates two threads that each hold half of a
+ * conversation.
+ */
+export const conversation = sqliteTable(
+  "conversation",
+  {
+    id: text("id").primaryKey(),
+    lowUserId: text("low_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    highUserId: text("high_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** Denormalised so an inbox is one query, not one query per thread. */
+    lastMessageAt: integer("last_message_at").notNull().default(now),
+    lastMessagePreview: text("last_message_preview"),
+    lastSenderId: text("last_sender_id"),
+    /** Per-side read cursors, so "unread" is answerable without a scan. */
+    lowReadAt: integer("low_read_at"),
+    highReadAt: integer("high_read_at"),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex("conversation_pair_unique").on(t.lowUserId, t.highUserId),
+    index("conversation_low_idx").on(t.lowUserId, t.lastMessageAt),
+    index("conversation_high_idx").on(t.highUserId, t.lastMessageAt),
+  ],
+);
+
+export const message = sqliteTable(
+  "message",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversation.id, { onDelete: "cascade" }),
+    senderId: text("sender_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    /**
+     * Soft delete, like posts. A reported message has to still exist for a
+     * moderator to read, or every report becomes unactionable the moment the
+     * sender thinks better of it.
+     */
+    status: text("status", { enum: ["sent", "removed"] })
+      .notNull()
+      .default("sent"),
+    createdAt: integer("created_at").notNull().default(now),
+    deletedAt: integer("deleted_at"),
+  },
+  (t) => [index("message_thread_idx").on(t.conversationId, t.createdAt)],
+);

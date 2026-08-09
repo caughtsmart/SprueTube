@@ -229,7 +229,9 @@ export async function deletePost(db: Db, postId: string, authorId: string) {
   if (!row || row.authorId !== authorId || row.deletedAt) return false;
 
   const nowSeconds = Math.floor(Date.now() / 1000);
-  await db.batch([
+  // `any[]` to match createPost above: drizzle's batch tuple type does not
+  // survive a heterogeneous array built with push.
+  const statements: any[] = [
     db
       .update(post)
       .set({ deletedAt: nowSeconds, status: "removed" })
@@ -238,7 +240,34 @@ export async function deletePost(db: Db, postId: string, authorId: string) {
       .update(profile)
       .set({ postCount: sql`max(0, ${profile.postCount} - 1)` })
       .where(eq(profile.userId, authorId)),
-  ]);
+  ];
+
+  // Creating a post increments the project's count, so deleting one has to
+  // give it back. Without this a build log slowly claims more entries than it
+  // shows, and the number is the first thing anyone reads on the card.
+  if (row.projectId) {
+    statements.push(
+      db
+        .update(project)
+        .set({ postCount: sql`max(0, ${project.postCount} - 1)` })
+        .where(eq(project.id, row.projectId)),
+    );
+
+    // project.pinnedPostId has no foreign key — schema.ts explains why — so
+    // nothing else will clear it. Left behind, the build log would keep trying
+    // to show a deleted entry as its current state. Same batch as the delete,
+    // so the pin cannot survive a partial failure.
+    statements.push(
+      db
+        .update(project)
+        .set({ pinnedPostId: null })
+        .where(
+          and(eq(project.id, row.projectId), eq(project.pinnedPostId, postId)),
+        ),
+    );
+  }
+
+  await db.batch(statements as [any, ...any[]]);
   return true;
 }
 
@@ -420,21 +449,49 @@ export async function deleteComment(db: Db, commentId: string, userId: string) {
   });
   if (!row || row.deletedAt) return false;
 
-  const target = await db.query.post.findFirst({ where: eq(post.id, row.postId) });
-  // The comment's author can delete it; so can the author of the post it is on.
-  const allowed = row.authorId === userId || target?.authorId === userId;
+  /*
+   * A comment now hangs off a post, an image inside a post, or a build log.
+   * Whoever owns the thing it is attached to can remove it, same as before —
+   * the only change is that "the thing" has three possible shapes.
+   */
+  const target = row.postId
+    ? await db.query.post.findFirst({ where: eq(post.id, row.postId) })
+    : null;
+  const owningProject = row.projectId
+    ? await db.query.project.findFirst({ where: eq(project.id, row.projectId) })
+    : null;
+
+  const allowed =
+    row.authorId === userId ||
+    target?.authorId === userId ||
+    owningProject?.ownerId === userId;
   if (!allowed) return false;
 
-  await db.batch([
+  const statements: any[] = [
     db
       .update(comment)
       .set({ status: "removed", deletedAt: Math.floor(Date.now() / 1000) })
       .where(eq(comment.id, commentId)),
-    db
-      .update(post)
-      .set({ commentCount: sql`max(0, ${post.commentCount} - 1)` })
-      .where(eq(post.id, row.postId)),
-  ]);
+  ];
+
+  if (row.postId) {
+    statements.push(
+      db
+        .update(post)
+        .set({ commentCount: sql`max(0, ${post.commentCount} - 1)` })
+        .where(eq(post.id, row.postId)),
+    );
+  }
+  if (row.projectId) {
+    statements.push(
+      db
+        .update(project)
+        .set({ commentCount: sql`max(0, ${project.commentCount} - 1)` })
+        .where(eq(project.id, row.projectId)),
+    );
+  }
+
+  await db.batch(statements as [any, ...any[]]);
   return true;
 }
 
@@ -505,8 +562,23 @@ export async function createNotification(
   input: {
     userId: string;
     actorId?: string | null;
-    type: "like" | "comment" | "reply" | "follow" | "mention" | "system";
-    subjectType?: "post" | "comment" | "user" | null;
+    type:
+      | "like"
+      | "comment"
+      | "reply"
+      | "follow"
+      | "mention"
+      | "system"
+      | "message"
+      | "listing_reply";
+    subjectType?:
+      | "post"
+      | "comment"
+      | "user"
+      | "project"
+      | "listing"
+      | "message"
+      | null;
     subjectId?: string | null;
     preview?: string | null;
   },

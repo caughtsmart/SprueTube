@@ -2,6 +2,7 @@ import { createRequestHandler, RouterContextProvider } from "react-router";
 import { cloudflare } from "../app/context";
 import { api } from "../server/api";
 import { refreshHotScores } from "../server/services/maintenance";
+import { ingestNews, shouldRunDailyIngest } from "../server/services/news";
 
 /*
  * One Worker serves both halves of SprueTube:
@@ -37,10 +38,22 @@ export default {
   /*
    * Discover ranks by a score that decays with age, so a post nobody touches
    * still has to fall down the page over time. Nothing writes to that score
-   * unless the post gets engagement, hence this sweep. It also rescues videos
-   * whose Stream webhook never arrived.
+   * unless the post gets engagement, hence this sweep.
+   *
+   * There is one cron expression for the whole Worker, so the daily news ingest
+   * rides this quarter-hourly tick and picks its own slot out of it rather than
+   * asking for a second schedule. Adding one would mean editing wrangler.jsonc.
    */
-  async scheduled(_controller, env, ctx) {
+  async scheduled(controller, env, ctx) {
     ctx.waitUntil(refreshHotScores(env));
+
+    if (shouldRunDailyIngest(controller.scheduledTime)) {
+      // Never let a publisher having a bad morning take the sweep down with it.
+      ctx.waitUntil(
+        ingestNews(env)
+          .then((result) => console.log("news ingest", result))
+          .catch((error) => console.error("news ingest failed", error)),
+      );
+    }
   },
 } satisfies ExportedHandler<Env>;

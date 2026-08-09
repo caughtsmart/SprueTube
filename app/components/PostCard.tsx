@@ -94,7 +94,7 @@ export function PostCard({ post }: { post: FeedPost }) {
             <p className="st-text-muted mt-0.5 text-xs">
               Part of{" "}
               <Link
-                to={`/@${post.author.username}`}
+                to={`/@${post.author.username}/projects/${post.project.slug}`}
                 className="st-link font-medium"
               >
                 {post.project.title}
