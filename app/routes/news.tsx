@@ -49,18 +49,23 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const page = await listNews(scope.db, {
     category,
     before: Number.isFinite(before) && before > 0 ? before : null,
+    // The id half of the cursor. Without it a page boundary that lands on a run
+    // of items sharing one timestamp drops the rest of that run.
+    beforeId: url.searchParams.get("beforeId"),
     limit: 30,
     // Admins see hidden rows so they can put one back; everyone else sees the
     // page as it is meant to read.
     includeHidden: isAdmin,
   });
 
-  const older = page.nextCursor
-    ? `/news?${new URLSearchParams({
-        ...(category ? { category } : {}),
-        before: String(page.nextCursor),
-      })}`
-    : null;
+  const older =
+    page.nextCursor && page.nextCursorId
+      ? `/news?${new URLSearchParams({
+          ...(category ? { category } : {}),
+          before: String(page.nextCursor),
+          beforeId: page.nextCursorId,
+        })}`
+      : null;
 
   return { items: page.items, isAdmin, older };
 }

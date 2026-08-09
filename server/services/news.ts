@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, or } from "drizzle-orm";
 import { createDb, type Db } from "../db/client";
 import { newId } from "../db/id";
 import { newsItem } from "../db/schema";
@@ -898,20 +898,30 @@ const NEWS_COLUMNS = {
   publishedAt: newsItem.publishedAt,
 };
 
-export type NewsPage = { items: NewsListItem[]; nextCursor: number | null };
+export type NewsPage = {
+  items: NewsListItem[];
+  nextCursor: number | null;
+  /** The id half of the cursor. See listNews for why the pair is needed. */
+  nextCursorId: string | null;
+};
 
 /**
- * Newest first, paged on `publishedAt`.
+ * Newest first, paged on `(publishedAt, id)`.
  *
- * The cursor is the timestamp rather than an opaque token because ties are
- * harmless here — a day's ingest is a dozen rows, not a busy feed — and a
- * readable cursor makes the API easy to use from a script.
+ * The cursor stays a readable timestamp rather than an opaque token, because
+ * that makes the API usable from a script — but it needs the id alongside it.
+ * The sort was already `(published_at desc, id desc)` while the filter looked
+ * at the timestamp alone, so every row sharing the last row's timestamp was
+ * skipped at the page boundary. Ties are not rare here either: an item whose
+ * feed carries no usable date is stamped with the ingest time, so a whole run
+ * of them lands on the same second.
  */
 export async function listNews(
   db: Db,
   options: {
     category?: NewsCategory | null;
     before?: number | null;
+    beforeId?: string | null;
     limit?: number;
     includeHidden?: boolean;
   } = {},
@@ -921,7 +931,20 @@ export async function listNews(
   const filters = [
     options.includeHidden ? undefined : eq(newsItem.status, "published"),
     options.category ? eq(newsItem.category, options.category) : undefined,
-    options.before ? lt(newsItem.publishedAt, options.before) : undefined,
+    options.before
+      ? options.beforeId
+        ? or(
+            lt(newsItem.publishedAt, options.before),
+            and(
+              eq(newsItem.publishedAt, options.before),
+              lt(newsItem.id, options.beforeId),
+            ),
+          )
+        : // An older link, or a script, may still send the timestamp on its
+          // own. Answering it the way it always was answered is better than
+          // refusing it.
+          lt(newsItem.publishedAt, options.before)
+      : undefined,
   ].filter((f) => f !== undefined);
 
   const rows = await db
@@ -932,10 +955,14 @@ export async function listNews(
     .limit(limit + 1);
 
   const items = rows.slice(0, limit) as NewsListItem[];
-  const nextCursor =
-    rows.length > limit ? (items[items.length - 1]?.publishedAt ?? null) : null;
+  const last = items[items.length - 1];
+  const hasMore = rows.length > limit;
 
-  return { items, nextCursor };
+  return {
+    items,
+    nextCursor: hasMore ? (last?.publishedAt ?? null) : null,
+    nextCursorId: hasMore ? (last?.id ?? null) : null,
+  };
 }
 
 export async function getNewsBySlug(

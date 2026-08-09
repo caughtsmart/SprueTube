@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link, redirect } from "react-router";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, notInArray, or } from "drizzle-orm";
 import type { Route } from "./+types/notifications";
 import { Avatar } from "../components/Avatar";
 import { api } from "../lib/api";
@@ -9,6 +9,7 @@ import { timeAgo } from "../lib/format";
 import { imageSrc } from "../lib/media";
 import { useRoot } from "../root";
 import { notification, profile } from "../../server/db/schema";
+import { blockedUserIds } from "../../server/services/moderation";
 
 export function meta() {
   return [
@@ -20,6 +21,11 @@ export function meta() {
 export async function loader({ context, request }: Route.LoaderArgs) {
   const scope = await getScope(context, request);
   if (!scope.viewer) throw redirect("/login?next=/notifications");
+
+  // Same filter as GET /notifications: rows written before a block still name
+  // and picture the person who was blocked. System messages have no actor and
+  // must stay.
+  const hidden = await blockedUserIds(scope.db, scope.viewer.userId);
 
   const rows = await scope.db
     .select({
@@ -36,7 +42,19 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     })
     .from(notification)
     .leftJoin(profile, eq(profile.userId, notification.actorId))
-    .where(eq(notification.userId, scope.viewer.userId))
+    .where(
+      and(
+        eq(notification.userId, scope.viewer.userId),
+        ...(hidden.length
+          ? [
+              or(
+                isNull(notification.actorId),
+                notInArray(notification.actorId, hidden),
+              )!,
+            ]
+          : []),
+      ),
+    )
     .orderBy(desc(notification.createdAt))
     .limit(100);
 

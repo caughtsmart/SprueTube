@@ -58,6 +58,9 @@ news.get("/news", async (c) => {
   const page = await listNews(c.get("db"), {
     category: parsedCategory.success ? parsedCategory.data : null,
     before: Number.isFinite(before) && before > 0 ? before : null,
+    // Send `nextCursorId` back as `beforeId` alongside `before`; the pair is
+    // what makes the boundary exact when several items share a timestamp.
+    beforeId: c.req.query("beforeId") ?? null,
     limit: Number(c.req.query("limit")) || undefined,
     includeHidden,
   });

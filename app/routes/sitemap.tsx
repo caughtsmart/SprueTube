@@ -19,15 +19,24 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
   const [posts, people, buildLogs, news, listings, commissions] =
     await Promise.all([
+    /*
+     * The join is the point, not decoration. Every other query below already
+     * filters on the author's account being active; this one did not, so posts
+     * by suspended and deleted accounts carried on being handed to search
+     * engines long after the site stopped showing them — the one place that
+     * outlives the suspension.
+     */
     scope.db
       .select({ id: post.id, updatedAt: post.updatedAt })
       .from(post)
+      .innerJoin(profile, eq(profile.userId, post.authorId))
       .where(
         and(
           eq(post.status, "published"),
           eq(post.visibility, "public"),
           eq(post.sensitive, false),
           isNull(post.deletedAt),
+          eq(profile.status, "active"),
         ),
       )
       .orderBy(desc(post.publishedAt))

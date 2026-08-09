@@ -23,6 +23,7 @@ import {
   tag,
 } from "../db/schema";
 import type { FeedPost } from "./feed";
+import { checkInteraction } from "./moderation";
 import { createNotification } from "./posts";
 /*
  * The ordering rules themselves are in app/lib, not here, because the owner's
@@ -636,7 +637,15 @@ async function resolveParent(
   return parent.parentId ?? parent.id;
 }
 
-/** A comment on the build log itself, rather than on any one entry. */
+/**
+ * A comment on the build log itself, rather than on any one entry.
+ *
+ * The read path — `loadVisibleProject` in routes/projects.ts — has always
+ * refused a build log whose owner has blocked the viewer, or been deleted.
+ * Writing resolved the project by id alone and checked neither, so a blocked
+ * person could still comment on the blocker's build log and the comment sent
+ * them a notification. Same guard, same 404 as a build log that is not there.
+ */
 export async function addProjectComment(
   db: Db,
   authorId: string,
@@ -648,6 +657,10 @@ export async function addProjectComment(
     where: eq(project.id, projectId),
   });
   if (!target) throw new Error("project_not_found");
+
+  if (await checkInteraction(db, authorId, target.ownerId)) {
+    throw new Error("project_not_found");
+  }
 
   const resolvedParent = await resolveParent(
     db,

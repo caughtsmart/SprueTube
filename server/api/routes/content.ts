@@ -177,10 +177,22 @@ content.delete("/posts/:id/bookmark", requireAuth, async (c) =>
 /* Comments                                                                   */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A post's thread.
+ *
+ * Visibility is delegated to getPost, which already knows the whole rule —
+ * drafts, private and followers-only posts, removed posts and blocks. This
+ * endpoint used to load nothing but the comments, so anyone holding an id could
+ * read the thread on a private post, complete with every commenter's name and
+ * avatar. A comment is no more public than the post it hangs off.
+ */
 content.get("/posts/:id/comments", async (c) => {
   const db = c.get("db");
   const postId = c.req.param("id");
   const viewerId = c.get("user")?.id ?? null;
+
+  const visible = await getPost(db, postId, viewerId);
+  if (!visible) throw apiError(404, "not_found", "That post is not here.");
 
   const rows = await db
     .select({
@@ -267,11 +279,23 @@ content.post("/posts/:id/comments", requireAuth, async (c) => {
     });
   }
 
+  const db = c.get("db");
+  const postId = c.req.param("id");
+
+  /*
+   * Same check as the read, exactly as the photo-comment route does it. Writing
+   * used to ask only whether the row existed and was not soft-deleted, so a
+   * blocked person could comment on the blocker's post — and notify them of it —
+   * and anyone holding an id could attach a comment to a draft or a private post.
+   */
+  const visible = await getPost(db, postId, c.get("user")!.id);
+  if (!visible) throw apiError(404, "not_found", "That post is not here.");
+
   try {
     const id = await addComment(
-      c.get("db"),
+      db,
       c.get("user")!.id,
-      c.req.param("id"),
+      postId,
       parsed.data.body,
       parsed.data.parentId,
     );

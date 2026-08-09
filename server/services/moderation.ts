@@ -12,7 +12,7 @@
  * audit row.
  */
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { newId } from "../db/id";
 import {
@@ -23,6 +23,7 @@ import {
   mute,
   post,
   profile,
+  project,
   report,
 } from "../db/schema";
 import { createNotification } from "./posts";
@@ -258,16 +259,10 @@ export async function applyModerationAction(
         .where(eq(post.id, input.subjectId));
       break;
     case "remove_comment":
-      await db
-        .update(comment)
-        .set({ status: "removed", deletedAt: nowSeconds })
-        .where(eq(comment.id, input.subjectId));
+      await setCommentRemoved(db, input.subjectId, true, nowSeconds);
       break;
     case "restore_comment":
-      await db
-        .update(comment)
-        .set({ status: "published", deletedAt: null })
-        .where(eq(comment.id, input.subjectId));
+      await setCommentRemoved(db, input.subjectId, false, nowSeconds);
       break;
     case "suspend_user":
       await db
@@ -348,6 +343,62 @@ export async function applyModerationAction(
   }
 }
 
+/**
+ * Remove or restore a comment, moving the counter with it.
+ *
+ * `deleteComment` in posts.ts has always given the count back when someone
+ * deletes their own comment. A moderator removal used to touch the row only, so
+ * every moderated comment left the post permanently claiming a reply it no
+ * longer shows — and the count is the first thing anyone reads under a post.
+ *
+ * The current state is checked first so a second removal, or a restore of
+ * something that was never removed, cannot move the counter twice. Same batch
+ * as the row itself, so a count can never describe a write that failed.
+ */
+async function setCommentRemoved(
+  db: Db,
+  commentId: string,
+  removed: boolean,
+  nowSeconds: number,
+) {
+  const row = await db.query.comment.findFirst({
+    where: eq(comment.id, commentId),
+  });
+  if (!row) return;
+  if (removed === Boolean(row.deletedAt)) return;
+
+  const delta = removed ? sql`- 1` : sql`+ 1`;
+  const statements: any[] = [
+    db
+      .update(comment)
+      .set(
+        removed
+          ? { status: "removed", deletedAt: nowSeconds }
+          : { status: "published", deletedAt: null },
+      )
+      .where(eq(comment.id, commentId)),
+  ];
+
+  if (row.postId) {
+    statements.push(
+      db
+        .update(post)
+        .set({ commentCount: sql`max(0, ${post.commentCount} ${delta})` })
+        .where(eq(post.id, row.postId)),
+    );
+  }
+  if (row.projectId) {
+    statements.push(
+      db
+        .update(project)
+        .set({ commentCount: sql`max(0, ${project.commentCount} ${delta})` })
+        .where(eq(project.id, row.projectId)),
+    );
+  }
+
+  await db.batch(statements as [any, ...any[]]);
+}
+
 async function subjectOwner(
   db: Db,
   type: ReportSubject,
@@ -363,6 +414,120 @@ async function subjectOwner(
   }
   const row = await db.query.comment.findFirst({ where: eq(comment.id, id) });
   return row?.authorId ?? null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The block guard                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Why the write paths ask this and not only the read paths.
+ *
+ * A block is mutual invisibility, and invisibility that covers reading alone is
+ * not a block at all: the blocked person can still comment on the blocker's
+ * work and still follow them, and every one of those writes posts the blocker a
+ * notification carrying the name they asked never to see again. Follow, unfollow,
+ * follow is then an unbounded channel to someone who wanted none. So the
+ * question is asked once, here, and both sides use the answer.
+ */
+export type InteractionProblem = "blocked" | "unavailable";
+
+/**
+ * The decision itself, taken from facts already loaded and kept pure so it can
+ * be tested without a database.
+ *
+ * Your own things are always yours to act on. A suspended or deleted account is
+ * refused before the block is considered, because "unavailable" is the honest
+ * answer there and it is the one the follow endpoint already gives.
+ */
+export function interactionProblem(facts: {
+  viewerId: string;
+  subjectId: string;
+  subjectStatus: string;
+  blocked: boolean;
+}): InteractionProblem | null {
+  if (facts.viewerId === facts.subjectId) return null;
+  if (facts.subjectStatus !== "active") return "unavailable";
+  return facts.blocked ? "blocked" : null;
+}
+
+/** True when either person has blocked the other, whichever way round it is. */
+export async function isBlockedEither(
+  db: Db,
+  a: string,
+  b: string,
+): Promise<boolean> {
+  if (a === b) return false;
+
+  const rows = await db
+    .select({ blockerId: block.blockerId })
+    .from(block)
+    .where(
+      or(
+        and(eq(block.blockerId, a), eq(block.blockedId, b)),
+        and(eq(block.blockerId, b), eq(block.blockedId, a)),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+/**
+ * Everyone the viewer has blocked, plus everyone who has blocked them.
+ *
+ * One list rather than two predicates, because every caller wants the union and
+ * the list is short in practice. D1 charges per statement, not per row.
+ */
+export async function blockedUserIds(
+  db: Db,
+  viewerId: string | null,
+): Promise<string[]> {
+  if (!viewerId) return [];
+
+  const [blockedByMe, blockedMe] = await Promise.all([
+    db
+      .select({ id: block.blockedId })
+      .from(block)
+      .where(eq(block.blockerId, viewerId)),
+    db
+      .select({ id: block.blockerId })
+      .from(block)
+      .where(eq(block.blockedId, viewerId)),
+  ]);
+
+  return [...new Set([...blockedByMe, ...blockedMe].map((row) => row.id))];
+}
+
+/**
+ * The guard every write path shares: may this viewer act on that person's
+ * things at all?
+ *
+ * Callers answer a refusal with the same 404 a missing row gets, so the
+ * response cannot be used to detect a block the other person chose not to
+ * announce.
+ */
+export async function checkInteraction(
+  db: Db,
+  viewerId: string,
+  subjectId: string,
+): Promise<InteractionProblem | null> {
+  if (viewerId === subjectId) return null;
+
+  const [subject, blocked] = await Promise.all([
+    db.query.profile.findFirst({
+      where: eq(profile.userId, subjectId),
+      columns: { status: true },
+    }),
+    isBlockedEither(db, viewerId, subjectId),
+  ]);
+  if (!subject) return "unavailable";
+
+  return interactionProblem({
+    viewerId,
+    subjectId,
+    subjectStatus: subject.status,
+    blocked,
+  });
 }
 
 /* -------------------------------------------------------------------------- */

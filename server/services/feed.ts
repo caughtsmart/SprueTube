@@ -1,18 +1,17 @@
 import {
   and,
-  asc,
   desc,
   eq,
-  gt,
+  exists,
   inArray,
   isNull,
   lt,
   notInArray,
   or,
+  sql,
 } from "drizzle-orm";
 import type { Db } from "../db/client";
 import {
-  block,
   bookmark,
   follow,
   like,
@@ -25,6 +24,7 @@ import {
   tag,
   postTag,
 } from "../db/schema";
+import { blockedUserIds, isBlockedEither } from "./moderation";
 
 export type FeedTab = "following" | "discover" | "latest";
 
@@ -96,23 +96,25 @@ const PAGE_SIZE = 20;
 async function hiddenAuthorIds(db: Db, viewerId: string | null) {
   if (!viewerId) return [] as string[];
 
-  const [blockedByMe, blockedMe, muted] = await Promise.all([
-    db
-      .select({ id: block.blockedId })
-      .from(block)
-      .where(eq(block.blockerId, viewerId)),
-    db
-      .select({ id: block.blockerId })
-      .from(block)
-      .where(eq(block.blockedId, viewerId)),
+  const [blocked, muted] = await Promise.all([
+    // Blocks are moderation's to define, so the union of both directions comes
+    // from there rather than being spelled out a second time here.
+    blockedUserIds(db, viewerId),
     db.select({ id: mute.mutedId }).from(mute).where(eq(mute.muterId, viewerId)),
   ]);
 
-  return [...new Set([...blockedByMe, ...blockedMe, ...muted].map((r) => r.id))];
+  return [...new Set([...blocked, ...muted.map((r) => r.id)])];
 }
 
 /**
- * Base predicate every feed shares: live, not deleted, not from a hidden author.
+ * Base predicate every feed shares: live, not deleted, from an account in good
+ * standing, not from a hidden author.
+ *
+ * The account check is why suspension means anything. Suspending someone only
+ * ever stopped them signing in; their work carried on sitting in Discover,
+ * Latest and every tag and system feed, which is not what a moderator pressing
+ * that button believes they are doing. Every feed query already joins `profile`
+ * to render the byline, so the clause is free.
  *
  * `includeFollowersOnly` is true only for the Following tab, where the viewer
  * is by definition a follower of everyone in it. The public tabs stay strictly
@@ -122,6 +124,7 @@ function visiblePosts(hidden: string[], includeFollowersOnly = false) {
   const clauses = [
     eq(post.status, "published"),
     isNull(post.deletedAt),
+    eq(profile.status, "active"),
     includeFollowersOnly
       ? inArray(post.visibility, ["public", "followers"])
       : eq(post.visibility, "public"),
@@ -174,16 +177,21 @@ export async function getFeed(
       where: eq(tag.name, options.tagName.toLowerCase()),
     });
     if (!tagRow) return { posts: [], nextCursor: null };
-    const tagged = await db
-      .select({ id: postTag.postId })
-      .from(postTag)
-      .where(eq(postTag.tagId, tagRow.id))
-      .limit(500);
-    if (!tagged.length) return { posts: [], nextCursor: null };
+    /*
+     * A subquery rather than a fetched list of ids. The list used to be read
+     * separately and capped at 500 rows with no ORDER BY, which SQLite is free
+     * to answer with a different 500 each time — so the keyset cursor skipped
+     * or repeated posts between pages of any tag popular enough to matter, and
+     * a tag with more than 500 posts could never page past the arbitrary cut.
+     * Letting the database do the join keeps paging correct at any size.
+     */
     where.push(
       inArray(
         post.id,
-        tagged.map((r) => r.id),
+        db
+          .select({ id: postTag.postId })
+          .from(postTag)
+          .where(eq(postTag.tagId, tagRow.id)),
       ),
     );
   }
@@ -393,23 +401,7 @@ export async function getPost(
   if (row.post.visibility === "private" && !isOwner) return null;
 
   if (viewerId && !isOwner) {
-    const blocked = await db
-      .select({ blockerId: block.blockerId })
-      .from(block)
-      .where(
-        or(
-          and(
-            eq(block.blockerId, viewerId),
-            eq(block.blockedId, row.post.authorId),
-          ),
-          and(
-            eq(block.blockerId, row.post.authorId),
-            eq(block.blockedId, viewerId),
-          ),
-        ),
-      )
-      .limit(1);
-    if (blocked.length) return null;
+    if (await isBlockedEither(db, viewerId, row.post.authorId)) return null;
   }
 
   if (row.post.visibility === "followers" && !isOwner) {
@@ -447,14 +439,28 @@ export async function getProfilePosts(
     isNull(post.deletedAt),
     ...(isOwner
       ? []
-      : [eq(post.status, "published"), eq(post.visibility, "public")]),
+      : [
+          eq(post.status, "published"),
+          eq(post.visibility, "public"),
+          // The profile page already renders a suspension notice instead of the
+          // work, but it was still fetching the work to do it, and the API
+          // handed it over outright. Suspension has to mean the same thing here
+          // as it does in the feeds.
+          eq(profile.status, "active"),
+        ]),
   ];
   if (cursor) {
+    /*
+     * `coalesce(published_at, 0)` in both the predicate and the sort, the same
+     * as getProjectEntries. A draft has no publish date, and `NULL < anything`
+     * is NULL rather than true, so the plain comparison silently dropped every
+     * draft from the owner's own second page — the one place drafts are meant
+     * to show. The cursor already reads a missing date as 0; this makes the
+     * query agree with it.
+     */
     where.push(
-      or(
-        lt(post.publishedAt, cursor.score),
-        and(eq(post.publishedAt, cursor.score), lt(post.id, cursor.id)),
-      )!,
+      sql`(coalesce(${post.publishedAt}, 0) < ${cursor.score}
+        or (coalesce(${post.publishedAt}, 0) = ${cursor.score} and ${post.id} < ${cursor.id}))`,
     );
   }
 
@@ -473,7 +479,7 @@ export async function getProfilePosts(
     .innerJoin(profile, eq(profile.userId, post.authorId))
     .leftJoin(project, eq(project.id, post.projectId))
     .where(and(...where))
-    .orderBy(desc(post.publishedAt), desc(post.id))
+    .orderBy(sql`coalesce(${post.publishedAt}, 0) desc, ${post.id} desc`)
     .limit(limit + 1);
 
   const hasMore = rows.length > limit;
@@ -491,18 +497,31 @@ export async function getProfilePosts(
   };
 }
 
-/** The viewer's saved posts. */
+/**
+ * The viewer's saved posts.
+ *
+ * A bookmark is a snapshot of a decision made in the past, so it has to be
+ * re-checked against the present every time it is read. Someone can save a
+ * public post and then be blocked by its author, or watch it be made private,
+ * removed by a moderator or written by an account since suspended — and until
+ * now /saved kept showing all of it, because the only thing it asked was
+ * whether the row had been soft-deleted. The rules below are the ones every
+ * other feed path applies.
+ */
 export async function getBookmarks(
   db: Db,
   viewerId: string,
   limit = PAGE_SIZE,
 ): Promise<FeedPost[]> {
-  const saved = await db
-    .select({ postId: bookmark.postId })
-    .from(bookmark)
-    .where(eq(bookmark.userId, viewerId))
-    .orderBy(desc(bookmark.createdAt))
-    .limit(limit);
+  const [saved, hidden] = await Promise.all([
+    db
+      .select({ postId: bookmark.postId })
+      .from(bookmark)
+      .where(eq(bookmark.userId, viewerId))
+      .orderBy(desc(bookmark.createdAt))
+      .limit(limit),
+    hiddenAuthorIds(db, viewerId),
+  ]);
   if (!saved.length) return [];
 
   const rows = await db
@@ -526,6 +545,30 @@ export async function getBookmarks(
           saved.map((s) => s.postId),
         ),
         isNull(post.deletedAt),
+        eq(post.status, "published"),
+        eq(profile.status, "active"),
+        ...(hidden.length ? [notInArray(post.authorId, hidden)] : []),
+        // Your own saved post stays yours to see. A followers-only one survives
+        // only while you still follow the author, which is the same rule getPost
+        // applies to the post's own page.
+        or(
+          eq(post.authorId, viewerId),
+          eq(post.visibility, "public"),
+          and(
+            eq(post.visibility, "followers"),
+            exists(
+              db
+                .select({ one: sql`1` })
+                .from(follow)
+                .where(
+                  and(
+                    eq(follow.followerId, viewerId),
+                    eq(follow.followeeId, post.authorId),
+                  ),
+                ),
+            ),
+          ),
+        )!,
       ),
     );
 
@@ -568,11 +611,12 @@ export async function getProjectPosts(
       : [eq(post.status, "published"), eq(post.visibility, "public")]),
   ];
   if (cursor) {
+    // Same `coalesce(published_at, 0)` as getProfilePosts and
+    // getProjectEntries, for the same reason: a draft's null date must compare
+    // as 0 or the owner's second page loses every draft.
     where.push(
-      or(
-        gt(post.publishedAt, cursor.score),
-        and(eq(post.publishedAt, cursor.score), gt(post.id, cursor.id)),
-      )!,
+      sql`(coalesce(${post.publishedAt}, 0) > ${cursor.score}
+        or (coalesce(${post.publishedAt}, 0) = ${cursor.score} and ${post.id} > ${cursor.id}))`,
     );
   }
 
@@ -591,7 +635,7 @@ export async function getProjectPosts(
     .innerJoin(profile, eq(profile.userId, post.authorId))
     .leftJoin(project, eq(project.id, post.projectId))
     .where(and(...where))
-    .orderBy(asc(post.publishedAt), asc(post.id))
+    .orderBy(sql`coalesce(${post.publishedAt}, 0) asc, ${post.id} asc`)
     .limit(limit + 1);
 
   const hasMore = rows.length > limit;

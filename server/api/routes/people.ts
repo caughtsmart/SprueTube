@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, notInArray, sql } from "drizzle-orm";
 import {
   apiError,
   badRequest,
@@ -15,6 +15,9 @@ import { getProfilePosts } from "../../services/feed";
 import { setFollow } from "../../services/posts";
 import {
   ageFromBirthdate,
+  blockedUserIds,
+  interactionProblem,
+  isBlockedEither,
   MINIMUM_AGE,
   setBlock,
   setMute,
@@ -196,18 +199,35 @@ people.get("/profiles/:username", async (c) => {
   });
 });
 
+/**
+ * The profile page's "load more".
+ *
+ * It carries the same rules the page loader applies before it renders the first
+ * page: a deleted account is not there, and a block hides the work in both
+ * directions. Without them the page 404'd while this endpoint answered 200 with
+ * the very posts the block was meant to hide.
+ */
 people.get("/profiles/:username/posts", async (c) => {
   const db = c.get("db");
   const username = c.req.param("username");
+  const viewerId = c.get("user")?.id ?? null;
+
   const row = await db.query.profile.findFirst({
     where: sql`lower(${profile.username}) = ${username.toLowerCase()}`,
   });
-  if (!row) throw apiError(404, "not_found", "No such painter.");
+  if (!row || row.status === "deleted") {
+    throw apiError(404, "not_found", "No such painter.");
+  }
+  // The same 404 as a painter who is not there, so the response cannot be read
+  // as confirmation of a block.
+  if (viewerId && (await isBlockedEither(db, viewerId, row.userId))) {
+    throw apiError(404, "not_found", "No such painter.");
+  }
 
   const page = await getProfilePosts(
     db,
     row.userId,
-    c.get("user")?.id ?? null,
+    viewerId,
     c.req.query("cursor"),
   );
   return c.json(page);
@@ -232,9 +252,27 @@ async function toggleFollow(
     where: sql`lower(${profile.username}) = ${c.req.param("username")!.toLowerCase()}`,
   });
   if (!target) throw apiError(404, "not_found", "No such painter.");
-  if (target.status !== "active") {
+
+  /*
+   * A block has to stop the follow, not just hide the profile. Otherwise
+   * follow, unfollow, follow is an unbounded notification channel aimed at
+   * someone who blocked you, and every one of those notifications carries the
+   * name and avatar they asked never to see again. The refusal is the 404 a
+   * missing painter gets, so it does not announce the block.
+   */
+  const problem = interactionProblem({
+    viewerId: viewer.id,
+    subjectId: target.userId,
+    subjectStatus: target.status,
+    blocked: await isBlockedEither(db, viewer.id, target.userId),
+  });
+  if (problem === "blocked") {
+    throw apiError(404, "not_found", "No such painter.");
+  }
+  if (problem) {
     throw apiError(403, "forbidden", "That account is unavailable.");
   }
+
   return setFollow(db, viewer.id, target.userId, following);
 }
 
@@ -246,15 +284,33 @@ people.get("/profiles/:username/following", async (c) => {
   return c.json(await listGraph(c, "following"));
 });
 
+/**
+ * One side of somebody's follow graph.
+ *
+ * Two separate rules apply here and it is worth being clear which is which. The
+ * person whose list is being read is subject to the usual block and status
+ * check, because their followers are as hidden as their profile is. Everybody
+ * *in* the list is filtered too: a suspended or deleted account has no business
+ * appearing in a public list, and neither does someone the viewer has blocked or
+ * been blocked by — otherwise a block is undone by opening any mutual friend's
+ * follower list.
+ */
 async function listGraph(
   c: ApiContext,
   direction: "followers" | "following",
 ) {
   const db = c.get("db");
+  const viewerId = c.get("user")?.id ?? null;
+
   const target = await db.query.profile.findFirst({
     where: sql`lower(${profile.username}) = ${c.req.param("username")!.toLowerCase()}`,
   });
-  if (!target) throw apiError(404, "not_found", "No such painter.");
+  if (!target || target.status === "deleted") {
+    throw apiError(404, "not_found", "No such painter.");
+  }
+  if (viewerId && (await isBlockedEither(db, viewerId, target.userId))) {
+    throw apiError(404, "not_found", "No such painter.");
+  }
 
   const joinOn =
     direction === "followers"
@@ -265,6 +321,8 @@ async function listGraph(
       ? eq(follow.followeeId, target.userId)
       : eq(follow.followerId, target.userId);
 
+  const hidden = await blockedUserIds(db, viewerId);
+
   const rows = await db
     .select({
       username: profile.username,
@@ -274,7 +332,13 @@ async function listGraph(
     })
     .from(follow)
     .innerJoin(profile, joinOn)
-    .where(filter)
+    .where(
+      and(
+        filter,
+        eq(profile.status, "active"),
+        ...(hidden.length ? [notInArray(profile.userId, hidden)] : []),
+      ),
+    )
     .orderBy(desc(follow.createdAt))
     .limit(100);
 
