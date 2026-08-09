@@ -38,38 +38,48 @@ export function AdSlot({
 function HouseAd({ ad, className }: { ad: ServedAd; className?: string }) {
   return (
     <aside
-      className={`st-card overflow-hidden ${className}`}
+      className={`st-card flex overflow-hidden ${className}`}
       aria-label="Advertisement"
     >
-      <p className="st-text-muted border-b st-border px-4 py-1.5 text-[0.625rem] font-semibold tracking-widest uppercase">
-        Advertisement
-      </p>
+      {/*
+        Commercial content carries the rail, exactly as the paints strip does.
+        An advert and a paid paint link are the same kind of thing and should
+        be marked the same way.
+      */}
+      <span aria-hidden className="st-hazard-rail" />
+      <div className="min-w-0 flex-1">
+        <p className="st-text-muted st-border border-b px-4 py-1.5 text-[0.625rem] font-semibold tracking-widest uppercase">
+          Advertisement
+        </p>
 
-      <a
-        href={`/api/v1/ads/${ad.id}/click`}
-        rel="sponsored noopener"
-        target="_blank"
-        className="block"
-      >
-        {ad.imageUrl ? (
-          <img
-            src={ad.imageUrl}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="h-40 w-full object-cover"
-          />
-        ) : null}
-        <div className="p-4">
-          <h3 className="text-base font-semibold">{ad.title}</h3>
-          {ad.body ? (
-            <p className="st-text-muted mt-1 text-sm leading-relaxed">{ad.body}</p>
+        <a
+          href={`/api/v1/ads/${ad.id}/click`}
+          rel="sponsored noopener"
+          target="_blank"
+          className="block"
+        >
+          {ad.imageUrl ? (
+            <img
+              src={ad.imageUrl}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="h-40 w-full object-cover"
+            />
           ) : null}
-          <span className="st-btn st-btn-ghost mt-3 text-sm">
-            {ad.ctaLabel} ↗
-          </span>
-        </div>
-      </a>
+          <div className="p-4">
+            <h3 className="text-base font-semibold">{ad.title}</h3>
+            {ad.body ? (
+              <p className="st-text-muted mt-1 text-sm leading-relaxed">
+                {ad.body}
+              </p>
+            ) : null}
+            <span className="st-btn st-btn-ghost mt-3 text-sm">
+              {ad.ctaLabel} ↗
+            </span>
+          </div>
+        </a>
+      </div>
     </aside>
   );
 }

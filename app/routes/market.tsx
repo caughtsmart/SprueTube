@@ -274,7 +274,7 @@ function ListingGrid({
   if (!listings.length) {
     return (
       <div className="st-card mt-4 p-10 text-center">
-        <p className="text-4xl">📦</p>
+        <div aria-hidden className="st-hazard mx-auto h-2.5 w-32 rounded-sm" />
         <h2 className="mt-4 text-lg font-semibold">Nothing listed here</h2>
         <p className="st-text-muted mt-2 text-sm">
           Try a wider filter, or post the thing you are looking for as a wanted

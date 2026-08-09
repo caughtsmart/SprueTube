@@ -58,7 +58,7 @@ export default function Messages({ loaderData }: Route.ComponentProps) {
   if (!items.length) {
     return (
       <div className="st-card mx-auto max-w-2xl p-10 text-center">
-        <p className="text-4xl">✉</p>
+        <div aria-hidden className="st-hazard mx-auto h-2.5 w-32 rounded-sm" />
         <h1 className="mt-4 text-lg font-semibold">No messages</h1>
         <p className="st-text-muted mt-2 text-sm">
           Threads start from someone's commission listing or their profile.
