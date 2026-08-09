@@ -2,12 +2,24 @@ import { data, Link } from "react-router";
 import { and, eq, sql } from "drizzle-orm";
 import type { Route } from "./+types/project";
 import { Avatar } from "../components/Avatar";
-import { Feed } from "../components/Feed";
+import { ImageComments } from "../components/ImageComments";
+import { PostCard } from "../components/PostCard";
+import { ProjectComments } from "../components/ProjectComments";
+import { ProjectEntries } from "../components/ProjectEntries";
+import { ProjectReorder } from "../components/ProjectReorder";
 import { getScope } from "../lib/data.server";
 import { fullDate } from "../lib/format";
 import { imageSrc } from "../lib/media";
 import { pickAd } from "../../server/services/ads";
-import { getProjectPosts } from "../../server/services/feed";
+import { getPost } from "../../server/services/feed";
+import {
+  getEntryOrder,
+  getMediaComments,
+  getProjectComments,
+  getProjectEntries,
+  groupCommentsByMedia,
+  threadComments,
+} from "../../server/services/projects";
 import { block, profile, project } from "../../server/db/schema";
 import {
   GAME_SYSTEM_LABELS,
@@ -81,10 +93,32 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
     throw data({ message: "No such build log." }, { status: 404 });
   }
 
-  const [page, ad] = await Promise.all([
-    getProjectPosts(scope.db, entry.id, viewerId, owner.userId),
+  const [page, ad, commentRows, entryOrder] = await Promise.all([
+    getProjectEntries(scope.db, {
+      projectId: entry.id,
+      ownerId: owner.userId,
+      viewerId,
+    }),
     pickAd(scope.db, "sidebar"),
+    getProjectComments(scope.db, entry.id),
+    // Only the owner can reorder, so only the owner pays for the list.
+    isOwner ? getEntryOrder(scope.db, entry.id) : Promise.resolve([]),
   ]);
+
+  /*
+   * The pinned entry goes through getPost rather than being read straight from
+   * the page it is already on, because getPost is where the visibility rules
+   * live. A pin left on an entry that has since gone private or been removed
+   * must disappear for everyone but the owner, and this is what makes that
+   * true without a second copy of the rules.
+   */
+  const pinned = entry.pinnedPostId
+    ? await getPost(scope.db, entry.pinnedPostId, viewerId)
+    : null;
+
+  const pinnedImageComments = groupCommentsByMedia(
+    pinned ? await getMediaComments(scope.db, pinned.id) : [],
+  );
 
   const config = { imagesAccountHash: scope.env.CF_IMAGES_ACCOUNT_HASH };
 
@@ -98,6 +132,8 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
       scale: entry.scale,
       status: entry.status as ProjectStatus,
       postCount: entry.postCount,
+      commentCount: entry.commentCount,
+      pinnedPostId: entry.pinnedPostId,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
     },
@@ -109,6 +145,13 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
     avatarUrl: imageSrc(config, owner.avatarImageId, "avatar"),
     coverUrl: imageSrc(config, entry.coverImageId, "full"),
     isOwner,
+    pinned,
+    pinnedImageThreads: (pinned?.media ?? []).map((image) => ({
+      mediaId: image.id,
+      comments: threadComments(pinnedImageComments.get(image.id) ?? []),
+    })),
+    entryOrder,
+    comments: threadComments(commentRows),
     posts: page.posts,
     nextCursor: page.nextCursor,
     ad,
@@ -116,7 +159,7 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
 }
 
 export default function ProjectPage({ loaderData }: Route.ComponentProps) {
-  const { entry, owner } = loaderData;
+  const { entry, owner, pinned } = loaderData;
 
   const facts = [
     entry.gameSystem
@@ -187,18 +230,60 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
       </header>
 
       {/*
+        The pinned entry, above the history.
+
+        A build log reads oldest first, which is right for the story and wrong
+        for the question most visitors actually arrive with: what does it look
+        like now? Answering that at the top costs one card and saves them
+        scrolling two years to find out.
+      */}
+      {pinned ? (
+        <section className="mt-6" aria-label="Where this project is now">
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <h2 className="st-text-strong text-sm font-semibold">
+              📌 Where it is now
+            </h2>
+            <span className="st-text-muted text-xs">
+              Pinned by {loaderData.isOwner ? "you" : owner.displayName}
+            </span>
+          </div>
+
+          <PostCard post={pinned} />
+
+          <ImageComments
+            postId={pinned.id}
+            images={pinned.media}
+            threads={loaderData.pinnedImageThreads}
+            sensitive={pinned.sensitive}
+          />
+        </section>
+      ) : null}
+
+      {loaderData.isOwner ? (
+        <ProjectReorder projectId={entry.id} entries={loaderData.entryOrder} />
+      ) : null}
+
+      {/*
         Oldest first, which is the whole point of a build log — the interesting
         thing is the progression, and newest-first turns that into a stack of
         disconnected photos. Said out loud here because it contradicts every
         other listing on the site.
-      */}
-      <p className="st-text-muted mt-6 mb-2 text-xs">Oldest first</p>
 
-      <Feed
-        initialPosts={loaderData.posts}
+        The owner can override it entry by entry; anything they have not moved
+        still falls where its date puts it.
+      */}
+      <p className="st-text-muted mt-6 mb-2 text-xs">
+        {pinned ? "The whole log, oldest first" : "Oldest first"}
+      </p>
+
+      <ProjectEntries
+        initialEntries={loaderData.posts}
         initialCursor={loaderData.nextCursor}
-        endpoint={`/projects/${owner.username}/${entry.slug}/posts`}
+        endpoint={`/projects/${owner.username}/${entry.slug}/entries`}
         ad={loaderData.ad}
+        isOwner={loaderData.isOwner}
+        projectId={entry.id}
+        pinnedPostId={entry.pinnedPostId}
         emptyState={
           <>
             <p className="text-4xl">🪛</p>
@@ -220,6 +305,12 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
             ) : null}
           </>
         }
+      />
+
+      <ProjectComments
+        projectId={entry.id}
+        commentCount={entry.commentCount}
+        comments={loaderData.comments}
       />
     </div>
   );

@@ -252,6 +252,19 @@ export async function deletePost(db: Db, postId: string, authorId: string) {
         .set({ postCount: sql`max(0, ${project.postCount} - 1)` })
         .where(eq(project.id, row.projectId)),
     );
+
+    // project.pinnedPostId has no foreign key — schema.ts explains why — so
+    // nothing else will clear it. Left behind, the build log would keep trying
+    // to show a deleted entry as its current state. Same batch as the delete,
+    // so the pin cannot survive a partial failure.
+    statements.push(
+      db
+        .update(project)
+        .set({ pinnedPostId: null })
+        .where(
+          and(eq(project.id, row.projectId), eq(project.pinnedPostId, postId)),
+        ),
+    );
   }
 
   await db.batch(statements as [any, ...any[]]);

@@ -2,6 +2,7 @@ import { createRequestHandler, RouterContextProvider } from "react-router";
 import { cloudflare } from "../app/context";
 import { api } from "../server/api";
 import { refreshHotScores } from "../server/services/maintenance";
+import { ingestNews, shouldRunDailyIngest } from "../server/services/news";
 
 /*
  * One Worker serves both halves of SprueTube:
