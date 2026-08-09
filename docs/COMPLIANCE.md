@@ -110,6 +110,87 @@ regardless of size. Small services have lighter duties, not no duties.
       to be identifiable as advertising — the existing label covers this, keep
       it.
 
+## Private messaging
+
+Direct messages change the Online Safety Act picture more than any other
+feature here, because private communication is where the harms the Act is most
+concerned with actually happen. The build ships with the safeguards rather than
+after them:
+
+- [x] Blocks enforced in both directions — a blocked person cannot open a
+      thread, send into an existing one, or see it
+- [x] Rate limiting on sending
+- [x] Every message reportable, and `report.subject_type` accepts `message`
+- [x] Soft delete only. A reported message still exists for a moderator to read;
+      hard deletion would make every report unactionable the moment the sender
+      thought better of it
+- [x] Participation checked from the session on every read and write, never from
+      an id in the URL
+
+Still needed:
+
+- [ ] **Say in the privacy notice that messages are stored, and for how long.**
+      This is new personal data of a kind the notice does not yet describe, and
+      it is the sort of processing people expect to be told about plainly.
+- [ ] **Decide a retention period** for messages, including in deleted accounts.
+      The cascade removes them with the account today, which is defensible, but
+      it should be a decision rather than a side effect.
+- [ ] **Decide the policy on reading reported threads.** A moderator can read a
+      reported message. Say so on the safety page — people assume "private"
+      means private from you too, and discovering otherwise during a dispute is
+      how trust goes.
+
+## Buying, selling and commissions
+
+Both are **classified ads**: listings and contact, with no payment, escrow, fee
+or shipping passing through SprueTube. That is a deliberate line, and it is
+what keeps this a hobby site rather than an online marketplace in the legal
+sense. Crossing it brings the Consumer Contracts Regulations, dispute handling,
+and potentially payment-services obligations — a different business with a
+different insurer.
+
+- [x] No payments, escrow, fees or buyer protection anywhere in the code
+- [x] Listings reportable, blocks respected
+- [x] Plain statements on both sections that SprueTube does not handle payments
+      and does not vet sellers or painters
+- [x] Location is a town, not an address, and the field says so
+
+Still needed:
+
+- [ ] **A line in the terms** covering user-to-user trading: that agreements are
+      between the two people, that SprueTube is not a party to them, and what
+      happens to someone using the section to defraud people. The terms do not
+      mention trading at all yet.
+- [ ] **Decide the recast/counterfeit position.** Recast miniatures are a real
+      and well-known problem in this hobby and Games Workshop pursue it. The
+      rules should name it, and the report reasons already include
+      `intellectual_property`.
+- [ ] **Watch for the platform becoming a trader itself.** Loaded Dice selling
+      through its own community section would change the relationship with
+      buyers materially. If that is ever wanted, it needs its own advice.
+- [ ] **HMRC reporting rules for digital platforms** do not bite while nothing
+      is transacted here — but they would the moment money moves through the
+      site. Another reason the line above is worth keeping.
+
+## News aggregation
+
+Every item is a summary of someone else's published article, with attribution
+and a link. `source_name` and `source_url` are `NOT NULL` in the schema, so an
+item that cannot say where it came from cannot be stored at all.
+
+- [x] Attribution and an outbound link on every item
+- [x] Summaries only, never reproduced articles
+- [x] No images, so no third-party image licensing question
+
+Still needed:
+
+- [ ] **Keep summaries short.** Summarising is fine; republishing is not, and the
+      line is about substance taken rather than word count.
+- [ ] **Honour a publisher asking to be dropped.** Have a route for it and act
+      quickly — this costs nothing and avoids the only realistic complaint.
+- [ ] **Check each feed's terms** if the list grows. Most publishers offer RSS
+      precisely to be summarised and linked, but not all say so.
+
 ## Before an iOS app (deferred, but the list does not change)
 
 App Store guideline 1.2 applies to every app with user-generated content, and
