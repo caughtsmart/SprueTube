@@ -51,8 +51,16 @@ export default function Privacy() {
           or over. It is never shown on your profile.
         </li>
         <li>
-          <strong>What you post.</strong> Text, photos, videos, comments, likes,
-          follows, saved posts.
+          <strong>What you post.</strong> Text, photos, comments, likes, follows,
+          saved posts, build logs, and any listings you place in the buy-and-sell
+          or commission sections.
+        </li>
+        <li>
+          <strong>Private messages.</strong> Messages you send are stored so the
+          person you sent them to can read them. They are private from other
+          users, but not from moderation: if a message is reported, a moderator
+          can read that conversation in order to act on the report. We do not
+          read messages otherwise and we never use them for advertising.
         </li>
         <li>
           <strong>Technical data.</strong> IP address and browser user-agent
@@ -107,8 +115,8 @@ export default function Privacy() {
       <h2>Who else sees your data</h2>
       <ul>
         <li>
-          <strong>Cloudflare</strong> — hosting, database, image and video
-          delivery. Our infrastructure provider.
+          <strong>Cloudflare</strong> — hosting, database, image delivery and the
+          email that carries password resets. Our infrastructure provider.
         </li>
         <li>
           <strong>Google</strong> — advertising, and sign-in if you choose it.

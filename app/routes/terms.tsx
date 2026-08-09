@@ -50,7 +50,7 @@ export default function Terms() {
 
       <h2>3. Your content stays yours</h2>
       <p>
-        You keep every right you have in the photos, videos and text you post. To
+        You keep every right you have in the photos and text you post. To
         run the site we need permission to store and show it, so by posting you
         grant us a non-exclusive, worldwide, royalty-free licence to host,
         reproduce and display that content <strong>for the purpose of
@@ -87,7 +87,40 @@ export default function Terms() {
         does not affect what appears in your feed.
       </p>
 
-      <h2>7. The service comes as it is</h2>
+      <h2>7. Buying, selling and commissions</h2>
+      <p>
+        The buy-and-sell section and the commission listings are classified ads.
+        Any agreement is between the two of you. We are not a party to it, we
+        take no fee, and no payment passes through SprueTube — so we cannot
+        refund you, release funds, or arbitrate a dispute. Treat it as you would
+        a club noticeboard: use a payment method with buyer protection, and be
+        careful.
+      </p>
+      <p>
+        You must have the right to sell what you list, and it must be what you
+        say it is. Recast and counterfeit miniatures are not allowed here, and
+        listing them will cost you your account as well as exposing you to a
+        claim from the rights holder.
+      </p>
+      <p>
+        If you are selling as a business rather than clearing your own shelf, UK
+        consumer law places obligations on you directly. That is your
+        responsibility to meet, not ours.
+      </p>
+
+      <h2>8. Messages</h2>
+      <p>
+        Private messages are private from other users, not from moderation. If
+        someone reports a message, a moderator can read that conversation in
+        order to act on the report. We do not read messages otherwise, and we do
+        not use them for advertising.
+      </p>
+      <p>
+        Messages you send are stored so the person you sent them to can read
+        them. Deleting your account deletes your side of them.
+      </p>
+
+      <h2>9. The service comes as it is</h2>
       <p>
         We work to keep SprueTube available and your content safe, but we cannot
         guarantee uninterrupted service and we are not liable for indirect or
@@ -96,19 +129,19 @@ export default function Terms() {
         fraud, and none of it affects your statutory rights as a consumer.
       </p>
 
-      <h2>8. Ending it</h2>
+      <h2>10. Ending it</h2>
       <p>
         You can delete your account whenever you like from settings. We can end
         your access if you seriously or repeatedly break these terms.
       </p>
 
-      <h2>9. Changes</h2>
+      <h2>11. Changes</h2>
       <p>
         If we change these terms in a way that matters, we will say so on the
         site before the change takes effect.
       </p>
 
-      <h2>10. Law</h2>
+      <h2>12. Law</h2>
       <p>
         These terms are governed by the laws of England and Wales, and its courts
         have jurisdiction.
