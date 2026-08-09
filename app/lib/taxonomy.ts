@@ -172,3 +172,108 @@ export const USERNAME_MAX = 20;
 export const MIN_PASSWORD_LENGTH = 10;
 /** Minimum age for an account, per the Online Safety Act and the App Store. */
 export const MINIMUM_AGE = 13;
+
+/* -------------------------------------------------------------------------- */
+/* Marketplace                                                                */
+/* -------------------------------------------------------------------------- */
+
+export const LISTING_KINDS = ["sale", "wanted"] as const;
+export type ListingKind = (typeof LISTING_KINDS)[number];
+
+export const LISTING_KIND_LABELS: Record<ListingKind, string> = {
+  sale: "For sale",
+  wanted: "Wanted",
+};
+
+/*
+ * Condition in the vocabulary the hobby actually uses. "New on sprue" and "new
+ * sealed" are different things to a buyer and the same thing to every generic
+ * marketplace, which is exactly the gap a specific site should close.
+ */
+export const LISTING_CONDITIONS = [
+  "new_sealed",
+  "new_sprue",
+  "part_built",
+  "painted",
+  "damaged",
+] as const;
+export type ListingCondition = (typeof LISTING_CONDITIONS)[number];
+
+export const LISTING_CONDITION_LABELS: Record<ListingCondition, string> = {
+  new_sealed: "New, sealed",
+  new_sprue: "New on sprue",
+  part_built: "Part built",
+  painted: "Painted",
+  damaged: "Damaged or incomplete",
+};
+
+export const LISTING_STATUSES = ["open", "sold", "withdrawn"] as const;
+export type ListingStatus = (typeof LISTING_STATUSES)[number];
+
+export const MAX_LISTING_TITLE_LENGTH = 120;
+export const MAX_LISTING_BODY_LENGTH = 4000;
+export const MAX_IMAGES_PER_LISTING = 8;
+
+/* -------------------------------------------------------------------------- */
+/* Commissions                                                                */
+/* -------------------------------------------------------------------------- */
+
+export const PRICE_UNITS = ["model", "unit", "army", "hour", "project"] as const;
+export type PriceUnit = (typeof PRICE_UNITS)[number];
+
+export const PRICE_UNIT_LABELS: Record<PriceUnit, string> = {
+  model: "per model",
+  unit: "per unit",
+  army: "per army",
+  hour: "per hour",
+  project: "per project",
+};
+
+export const MAX_COMMISSION_TITLE_LENGTH = 120;
+export const MAX_COMMISSION_BLURB_LENGTH = 2000;
+
+/* -------------------------------------------------------------------------- */
+/* Messages                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export const MAX_MESSAGE_LENGTH = 4000;
+
+/* -------------------------------------------------------------------------- */
+/* News                                                                       */
+/* -------------------------------------------------------------------------- */
+
+export const NEWS_CATEGORIES = ["warhammer", "wider"] as const;
+export type NewsCategory = (typeof NEWS_CATEGORIES)[number];
+
+export const NEWS_CATEGORY_LABELS: Record<NewsCategory, string> = {
+  warhammer: "Warhammer",
+  wider: "Wider hobby",
+};
+
+/**
+ * Money is stored in pence and formatted here.
+ *
+ * Never a float: £47.99 has no exact binary representation, and a rounding
+ * error in a price is the kind of bug people notice and do not forgive.
+ */
+export function formatPence(pence: number | null | undefined): string | null {
+  if (pence == null) return null;
+  const pounds = Math.trunc(pence / 100);
+  const remainder = Math.abs(pence % 100);
+  return remainder === 0
+    ? `£${pounds}`
+    : `£${pounds}.${remainder.toString().padStart(2, "0")}`;
+}
+
+/** "£20–£45", "£20+", "from £20", or null when nothing is set. */
+export function formatPriceRange(
+  fromPence: number | null | undefined,
+  toPence: number | null | undefined,
+): string | null {
+  const from = formatPence(fromPence);
+  const to = formatPence(toPence);
+  if (from && to) return from === to ? from : `${from}–${to}`;
+  if (from) return `from ${from}`;
+  if (to) return `up to ${to}`;
+  return null;
+}

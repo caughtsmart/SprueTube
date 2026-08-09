@@ -39,6 +39,30 @@ export default [
   route(":handle/projects/:slug/edit", "routes/project-edit.tsx"),
   route(":handle", "routes/profile.tsx"),
 
+  // News — a daily digest of hobby news, each item linking to its source.
+  route("news", "routes/news.tsx"),
+  route("news/:slug", "routes/news-item.tsx"),
+
+  // Commission painting
+  route("commissions", "routes/commissions.tsx"),
+  route("commissions/new", "routes/commission-edit.tsx"),
+  route("commissions/:username/:slug", "routes/commission.tsx"),
+  route("commissions/:username/:slug/edit", "routes/commission-edit.tsx", {
+    id: "commission-edit-existing",
+  }),
+
+  // Buying and selling. Classified ads only — no payments pass through here.
+  route("market", "routes/market.tsx"),
+  route("market/new", "routes/listing-edit.tsx"),
+  route("market/:username/:slug", "routes/listing.tsx"),
+  route("market/:username/:slug/edit", "routes/listing-edit.tsx", {
+    id: "listing-edit-existing",
+  }),
+
+  // Private messages
+  route("messages", "routes/messages.tsx"),
+  route("messages/:conversationId", "routes/conversation.tsx"),
+
   // Moderation
   route("moderation", "routes/moderation.tsx"),
 

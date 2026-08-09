@@ -54,7 +54,7 @@ export async function submitReport(
   db: Db,
   input: {
     reporterId: string | null;
-    subjectType: "post" | "comment" | "user";
+    subjectType: ReportSubject;
     subjectId: string;
     reason: ReportReason;
     details?: string | null;
@@ -87,9 +87,23 @@ export async function submitReport(
   return id;
 }
 
+/*
+ * Everything reportable. Listings, messages and build logs joined posts,
+ * comments and people, and the queue resolves a readable preview for the three
+ * that had one — the rest show as the bare subject until someone writes the
+ * resolver, which is honest rather than a crash.
+ */
+export type ReportSubject =
+  | "post"
+  | "comment"
+  | "user"
+  | "project"
+  | "listing"
+  | "message";
+
 export type QueuedReport = {
   id: string;
-  subjectType: "post" | "comment" | "user";
+  subjectType: ReportSubject;
   subjectId: string;
   reason: string;
   details: string | null;
@@ -99,7 +113,13 @@ export type QueuedReport = {
   /** The reported thing, resolved so the queue reads without extra clicks. */
   subject:
     | { type: "post"; id: string; body: string | null; authorUsername: string; status: string }
-    | { type: "comment"; id: string; body: string; postId: string; authorUsername: string }
+    | {
+        type: "comment";
+        id: string;
+        body: string;
+        postId: string | null;
+        authorUsername: string;
+      }
     | { type: "user"; id: string; username: string; displayName: string; status: string }
     | null;
 };
@@ -138,9 +158,14 @@ export async function getReportQueue(db: Db, limit = 50): Promise<QueuedReport[]
 
 async function resolveSubject(
   db: Db,
-  type: "post" | "comment" | "user",
+  type: ReportSubject,
   id: string,
 ): Promise<QueuedReport["subject"]> {
+  // Build logs, listings and messages have no preview resolver yet. Returning
+  // null shows the report with its bare subject id rather than crashing the
+  // whole queue on one row a moderator most needs to see.
+  if (type !== "post" && type !== "comment" && type !== "user") return null;
+
   if (type === "post") {
     const row = await db.query.post.findFirst({ where: eq(post.id, id) });
     if (!row) return null;
@@ -204,7 +229,7 @@ export async function applyModerationAction(
   input: {
     moderatorId: string;
     action: ModerationVerdict;
-    subjectType: "post" | "comment" | "user";
+    subjectType: ReportSubject;
     subjectId: string;
     reportId?: string | null;
     reason?: string | null;
@@ -325,10 +350,13 @@ export async function applyModerationAction(
 
 async function subjectOwner(
   db: Db,
-  type: "post" | "comment" | "user",
+  type: ReportSubject,
   id: string,
 ): Promise<string | null> {
   if (type === "user") return id;
+  // Owners of the newer subject kinds are not resolved yet, so the actor gets
+  // no notification rather than the wrong person getting one.
+  if (type !== "post" && type !== "comment") return null;
   if (type === "post") {
     const row = await db.query.post.findFirst({ where: eq(post.id, id) });
     return row?.authorId ?? null;
