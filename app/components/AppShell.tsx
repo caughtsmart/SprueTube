@@ -166,6 +166,9 @@ function FooterLinks() {
         <Link to="/terms" className="hover:underline">
           Terms
         </Link>
+        <Link to="/contact" className="hover:underline">
+          Contact
+        </Link>
       </div>
       {/*
         The only unpaid mention of the shop in the chrome. Keeping it to one

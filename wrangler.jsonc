@@ -81,6 +81,11 @@
     // — the display name comes from SITE_NAME. Must be on a domain onboarded to
     // Email Sending, and must match allowed_sender_addresses above.
     "EMAIL_FROM": "noreply@spruetube.app",
+    // Where the contact form lands. Comma-separated, and everyone listed sees
+    // the others in the To: header — it is a shared inbox, not a bcc list. Not
+    // secret: these addresses are already published on the site as the mailto
+    // fallback for when the form itself is down.
+    "CONTACT_RECIPIENTS": "graham@loadeddice.uk,leigh@loadeddice.uk",
     // Leave empty until AdSense approves the site; ad slots render house ads.
     "ADSENSE_CLIENT": "",
     "ENVIRONMENT": "production"

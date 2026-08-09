@@ -73,6 +73,7 @@ export default [
   route("safety", "routes/safety.tsx"),
   route("privacy", "routes/privacy.tsx"),
   route("terms", "routes/terms.tsx"),
+  route("contact", "routes/contact.tsx"),
 
   // Crawler files
   route("robots.txt", "routes/robots.tsx"),

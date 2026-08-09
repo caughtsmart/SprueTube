@@ -278,6 +278,25 @@ offers "reset my password", still says "check your email", and the send fails
 with `E_SENDER_NOT_VERIFIED` in the Workers log. Verify it properly by actually
 resetting your own password.
 
+### The contact form
+
+`/contact` uses the same binding, and is the one place a message travels from a
+stranger to us rather than the other way round. Two things follow from that:
+
+- The sender is still `noreply@spruetube.app`. It cannot be the person writing —
+  `allowed_sender_addresses` would refuse it, and forging their domain would
+  fail SPF at the receiving end anyway. Their address goes in `Reply-To`, so
+  hitting reply in the inbox does what it looks like it does.
+- `CONTACT_RECIPIENTS` in `wrangler.jsonc` is a comma-separated list, currently
+  `graham@loadeddice.uk,leigh@loadeddice.uk`. Everyone on it is in `To:` and can
+  see the others. Changing who reads the inbox is a config edit and a deploy, no
+  code change — and a staging deploy can point it somewhere harmless.
+
+Unlike the password reset, a failed send here is reported to the person rather
+than swallowed: they get a 502 and a nudge to email `graham@loadeddice.uk`
+directly, which the page also shows next to the button. A contact form that
+quietly bins messages is worse than no contact form.
+
 ### Receiving — Cloudflare Email Routing
 
 `safety@spruetube.app` and `privacy@spruetube.app` are published in the app and

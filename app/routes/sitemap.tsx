@@ -101,6 +101,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     { loc: `${base}/safety`, priority: "0.3" },
     { loc: `${base}/privacy`, priority: "0.2" },
     { loc: `${base}/terms`, priority: "0.2" },
+    { loc: `${base}/contact`, priority: "0.3" },
     ...GAME_SYSTEMS.map((system) => ({
       loc: `${base}/systems/${system}`,
       priority: "0.7",

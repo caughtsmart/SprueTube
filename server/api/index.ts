@@ -5,6 +5,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { getAuth } from "../auth";
 import { withDb, withSession, type ApiEnv } from "./context";
 import { commissions } from "./routes/commissions";
+import { contact } from "./routes/contact";
 import { content } from "./routes/content";
 import { market } from "./routes/market";
 import { media } from "./routes/media";
@@ -73,6 +74,7 @@ api.route("/v1", news);
 api.route("/v1", commissions);
 api.route("/v1", messages);
 api.route("/v1", market);
+api.route("/v1", contact);
 
 api.notFound((c) =>
   c.json({ error: "not_found", message: "No such endpoint." }, 404),
