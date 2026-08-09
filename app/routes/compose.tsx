@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { redirect, useNavigate } from "react-router";
 import type { Route } from "./+types/compose";
 import { api, ApiError, uploadImage } from "../lib/api";
@@ -61,6 +61,28 @@ export default function Compose({ loaderData }: Route.ComponentProps) {
   const [scale, setScale] = useState("");
   const [wipStage, setWipStage] = useState("");
   const [projectId, setProjectId] = useState("");
+
+  /*
+   * The build-log link opens in a new tab so a half-written post is not thrown
+   * away to go and make one. That leaves this list stale when they come back,
+   * so it refreshes on focus — otherwise someone creates a log, returns, and
+   * finds the dropdown still telling them they have none.
+   */
+  const [projects, setProjects] = useState(loaderData.projects);
+  useEffect(() => {
+    async function refresh() {
+      try {
+        const { projects: fresh } = await api.get<{
+          projects: { id: string; title: string }[];
+        }>("/projects");
+        setProjects(fresh.map((p) => ({ id: p.id, title: p.title })));
+      } catch {
+        // A stale list is survivable; an error here is not worth showing.
+      }
+    }
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
   const [sensitive, setSensitive] = useState(false);
   const [visibility, setVisibility] = useState<"public" | "followers">("public");
   const [paints, setPaints] = useState("");
@@ -271,13 +293,21 @@ export default function Compose({ loaderData }: Route.ComponentProps) {
           </ul>
         ) : null}
 
-        {/* Hobby metadata */}
-        <details className="st-border rounded-lg border p-3">
-          <summary className="cursor-pointer text-sm font-medium">
-            Details — system, scale, stage, paints
-          </summary>
+        {/*
+          Deliberately not an accordion.
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          The stage picker is the one field that makes this site different from
+          any other photo feed: "primed" and "three washes in" are what a build
+          log is made of. Folded behind a summary, most people never opened it,
+          and the posts arrived as bare photographs like everywhere else.
+        */}
+        <section className="st-border rounded-lg border p-3">
+          <div className="mb-3 flex items-center gap-2">
+            <span aria-hidden className="st-hazard-tag" />
+            <h2 className="text-sm font-medium">Where is it up to?</h2>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Game or subject" htmlFor="gameSystem">
               <select
                 id="gameSystem"
@@ -326,21 +356,65 @@ export default function Compose({ loaderData }: Route.ComponentProps) {
               </select>
             </Field>
 
-            <Field label="Part of a project" htmlFor="projectId">
-              <select
-                id="projectId"
-                value={projectId}
-                onChange={(event) => setProjectId(event.target.value)}
-                className="st-input"
-              >
-                <option value="">Standalone post</option>
-                {loaderData.projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.title}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            {/*
+              Someone with no build logs cannot be asked to pick one. Explaining
+              what they are at the moment the question comes up is the only time
+              the answer is actually useful — a link on a settings page is not
+              where anyone reads it.
+            */}
+            {projects.length ? (
+              <Field label="Add to a build log" htmlFor="projectId">
+                <select
+                  id="projectId"
+                  value={projectId}
+                  onChange={(event) => setProjectId(event.target.value)}
+                  className="st-input"
+                >
+                  <option value="">Not part of one</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.title}
+                    </option>
+                  ))}
+                </select>
+                <p className="st-text-muted mt-1 text-xs">
+                  Keeps this post with the rest of that build, oldest first.{" "}
+                  <a
+                    href="/projects/new"
+                    target="_blank"
+                    rel="noopener"
+                    className="st-link"
+                  >
+                    Start another
+                  </a>
+                  .
+                </p>
+              </Field>
+            ) : (
+              <div className="sm:col-span-2">
+                <span className="st-label">Build log</span>
+                <div className="st-well mt-1 rounded-md p-3">
+                  <p className="text-sm leading-relaxed">
+                    A build log keeps one army, one model, or one long-running
+                    project together on its own page — read oldest first, so the
+                    bare plastic is still there at the top when the thing is
+                    finished.
+                  </p>
+                  <p className="st-text-muted mt-2 text-xs">
+                    You have not started one yet. This post is fine on its own;
+                    you can always add it to a log later.
+                  </p>
+                  <a
+                    href="/projects/new"
+                    target="_blank"
+                    rel="noopener"
+                    className="st-btn st-btn-ghost mt-3 text-sm"
+                  >
+                    Start a build log ↗
+                  </a>
+                </div>
+              </div>
+            )}
 
             <div className="sm:col-span-2">
               <Field label="Paints and kit used" htmlFor="paints">
@@ -359,19 +433,33 @@ export default function Compose({ loaderData }: Route.ComponentProps) {
               </Field>
             </div>
           </div>
-        </details>
+        </section>
 
         {/* Visibility and flags */}
         <div className="flex flex-wrap items-center gap-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={sensitive}
-              onChange={(event) => setSensitive(event.target.checked)}
-              className="accent-[var(--color-primer-500)]"
-            />
-            Blur as sensitive
-          </label>
+          {/*
+            "Blur as sensitive" told nobody what it was for. This hobby is full
+            of gore that is entirely normal to paint and entirely unwelcome as a
+            surprise on someone's phone at breakfast — naming the actual cases is
+            the difference between a checkbox people use and one they ignore.
+          */}
+          <div className="w-full sm:w-auto">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={sensitive}
+                onChange={(event) => setSensitive(event.target.checked)}
+                className="accent-[var(--color-primer-500)]"
+              />
+              Blur this until someone taps it
+            </label>
+            <p className="st-text-muted mt-1 max-w-sm text-xs leading-relaxed">
+              For gore, body horror and anything else people might not want
+              appearing unannounced — heavy blood, exposed viscera, Nurgle rot,
+              Slaanesh, bare figures. The photo still posts and still gets found;
+              it just arrives blurred with a tap to reveal.
+            </p>
+          </div>
 
           <label className="flex items-center gap-2 text-sm">
             Visible to
