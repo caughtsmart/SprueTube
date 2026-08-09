@@ -30,22 +30,22 @@ from.
 - [x] **Set the "last updated" date.** `LEGAL_UPDATED` in `app/lib/legal.ts`,
       one value for both pages. Null until reviewed — a legal document carrying
       a date from before anyone read it is worse than one carrying none.
-- [x] **Give every published route to us somewhere to land.** No address is
-      published any more: `safety@` and `privacy@` were replaced by topics on
-      `/contact`, which reaches Graham and Leigh directly. Nothing can bounce
-      because nothing is advertised. See the open question below.
-- [ ] **Decide whether the contact form alone is enough — regulation 6.**
-      The Electronic Commerce (EC Directive) Regulations 2002, reg. 6(1)(c),
-      require an online service to publish "details of the service provider,
-      including his electronic mail address, which make it possible to contact
-      him rapidly and communicate with him in a direct and effective manner".
-      In Case C-298/07 the CJEU held that a **web form alone does not satisfy
-      this** — an email address must be given; a form may be offered in
-      addition. As built, SprueTube publishes no address, so it is very likely
-      short of reg. 6. The cheap fix is to publish one role address — say
-      `hello@spruetube.app` — on `/contact` and in the terms, forwarded by
-      Cloudflare Email Routing, keeping every personal address off the site.
-      **This is a decision for Graham, not a bug to fix quietly.**
+- [x] **Publish an email address — regulation 6.** The Electronic Commerce (EC
+      Directive) Regulations 2002, reg. 6(1)(c), require an online service to
+      publish "details of the service provider, including his electronic mail
+      address, which make it possible to contact him rapidly and communicate
+      with him in a direct and effective manner". In Case C-298/07 the CJEU held
+      that a **web form alone does not satisfy this** — a form may be offered in
+      addition, not instead. `hello@spruetube.app` is now on `/contact`,
+      `/terms` and `/privacy`, defined once as `CONTACT_EMAIL` in
+      `app/lib/legal.ts` and guarded by a test that fails if it is ever removed.
+      A role address, so no personal address is on a page that is crawled and
+      scraped, and so the person reading it can change without a deploy.
+- [ ] **Point it at a human.** Cloudflare Email Routing, steps in
+      `docs/DEPLOY.md` §11. Both destination addresses must confirm by email
+      before a rule can deliver to them — until then the address on the terms
+      page is a dead end, which is worse than not publishing one. Verify by
+      sending to it from outside.
 - [ ] **Decide who moderates, and when.** One person is enough at this size, but
       "nobody looks at the queue at weekends" is a decision you should make
       deliberately rather than discover.

@@ -40,9 +40,9 @@ function readRecipients(env: Env): string[] {
  * Unlike the auth mail, a failure here is reported. `deliver` swallows errors
  * because better-auth's response cannot say anything either way; this response
  * can, and a contact form that quietly bins the message is worse than no
- * contact form at all. That matters more now than it did: with no address
- * published anywhere on the site, this endpoint is the only way in, so a
- * silent failure would be a silent wall.
+ * contact form at all. Both failure messages name hello@spruetube.app, which
+ * is the point of publishing an address: the fallback has to work when the
+ * thing that failed is us.
  */
 contact.post("/contact", async (c) => {
   await rateLimit(c, "contact", { max: 5, windowSeconds: 3600 });
@@ -70,7 +70,7 @@ contact.post("/contact", async (c) => {
     throw apiError(
       503,
       "email_unavailable",
-      "The contact form is not working right now. This is our fault, not yours — please try again shortly.",
+      "The contact form is not working right now. This is our fault, not yours — email hello@spruetube.app instead and we will pick it up.",
     );
   }
 
@@ -104,7 +104,7 @@ contact.post("/contact", async (c) => {
     throw apiError(
       502,
       "email_failed",
-      "That did not send. Nothing is lost — your message is still in the box, so try again in a minute.",
+      "That did not send. Nothing is lost — your message is still in the box, so try again in a minute, or email hello@spruetube.app.",
     );
   }
 

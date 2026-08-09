@@ -3,26 +3,34 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /*
- * No email address is published on the site. Not one.
+ * Exactly two addresses may appear in the source, and neither belongs to a
+ * person.
  *
- * Every route to us goes through /contact, which is a deliberate decision and
- * a fragile one: an address is a single character of markup away from being
- * back, and it would come back in exactly the place nobody re-reads — a
- * paragraph of the privacy notice, a moderation message, a footer.
+ * `hello@spruetube.app` is published deliberately — the law requires an address
+ * and a form alone does not satisfy it, which is set out on CONTACT_EMAIL in
+ * app/lib/legal.ts. It is a role address forwarded by Email Routing, so the
+ * person reading it can change without a deploy.
  *
- * So this test walks the source rather than trusting review. It is the only
- * test here that reads the filesystem, which is worth it because the thing it
- * protects is a promise made to the person who typed the address in.
+ * `noreply@spruetube.app` is the envelope sender on outbound mail. Nobody is
+ * invited to write to it.
  *
- * `noreply@spruetube.app` is exempt: it is the envelope sender in config and
- * on outbound mail, never a route in. Nobody is being invited to write to it.
+ * Everything else is a defect, and the two that matter are a personal address
+ * — the whole point of the role address is that graham@ and leigh@ stay off a
+ * page that is crawled, archived and scraped — and the resurrection of
+ * safety@ or privacy@, which are not onboarded and would silently bounce a
+ * report.
+ *
+ * This walks the source rather than trusting review, because an address is one
+ * character of markup away from being back and it would come back in exactly
+ * the place nobody re-reads: a paragraph of the privacy notice, a moderation
+ * message, a footer.
  */
 
 const ROOTS = ["app", "server", "workers"];
 const CODE = /\.(ts|tsx)$/;
 
-/** Addresses that may legitimately appear, because nothing invites a reply. */
-const ALLOWED = new Set(["noreply@spruetube.app"]);
+/** The only two that may appear, and why. */
+const ALLOWED = new Set(["hello@spruetube.app", "noreply@spruetube.app"]);
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
@@ -36,30 +44,56 @@ function sourceFiles(dir: string): string[] {
 
 const files = ROOTS.flatMap((root) => sourceFiles(join(process.cwd(), root)));
 
-describe("no published email address", () => {
+/** Every address on either of our domains, with the file it came from. */
+function addressesInSource(): string[] {
+  const pattern = /[\w.+-]+@(?:spruetube\.app|loadeddice\.uk)/g;
+  const found: string[] = [];
+  for (const file of files) {
+    for (const match of readFileSync(file, "utf8").matchAll(pattern)) {
+      found.push(`${file}: ${match[0]}`);
+    }
+  }
+  return found;
+}
+
+describe("published email addresses", () => {
   it("finds source to check, so a broken walk cannot pass silently", () => {
     // Without this, a typo in ROOTS turns every assertion below into a
     // vacuous truth about an empty list.
     expect(files.length).toBeGreaterThan(40);
   });
 
-  it("has no mailto: link anywhere in the app", () => {
-    const offenders = files.filter((file) =>
-      readFileSync(file, "utf8").includes("mailto:"),
+  it("publishes hello@ somewhere, because the law requires an address", () => {
+    // Deleting it is the failure mode this guards: a tidy-up that removes the
+    // last mailto: would put the site back out of step with regulation 6, and
+    // silently, since nothing else would break.
+    expect(
+      addressesInSource().some((entry) =>
+        entry.endsWith("hello@spruetube.app"),
+      ),
+    ).toBe(true);
+  });
+
+  it("names no personal address", () => {
+    const offenders = addressesInSource().filter((entry) =>
+      entry.includes("@loadeddice.uk"),
     );
     expect(offenders).toEqual([]);
   });
 
-  it("names no address on either of our domains", () => {
-    const pattern = /[\w.+-]+@(?:spruetube\.app|loadeddice\.uk)/g;
-    const offenders: string[] = [];
+  it("does not resurrect safety@ or privacy@, which would bounce", () => {
+    const offenders = addressesInSource().filter(
+      (entry) =>
+        entry.endsWith("safety@spruetube.app") ||
+        entry.endsWith("privacy@spruetube.app"),
+    );
+    expect(offenders).toEqual([]);
+  });
 
-    for (const file of files) {
-      for (const match of readFileSync(file, "utf8").matchAll(pattern)) {
-        if (!ALLOWED.has(match[0])) offenders.push(`${file}: ${match[0]}`);
-      }
-    }
-
+  it("names nothing else on either domain", () => {
+    const offenders = addressesInSource().filter(
+      (entry) => !ALLOWED.has(entry.slice(entry.lastIndexOf(" ") + 1)),
+    );
     expect(offenders).toEqual([]);
   });
 });

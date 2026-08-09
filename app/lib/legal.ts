@@ -33,6 +33,27 @@ export type Operator = {
   icoNumber: string | null;
 };
 
+/**
+ * The one address published on the site, and the only one.
+ *
+ * Regulation 6(1)(c) of the Electronic Commerce (EC Directive) Regulations 2002
+ * requires an online service to give "details of the service provider,
+ * including his electronic mail address, which make it possible to contact him
+ * rapidly and communicate with him in a direct and effective manner". In Case
+ * C-298/07 the CJEU held that a web form alone does not satisfy that — a form
+ * may be offered as well, not instead. So an address has to be here.
+ *
+ * A role address rather than anybody's own, forwarded by Cloudflare Email
+ * Routing to whoever is reading the inbox this year. That keeps a personal
+ * address off a page that is crawled, archived and scraped, and it means the
+ * person who reads it can change without a deploy or a stale document.
+ *
+ * The contact form is still the way in that the site pushes people towards.
+ * This exists so that the route does not depend on our JavaScript working, and
+ * because the law says it must.
+ */
+export const CONTACT_EMAIL = "hello@spruetube.app";
+
 export const OPERATOR: Operator = {
   legalName: "Loaded Dice Ltd",
   companyNumber: "12429789",
