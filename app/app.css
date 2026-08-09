@@ -146,6 +146,25 @@
   body {
     font-family: var(--font-sans);
     min-height: 100dvh;
+
+    /*
+     * A pasted link must not widen the page.
+     *
+     * Almost every field on this site can receive a URL — a comment, a message,
+     * a listing body, a bio — and a URL has no space in it, so the browser's
+     * default is to let it run off the side of the phone and give the whole
+     * document a horizontal scrollbar. Set here rather than on each block
+     * because the next text field somebody adds will have the same problem and
+     * nobody will remember this.
+     *
+     * `break-word` and not `anywhere`: it breaks a word only when that word
+     * would otherwise overflow, and it deliberately does not change how the
+     * browser measures min-content. `anywhere` does, which sounds like a bonus
+     * until a button labelled "Comment" is allowed to wrap mid-word in a tight
+     * row. Flex and grid children that cannot shrink are fixed with `min-w-0`
+     * where they occur instead — a narrower tool for a narrower problem.
+     */
+    overflow-wrap: break-word;
   }
 
   h1,

@@ -142,7 +142,7 @@ export function PostCard({ post }: { post: FeedPost }) {
 
       {post.products.length > 0 ? <ProductStrip post={post} /> : null}
 
-      <footer className="flex items-center gap-1 px-2 py-2">
+      <footer className="flex flex-wrap items-center gap-1 px-2 py-2">
         <ActionButton
           onClick={toggleLike}
           active={liked}

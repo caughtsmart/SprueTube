@@ -240,7 +240,7 @@ export default function ListingPage({ loaderData }: Route.ComponentProps) {
                 key={index}
                 href={segment.value}
                 rel="noopener nofollow ugc"
-                className="st-link"
+                className="st-link break-all"
               >
                 {segment.value}
               </a>

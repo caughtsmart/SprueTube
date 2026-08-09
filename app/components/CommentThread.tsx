@@ -180,7 +180,7 @@ function CommentRow({
         <div className="flex flex-wrap items-baseline gap-x-2">
           <Link
             to={`/@${comment.authorUsername}`}
-            className="st-text-strong text-sm font-semibold hover:underline"
+            className="st-text-strong truncate text-sm font-semibold hover:underline"
           >
             {comment.authorDisplayName}
           </Link>

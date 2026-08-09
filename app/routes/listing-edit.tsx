@@ -290,7 +290,7 @@ export default function ListingEdit({ loaderData }: Route.ComponentProps) {
       <form onSubmit={onSubmit} className="st-card mt-4 space-y-4 p-4 sm:p-5">
         <fieldset>
           <legend className="st-label">What is this?</legend>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {LISTING_KINDS.map((kind) => (
               <button
                 key={kind}

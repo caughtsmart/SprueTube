@@ -252,7 +252,7 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
                 href={person.websiteUrl}
                 rel="nofollow ugc noopener noreferrer"
                 target="_blank"
-                className="st-link"
+                className="st-link min-w-0 break-all"
               >
                 {person.websiteUrl.replace(/^https?:\/\//, "")}
               </a>

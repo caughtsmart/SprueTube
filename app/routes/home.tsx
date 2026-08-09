@@ -95,7 +95,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       <nav
-        className="st-border mb-4 flex gap-1 border-b pb-2"
+        className="st-border mb-4 flex flex-wrap gap-1 border-b pb-2"
         aria-label="Feed selection"
       >
         {TABS.map((tab) => (
