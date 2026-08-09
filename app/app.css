@@ -1,82 +1,113 @@
 @import "tailwindcss";
+/* Self-hosted Space Grotesk and Literata — see the note in fonts.css. */
+@import "./fonts.css";
 
 /*
- * SprueTube visual identity.
+ * SprueTube visual identity — "Cabinet".
  *
  * Dark by default and deliberately so: this is a site full of photographs of
  * miniatures, and a dark surround makes painted models read the way a display
  * cabinet does. Light mode exists for anyone who wants it.
  *
- * The accent is a warm primer orange — the colour of a rattle-can undercoat —
- * which keeps SprueTube visually separate from Loaded Dice's own branding.
+ * The palette is Loaded Dice's own — charcoal #333333 and amber #FBAD36 — and
+ * SprueTube no longer pretends otherwise. What keeps the two apart is type:
+ * Space Grotesk where the shop uses Josefin Sans, and Literata for body copy
+ * because a build log is a long read, not a caption.
+ *
+ * HARD RULE, inherited from the Loaded Dice brand guidelines:
+ * white is NEVER placed on amber. Text and icons on amber are always charcoal.
+ *
+ * NOTE ON TOKEN NAMES: the accent ramp keeps its original `primer-*` names so
+ * that every existing `text-[var(--color-primer-500)]` keeps working — only the
+ * values changed, from orange to amber. `--color-amber-*` aliases are provided
+ * for new work; rename at your leisure.
+ *
+ * FONTS: Space Grotesk and Literata are self-hosted from public/fonts and
+ * declared in app/fonts.css, imported above. The handoff called for a Google
+ * Fonts <link>; that would put a third party in front of every page load, so
+ * the files are served from this domain instead. fonts.css explains why.
  */
 
 @theme {
-  --color-sprue-950: #0b0d10;
-  --color-sprue-900: #101318;
-  --color-sprue-850: #151920;
-  --color-sprue-800: #1b2029;
-  --color-sprue-700: #262d39;
-  --color-sprue-600: #384352;
-  --color-sprue-500: #5b6879;
-  --color-sprue-400: #8895a6;
-  --color-sprue-300: #b3bdc9;
-  --color-sprue-100: #e7ebf0;
-  --color-sprue-50: #f5f7fa;
+  /* Charcoal ramp, anchored on Loaded Dice #333333 */
+  --color-sprue-950: #1f1f1f; /* deepest — sunken wells behind photos */
+  --color-sprue-900: #2a2a2a; /* photo + input wells */
+  --color-sprue-850: #303030;
+  --color-sprue-800: #333333; /* PAGE — the brand charcoal */
+  --color-sprue-700: #3d3d3d; /* raised cards */
+  --color-sprue-600: #4a4a4a; /* borders on dark */
+  --color-sprue-500: #6b6b6b; /* hairlines, disabled */
+  --color-sprue-400: #8f8f8f; /* swatch fills only — too low-contrast for text */
+  --color-sprue-300: #b8b8b8; /* muted TEXT on charcoal (6.4:1) */
+  --color-sprue-100: #d8d8d8;
+  --color-sprue-50: #f7f6f4;
 
-  --color-primer-400: #ff9b5c;
-  --color-primer-500: #ff7a2f;
-  --color-primer-600: #ea5c0c;
-  --color-primer-700: #b84508;
+  /* Accent — Loaded Dice amber. Charcoal on top, never white. */
+  --color-primer-400: #fcbf57;
+  --color-primer-500: #fbad36;
+  --color-primer-600: #e89a1f;
+  --color-primer-700: #c47e12;
 
-  --color-wash-400: #4fd1c5;
-  --color-wash-500: #2bb3a5;
+  --color-amber-300: #fdd07f;
+  --color-amber-400: #fcbf57;
+  --color-amber-500: #fbad36;
+  --color-amber-600: #e89a1f;
+  --color-amber-700: #c47e12;
 
-  --font-display:
-    "Inter Tight", "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-sans:
-    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* The one thing that must never be white-on-amber */
+  --color-on-amber: #1f1f1f;
+
+  /* Kept for the marketplace "sold" and success states */
+  --color-wash-400: #7e9e86;
+  --color-wash-500: #5f8069;
+
+  --font-display: "Space Grotesk", "Josefin Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Literata", "Josefin Slab", Georgia, serif;
 }
 
 @layer base {
   :root {
-    --surface-page: var(--color-sprue-950);
-    --surface-card: var(--color-sprue-900);
-    --surface-raised: var(--color-sprue-850);
-    --surface-input: var(--color-sprue-850);
-    --line: var(--color-sprue-700);
-    --line-soft: var(--color-sprue-800);
+    --surface-page: var(--color-sprue-800);
+    --surface-card: var(--color-sprue-800);
+    --surface-raised: var(--color-sprue-700);
+    --surface-well: var(--color-sprue-900);
+    --surface-input: var(--color-sprue-900);
+    --line: var(--color-sprue-600);
+    --line-soft: #3d3d3d;
     --text-strong: var(--color-sprue-50);
     --text-body: var(--color-sprue-100);
-    --text-muted: var(--color-sprue-400);
+    --text-muted: var(--color-sprue-300);
     color-scheme: dark;
   }
 
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
-      --surface-page: #f4f6f9;
+      --surface-page: #faf9f7;
       --surface-card: #ffffff;
       --surface-raised: #ffffff;
+      --surface-well: #f5f4f2;
       --surface-input: #ffffff;
-      --line: #d9dee6;
-      --line-soft: #e8ecf1;
-      --text-strong: #0d1117;
-      --text-body: #1f2733;
-      --text-muted: #5b6879;
+      --line: #d8d8d8;
+      --line-soft: #ebebeb;
+      --text-strong: #1f1f1f;
+      --text-body: #333333;
+      --text-muted: #6b6b6b;
       color-scheme: light;
     }
   }
 
   :root[data-theme="light"] {
-    --surface-page: #f4f6f9;
+    --surface-page: #faf9f7;
     --surface-card: #ffffff;
     --surface-raised: #ffffff;
+    --surface-well: #f5f4f2;
     --surface-input: #ffffff;
-    --line: #d9dee6;
-    --line-soft: #e8ecf1;
-    --text-strong: #0d1117;
-    --text-body: #1f2733;
-    --text-muted: #5b6879;
+    --line: #d8d8d8;
+    --line-soft: #ebebeb;
+    --text-strong: #1f1f1f;
+    --text-body: #333333;
+    --text-muted: #6b6b6b;
     color-scheme: light;
   }
 
@@ -97,7 +128,14 @@
   h4 {
     font-family: var(--font-display);
     color: var(--text-strong);
-    letter-spacing: -0.015em;
+    letter-spacing: -0.03em;
+  }
+
+  /* Post bodies, comments and build-log entries read in Literata. */
+  .st-prose,
+  .st-body {
+    font-family: var(--font-body);
+    line-height: 1.65;
   }
 
   /* Never lose the keyboard focus ring; plenty of people navigate this way. */
@@ -109,7 +147,7 @@
 
   ::selection {
     background: var(--color-primer-500);
-    color: #12141a;
+    color: var(--color-on-amber);
   }
 }
 
@@ -124,7 +162,7 @@
     width: 100%;
     background: var(--surface-input);
     border: 1px solid var(--line);
-    border-radius: 0.625rem;
+    border-radius: 0.375rem;
     padding: 0.625rem 0.75rem;
     color: var(--text-body);
     font-size: 0.9375rem;
@@ -137,7 +175,7 @@
   .st-input:focus {
     border-color: var(--color-primer-500);
     outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primer-500) 25%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primer-500) 22%, transparent);
   }
 
   .st-btn {
@@ -145,10 +183,10 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    border-radius: 0.625rem;
+    border-radius: 0.375rem;
     padding: 0.5625rem 1rem;
     font-size: 0.9375rem;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.2;
     transition:
       background-color 120ms ease,
@@ -164,7 +202,7 @@
 
   .st-btn-primary {
     background: var(--color-primer-500);
-    color: #14161b;
+    color: var(--color-on-amber); /* never white on amber */
   }
 
   .st-btn-primary:hover:not(:disabled) {
@@ -184,13 +222,13 @@
   .st-label {
     display: block;
     font-size: 0.8125rem;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text-muted);
     margin-bottom: 0.375rem;
   }
 
   .st-error {
-    color: #ff8080;
+    color: #e39b8a;
     font-size: 0.8125rem;
     margin-top: 0.25rem;
   }
@@ -199,16 +237,25 @@
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    border-radius: 999px;
+    border-radius: 0.25rem;
     border: 1px solid var(--line);
     padding: 0.125rem 0.5rem;
     font-size: 0.75rem;
     color: var(--text-muted);
   }
 
+  /* The current WIP stage — the one chip that is allowed to be amber. */
+  .st-chip-stage {
+    border-radius: 999px;
+    border: none;
+    background: var(--color-primer-500);
+    color: var(--color-on-amber);
+    font-weight: 500;
+  }
+
   /* The one place a link is allowed to be a plain colour block. */
   .st-link {
-    color: var(--color-primer-400);
+    color: var(--color-primer-500);
   }
 
   .st-link:hover {
@@ -216,6 +263,19 @@
   }
 }
 
+/*
+ * HAZARD STRIPES
+ *
+ * Workbench tape. They carry meaning and nothing else: unfinished, commercial,
+ * or restricted. The moment they become decoration they stop being a signal —
+ * never behind a heading, never on a card that is merely nice.
+ *
+ *   .st-hazard        amber/charcoal — a project on the workbench
+ *   .st-hazard-thin   3px rule, e.g. under the top bar
+ *   .st-hazard-rail   4px vertical rail — commercial content (the paints strip)
+ *   .st-hazard-muted  grey — shelved, hidden, or under moderation review
+ *   .st-hazard-empty  dashed amber — an empty state waiting for content
+ */
 @layer utilities {
   .st-surface {
     background: var(--surface-card);
@@ -223,6 +283,10 @@
 
   .st-raised {
     background: var(--surface-raised);
+  }
+
+  .st-well {
+    background: var(--surface-well);
   }
 
   .st-border {
@@ -235,6 +299,48 @@
 
   .st-text-strong {
     color: var(--text-strong);
+  }
+
+  .st-hazard {
+    background: repeating-linear-gradient(
+      45deg,
+      var(--color-primer-500) 0 16px,
+      var(--color-sprue-900) 16px 32px
+    );
+  }
+
+  .st-hazard-thin {
+    height: 3px;
+    background: repeating-linear-gradient(
+      45deg,
+      var(--color-primer-500) 0 8px,
+      var(--color-sprue-900) 8px 16px
+    );
+  }
+
+  .st-hazard-rail {
+    width: 4px;
+    flex: none;
+    align-self: stretch;
+    background: repeating-linear-gradient(
+      45deg,
+      var(--color-primer-500) 0 6px,
+      var(--color-sprue-900) 6px 12px
+    );
+  }
+
+  .st-hazard-muted {
+    background: repeating-linear-gradient(
+      45deg,
+      var(--color-sprue-500) 0 16px,
+      var(--color-sprue-900) 16px 32px
+    );
+  }
+
+  .st-hazard-empty {
+    background: var(--surface-well);
+    border: 1.5px dashed var(--color-primer-500);
+    border-radius: 0.375rem;
   }
 
   /* Blurs sensitive media until the viewer opts in. */

@@ -166,7 +166,7 @@ export default function ListingPage({ loaderData }: Route.ComponentProps) {
             background: wanted
               ? "var(--color-wash-500)"
               : "var(--color-primer-500)",
-            color: "#14161b",
+            color: "var(--color-on-amber)",
           }}
         >
           {LISTING_KIND_LABELS[listing.kind]}

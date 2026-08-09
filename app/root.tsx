@@ -57,7 +57,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#0b0d10" />
+        {/* Loaded Dice charcoal — matches --surface-page. */}
+        <meta name="theme-color" content="#333333" />
         <Meta />
         <Links />
       </head>
@@ -96,9 +97,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   return (
     <AppShell>
       <div className="mx-auto max-w-lg px-4 py-24 text-center">
-        <p className="text-6xl">🪛</p>
+        <div aria-hidden className="st-hazard mx-auto h-2.5 w-40 rounded-sm" />
         <h1 className="mt-6 text-2xl font-bold">{title}</h1>
-        <p className="st-text-muted mt-3 text-sm leading-relaxed">{detail}</p>
+        <p className="st-text-muted st-body mt-3 text-sm">{detail}</p>
         <a href="/" className="st-btn st-btn-primary mt-8">
           Back to the feed
         </a>
