@@ -1,10 +1,12 @@
 import { Link, useSearchParams } from "react-router";
 import type { Route } from "./+types/home";
 import { Feed } from "../components/Feed";
+import { Highlights } from "../components/Highlights";
 import { Landing } from "../components/Landing";
 import { getScope } from "../lib/data.server";
 import { pickAd } from "../../server/services/ads";
 import { getFeed, type FeedTab } from "../../server/services/feed";
+import { getHighlights } from "../../server/services/highlights";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   const signedIn = Boolean(loaderData?.signedIn);
@@ -36,12 +38,17 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       ? requested
       : "following";
 
-  const [page, ad] = await Promise.all([
+  const [page, ad, highlights] = await Promise.all([
     getFeed(scope.db, {
       tab,
       viewerId: scope.viewer?.userId ?? null,
     }),
     pickAd(scope.db, "feed"),
+    // Cached in KV, so this is usually one read rather than a set of queries.
+    getHighlights(scope.env, scope.db, {
+      viewerId: scope.viewer?.userId ?? null,
+      waitUntil: (promise) => scope.ctx.waitUntil(promise),
+    }),
   ]);
 
   return {
@@ -50,6 +57,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     posts: page.posts,
     nextCursor: page.nextCursor,
     ad,
+    highlights,
   };
 }
 
@@ -64,7 +72,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   if (!loaderData.signedIn) {
     return (
-      <Landing posts={loaderData.posts} ad={loaderData.ad} />
+      <Landing
+        posts={loaderData.posts}
+        highlights={loaderData.highlights}
+        ad={loaderData.ad}
+      />
     );
   }
 
@@ -72,6 +84,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-2xl">
+      {/* Above the feed rather than inside it: the feed is the thing you came
+          back for, and a highlight injected between posts would be an advert
+          for other people's work in the middle of your friends'. */}
+      {loaderData.highlights.projects.length ||
+      loaderData.highlights.images.length ? (
+        <div className="mb-6">
+          <Highlights highlights={loaderData.highlights} />
+        </div>
+      ) : null}
+
       <nav
         className="st-border mb-4 flex gap-1 border-b pb-2"
         aria-label="Feed selection"
