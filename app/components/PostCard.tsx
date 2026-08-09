@@ -115,7 +115,7 @@ export function PostCard({ post }: { post: FeedPost }) {
       ) : null}
 
       {post.body ? (
-        <div className="px-4 pb-3 text-[0.9375rem] leading-relaxed whitespace-pre-wrap">
+        <div className="st-body px-4 pb-3 text-[0.9375rem] whitespace-pre-wrap">
           <BodyText body={post.body} />
         </div>
       ) : null}
@@ -340,34 +340,42 @@ function ProductStrip({ post }: { post: FeedPost }) {
   const { shopName } = useRoot().config;
 
   return (
-    <div className="st-border mx-4 mt-3 rounded-lg border p-3">
-      <p className="st-text-muted mb-2 text-[0.6875rem] font-semibold tracking-wide uppercase">
-        Paints and kit used
-      </p>
-      <ul className="flex flex-wrap gap-1.5">
-        {post.products.map((product) => (
-          <li key={product.id}>
-            {product.shopUrl ? (
-              <a
-                href={product.shopUrl}
-                rel="sponsored noopener"
-                target="_blank"
-                className="st-chip hover:st-text-strong"
-                title={`Find ${product.name} at ${shopName}`}
-              >
-                {product.brand ? `${product.brand} ` : ""}
-                {product.name}
-                <span aria-hidden>↗</span>
-              </a>
-            ) : (
-              <span className="st-chip">
-                {product.brand ? `${product.brand} ` : ""}
-                {product.name}
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
+    <div className="st-border mx-4 mt-3 flex overflow-hidden rounded-md border">
+      {/*
+        The rail marks this as commercial. It is the one place in the feed
+        where a link earns money, and the hazard set exists to say so rather
+        than to decorate.
+      */}
+      <span aria-hidden className="st-hazard-rail" />
+      <div className="min-w-0 flex-1 p-3">
+        <p className="st-text-muted mb-2 text-[0.6875rem] font-semibold tracking-wide uppercase">
+          Paints and kit used
+        </p>
+        <ul className="flex flex-wrap gap-1.5">
+          {post.products.map((product) => (
+            <li key={product.id}>
+              {product.shopUrl ? (
+                <a
+                  href={product.shopUrl}
+                  rel="sponsored noopener"
+                  target="_blank"
+                  className="st-chip hover:st-text-strong"
+                  title={`Find ${product.name} at ${shopName}`}
+                >
+                  {product.brand ? `${product.brand} ` : ""}
+                  {product.name}
+                  <span aria-hidden>↗</span>
+                </a>
+              ) : (
+                <span className="st-chip">
+                  {product.brand ? `${product.brand} ` : ""}
+                  {product.name}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

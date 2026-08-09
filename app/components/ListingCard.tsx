@@ -66,7 +66,7 @@ export function ListingCard({ listing }: { listing: ListingSummary }) {
                 background: wanted
                   ? "var(--color-wash-500)"
                   : "var(--color-primer-500)",
-                color: "#14161b",
+                color: "var(--color-on-amber)",
               }}
             >
               {LISTING_KIND_LABELS[listing.kind]}

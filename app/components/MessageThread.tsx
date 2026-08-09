@@ -219,7 +219,7 @@ function MessageRow({
           className={[
             "rounded-2xl px-3.5 py-2 text-[0.9375rem] leading-relaxed whitespace-pre-wrap",
             mine
-              ? "bg-[var(--color-primer-500)] text-[#14161b]"
+              ? "bg-[var(--color-primer-500)] text-[var(--color-on-amber)]"
               : "st-raised st-border border",
             message.removed ? "italic opacity-70" : "",
           ].join(" ")}

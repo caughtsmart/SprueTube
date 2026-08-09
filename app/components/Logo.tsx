@@ -5,6 +5,9 @@
  * the thing every person on this site has in common, whether they build 40k
  * squads or 1/35 tanks. It reads at 20px, which is what a favicon and a bottom
  * bar actually need.
+ *
+ * The freed part is Loaded Dice amber. The frame sits on the darker well
+ * colour so the mark still reads as a tile against the #333333 top bar.
  */
 export function Logo({ className = "h-8 w-8" }: { className?: string }) {
   return (
@@ -21,8 +24,7 @@ export function Logo({ className = "h-8 w-8" }: { className?: string }) {
         width="26"
         height="26"
         rx="5"
-        fill="currentColor"
-        className="text-[var(--color-sprue-800)]"
+        fill="var(--color-sprue-900)"
       />
       {/* The sprue frame */}
       <path
@@ -31,7 +33,7 @@ export function Logo({ className = "h-8 w-8" }: { className?: string }) {
         strokeWidth="1.6"
         strokeLinecap="round"
       />
-      {/* The freed part, in primer orange */}
+      {/* The freed part, in Loaded Dice amber */}
       <circle cx="22.5" cy="20" r="4" fill="var(--color-primer-500)" />
       <path
         d="M19.6 17.1 24 12.6"
