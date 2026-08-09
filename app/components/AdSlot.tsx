@@ -121,13 +121,16 @@ function AdSenseUnit({
   if (!slotId) return null;
 
   return (
-    <aside className={className} aria-label="Advertisement">
+    <aside
+      className={`max-w-full overflow-hidden ${className}`}
+      aria-label="Advertisement"
+    >
       <p className="st-text-muted mb-1 text-[0.625rem] font-semibold tracking-widest uppercase">
         Advertisement
       </p>
       <ins
         ref={ref}
-        className="adsbygoogle block"
+        className="adsbygoogle block w-full max-w-full"
         style={{ display: "block" }}
         data-ad-client={client}
         data-ad-slot={slotId}

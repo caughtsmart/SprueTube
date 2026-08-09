@@ -89,7 +89,7 @@ export default function Commission({ loaderData }: Route.ComponentProps) {
 
       <header className={loaderData.coverUrl ? "mt-4" : ""}>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-xl font-bold">{listing.title}</h1>
+          <h1 className="min-w-0 text-xl font-bold">{listing.title}</h1>
           {listing.openToWork ? (
             <span className="st-chip border-[var(--color-wash-500)] text-[var(--color-wash-400)]">
               Open to work
@@ -101,13 +101,15 @@ export default function Commission({ loaderData }: Route.ComponentProps) {
 
         <Link
           to={`/@${owner.username}`}
-          className="mt-3 inline-flex items-center gap-2"
+          className="mt-3 flex min-w-0 items-center gap-2"
         >
           <Avatar username={owner.username} src={loaderData.avatarUrl} size={32} />
-          <span className="st-text-strong text-sm font-medium">
+          <span className="st-text-strong truncate text-sm font-medium">
             {owner.displayName}
           </span>
-          <span className="st-text-muted text-sm">@{owner.username}</span>
+          <span className="st-text-muted truncate text-sm">
+            @{owner.username}
+          </span>
         </Link>
       </header>
 
@@ -129,9 +131,9 @@ export default function Commission({ loaderData }: Route.ComponentProps) {
             </div>
           ) : null}
           {listing.location ? (
-            <div className="flex gap-2">
-              <dt>Based</dt>
-              <dd className="st-text-strong">{listing.location}</dd>
+            <div className="flex min-w-0 gap-2">
+              <dt className="shrink-0">Based</dt>
+              <dd className="st-text-strong min-w-0">{listing.location}</dd>
             </div>
           ) : null}
           <div className="flex gap-2">
@@ -328,7 +330,7 @@ function OwnerControls({
 
       {error ? <p className="st-error">{error}</p> : null}
 
-      <div className="st-border mt-4 flex items-center gap-3 border-t pt-3">
+      <div className="st-border mt-4 flex flex-wrap items-center gap-3 border-t pt-3">
         <Link to={editHref} className="st-btn st-btn-ghost text-sm">
           Edit listing
         </Link>

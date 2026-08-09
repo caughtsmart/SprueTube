@@ -292,6 +292,14 @@ export function contactEmail(options: {
   message: string;
   /** Set when the sender was signed in — worth knowing before replying. */
   username: string | null;
+  /**
+   * Safety and data rights, which are the two that carry a clock.
+   *
+   * A marker in the subject line rather than a header, because a header is
+   * only visible to a mail client that was configured to look for it, and the
+   * subject is visible in every inbox on every device without any setup.
+   */
+  urgent?: boolean;
 }): Message {
   const name = escapeHtml(options.name);
   const from = escapeHtml(options.email);
@@ -302,7 +310,9 @@ export function contactEmail(options: {
   return {
     to: options.to,
     replyTo: options.email,
-    subject: `SprueTube — ${options.topic} — ${options.name}`,
+    subject: options.urgent
+      ? `SprueTube [priority] — ${options.topic} — ${options.name}`
+      : `SprueTube — ${options.topic} — ${options.name}`,
     html: layout({
       heading: `${options.topic} from ${name}`,
       body: [

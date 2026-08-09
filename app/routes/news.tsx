@@ -94,7 +94,7 @@ export default function News({ loaderData }: Route.ComponentProps) {
       {loaderData.isAdmin ? <FetchNow /> : null}
 
       <nav
-        className="st-border mt-4 flex gap-1 border-b pb-2"
+        className="st-border mt-4 flex flex-wrap gap-1 border-b pb-2"
         aria-label="Filter news"
       >
         {FILTERS.map((filter) => {

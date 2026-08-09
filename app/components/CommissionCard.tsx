@@ -64,7 +64,7 @@ export function CommissionCard({
 
         <div className="p-4">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="st-text-strong text-base font-semibold">
+            <h2 className="st-text-strong min-w-0 text-base font-semibold">
               {commission.title}
             </h2>
             {commission.openToWork ? (
@@ -110,20 +110,20 @@ export function CommissionCard({
         </div>
       </Link>
 
-      <div className="st-border flex items-center gap-2 border-t px-4 py-3">
+      <div className="st-border flex min-w-0 items-center gap-2 border-t px-4 py-3">
         <Link
           to={`/@${commission.owner.username}`}
-          className="flex items-center gap-2"
+          className="flex min-w-0 items-center gap-2"
         >
           <Avatar
             username={commission.owner.username}
             src={imageSrc(config, commission.owner.avatarImageId, "avatar")}
             size={28}
           />
-          <span className="st-text-strong text-sm font-medium">
+          <span className="st-text-strong truncate text-sm font-medium">
             {commission.owner.displayName}
           </span>
-          <span className="st-text-muted text-sm">
+          <span className="st-text-muted truncate text-sm">
             @{commission.owner.username}
           </span>
         </Link>

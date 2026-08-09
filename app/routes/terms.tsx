@@ -76,8 +76,8 @@ export default function Terms() {
       <p>
         We may remove content or restrict an account where we reasonably believe
         the rules or the law have been broken. We will tell you what happened and
-        why, unless doing so would be unlawful. You can appeal to{" "}
-        <a href="mailto:safety@spruetube.app">safety@spruetube.app</a>.
+        why, unless doing so would be unlawful. You can appeal through the{" "}
+        <Link to="/contact">contact form</Link>.
       </p>
 
       <h2>6. Advertising</h2>

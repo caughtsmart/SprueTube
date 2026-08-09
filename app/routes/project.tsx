@@ -189,17 +189,19 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
             <h1 className="text-xl font-bold">{entry.title}</h1>
             <Link
               to={`/@${owner.username}`}
-              className="mt-2 inline-flex items-center gap-2"
+              className="mt-2 flex min-w-0 items-center gap-2"
             >
               <Avatar
                 username={owner.username}
                 src={loaderData.avatarUrl}
                 size={32}
               />
-              <span className="st-text-strong text-sm font-medium">
+              <span className="st-text-strong truncate text-sm font-medium">
                 {owner.displayName}
               </span>
-              <span className="st-text-muted text-sm">@{owner.username}</span>
+              <span className="st-text-muted truncate text-sm">
+                @{owner.username}
+              </span>
             </Link>
           </div>
 

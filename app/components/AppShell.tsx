@@ -17,7 +17,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh">
       <TopBar />
-      <div className="mx-auto flex w-full max-w-6xl gap-6 px-4 pb-24 md:px-6 md:pb-10">
+      {/*
+        The bottom padding clears the fixed mobile bar, so it is only owed when
+        that bar is there. Signed out — which is every first visit — it was 96px
+        of empty page under the fold.
+      */}
+      <div
+        className={`mx-auto flex w-full max-w-6xl gap-6 px-4 md:px-6 md:pb-10 ${
+          viewer ? "pb-24" : "pb-10"
+        }`}
+      >
         <SideNav />
         <main className="min-w-0 flex-1 py-5">{children}</main>
       </div>

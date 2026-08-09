@@ -67,17 +67,20 @@ export default function Conversation({ loaderData }: Route.ComponentProps) {
         <Link to="/messages" className="st-text-muted text-sm" aria-label="Back to messages">
           ←
         </Link>
-        <Link to={`/@${other.username}`} className="flex items-center gap-2">
+        <Link
+          to={`/@${other.username}`}
+          className="flex min-w-0 items-center gap-2"
+        >
           <Avatar
             username={other.username}
             src={loaderData.avatarUrl}
             size={36}
           />
-          <span>
-            <span className="st-text-strong block text-sm font-semibold">
+          <span className="min-w-0">
+            <span className="st-text-strong block truncate text-sm font-semibold">
               {other.displayName}
             </span>
-            <span className="st-text-muted block text-xs">
+            <span className="st-text-muted block truncate text-xs">
               @{other.username}
             </span>
           </span>
