@@ -8,7 +8,10 @@ import {
 } from "../context";
 import { canSendEmail, contactEmail, sendEmail } from "../../services/email";
 import { contactSchema } from "../validators";
-import { CONTACT_TOPIC_LABELS } from "../../../app/lib/taxonomy";
+import {
+  CONTACT_TOPIC_LABELS,
+  URGENT_CONTACT_TOPICS,
+} from "../../../app/lib/taxonomy";
 
 export const contact = new Hono<ApiEnv>();
 
@@ -37,7 +40,9 @@ function readRecipients(env: Env): string[] {
  * Unlike the auth mail, a failure here is reported. `deliver` swallows errors
  * because better-auth's response cannot say anything either way; this response
  * can, and a contact form that quietly bins the message is worse than no
- * contact form at all — the page offers a mailto as the fallback.
+ * contact form at all. That matters more now than it did: with no address
+ * published anywhere on the site, this endpoint is the only way in, so a
+ * silent failure would be a silent wall.
  */
 contact.post("/contact", async (c) => {
   await rateLimit(c, "contact", { max: 5, windowSeconds: 3600 });
@@ -65,7 +70,7 @@ contact.post("/contact", async (c) => {
     throw apiError(
       503,
       "email_unavailable",
-      "Our contact form is not working right now. Email us directly and we will pick it up.",
+      "The contact form is not working right now. This is our fault, not yours — please try again shortly.",
     );
   }
 
@@ -88,6 +93,7 @@ contact.post("/contact", async (c) => {
         email: input.email,
         message: input.message,
         username: profile?.username ?? null,
+        urgent: URGENT_CONTACT_TOPICS.includes(input.topic),
       }),
     );
   } catch (error) {
@@ -98,7 +104,7 @@ contact.post("/contact", async (c) => {
     throw apiError(
       502,
       "email_failed",
-      "That did not send. Try again in a minute, or email us directly.",
+      "That did not send. Nothing is lost — your message is still in the box, so try again in a minute.",
     );
   }
 

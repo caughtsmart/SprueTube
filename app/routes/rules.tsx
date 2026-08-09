@@ -78,9 +78,9 @@ export default function Rules() {
         </li>
       </ol>
       <p>
-        Every moderator decision is logged. If you think one was wrong, email{" "}
-        <a href="mailto:safety@spruetube.app">safety@spruetube.app</a> and a human
-        will look at it again.
+        Every moderator decision is logged. If you think one was wrong, appeal
+        through the <Link to="/contact">contact form</Link> — pick the safety
+        topic and a human will look at it again.
       </p>
 
       <h2>Reporting</h2>

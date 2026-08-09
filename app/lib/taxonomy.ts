@@ -138,15 +138,20 @@ export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
 /*
  * What the contact form is about.
  *
- * The topic ends up in the subject line, so an inbox shared by two people can
- * be sorted and split without opening anything. Safety and moderation appeals
- * are deliberately absent: those have their own address with its own promises
- * attached, and quietly funnelling them through a general enquiries form would
- * bury the urgent ones under questions about stockists.
+ * The form is the only published way in, so this list has to cover everything
+ * that used to have its own address — safety reports and data rights included.
+ * The topic ends up in the subject line, which is what lets a shared inbox be
+ * sorted and split without anything being opened, and what keeps an urgent one
+ * from sitting behind a question about stockists.
+ *
+ * Order matters: it is the order of the dropdown, and the two that carry a
+ * clock sit near the top where they will be seen rather than scrolled past.
  */
 export const CONTACT_TOPICS = [
   "general",
+  "safety",
   "account",
+  "data",
   "bug",
   "advertising",
   "press",
@@ -157,12 +162,24 @@ export type ContactTopic = (typeof CONTACT_TOPICS)[number];
 
 export const CONTACT_TOPIC_LABELS: Record<ContactTopic, string> = {
   general: "General enquiry",
+  safety: "Something unsafe, or a moderation appeal",
   account: "Help with my account",
+  data: "My data — a copy, a correction, or deletion",
   bug: "Something is broken",
   advertising: "Advertising or partnerships",
   press: "Press",
-  legal: "Legal or data protection",
+  legal: "Legal",
 };
+
+/**
+ * Topics that get read before the rest.
+ *
+ * Safety has published response times on /safety and a data rights request
+ * starts a one-month statutory clock the moment it arrives. Marking them in the
+ * subject line is the cheapest way to keep either from being missed in a shared
+ * inbox that also receives questions about postage.
+ */
+export const URGENT_CONTACT_TOPICS: ContactTopic[] = ["safety", "data"];
 
 /*
  * What state a build log is in.

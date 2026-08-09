@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { Prose } from "../components/Prose";
 import {
   LEGAL_UPDATED,
@@ -31,7 +32,8 @@ export default function Privacy() {
       <h2>Who we are</h2>
       <p>
         SprueTube is operated by {operatorLine()}. For anything about your data,
-        email <a href="mailto:privacy@spruetube.app">privacy@spruetube.app</a>.
+        use the <Link to="/contact">contact form</Link> and choose the data
+        topic.
       </p>
       {OPERATOR.icoNumber ? (
         <p>
@@ -144,9 +146,9 @@ export default function Privacy() {
       <h2>Your rights</h2>
       <p>
         Under UK GDPR you can ask for a copy of your data, correct it, delete it,
-        restrict or object to how we use it, or take it elsewhere. Email{" "}
-        <a href="mailto:privacy@spruetube.app">privacy@spruetube.app</a> and we
-        will respond within one month.
+        restrict or object to how we use it, or take it elsewhere. Ask through
+        the <Link to="/contact">contact form</Link>, choosing the data topic,
+        and we will respond within one month.
       </p>
       <p>
         Deleting your account removes your profile, posts, comments and media.

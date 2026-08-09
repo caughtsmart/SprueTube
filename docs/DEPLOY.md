@@ -293,19 +293,36 @@ stranger to us rather than the other way round. Two things follow from that:
   code change — and a staging deploy can point it somewhere harmless.
 
 Unlike the password reset, a failed send here is reported to the person rather
-than swallowed: they get a 502 and a nudge to email `graham@loadeddice.uk`
-directly, which the page also shows next to the button. A contact form that
-quietly bins messages is worse than no contact form.
+than swallowed: they get a 502 saying so, with their text still in the box. A
+contact form that quietly bins messages is worse than no contact form, and that
+matters more here than it would elsewhere — see below.
 
-### Receiving — Cloudflare Email Routing
+### No address is published anywhere
 
-`safety@spruetube.app` and `privacy@spruetube.app` are published in the app and
-in the legal pages. They must reach a human. Cloudflare **Email Routing** will
-forward them to an existing mailbox for free.
+`/contact` is the **only** route in. There is no `mailto:` left in the app:
+`safety@spruetube.app` and `privacy@spruetube.app` have been replaced with links
+to the form, and no personal address appears at all. `grep -rn "mailto:" app/
+server/` should return nothing, and it is worth re-running after any edit to the
+legal pages.
 
-These two coexist fine — they are halves of the same Cloudflare product.
-Routing owns the inbound MX, Sending adds SPF and DKIM for outbound. Enabling
-one does not disturb the other.
+Two consequences follow, and neither is optional:
+
+1. **The form covers everything.** Safety reports and UK GDPR data rights
+   requests are topics in the dropdown, not addresses. The two carrying a clock
+   — `safety` and `data` — are listed in `URGENT_CONTACT_TOPICS` and get
+   `[priority]` in the subject line so they can be filtered in a shared inbox.
+2. **If the form is down, nobody can reach us.** Which is why the endpoint
+   reports its failures rather than swallowing them, and why the Email Sending
+   binding is now load-bearing for compliance and not just for convenience.
+
+There is a live question about whether this satisfies regulation 6 of the
+Electronic Commerce (EC Directive) Regulations 2002, which requires a service
+provider to publish an email address. See `docs/COMPLIANCE.md`.
+
+Cloudflare **Email Routing** is therefore no longer needed for `safety@` and
+`privacy@`. Set it up anyway if you ever publish an address again — Routing owns
+the inbound MX, Sending adds SPF and DKIM for outbound, and enabling one does
+not disturb the other.
 
 ### Turning on mandatory verification
 

@@ -73,7 +73,7 @@ export const requireAuth: MiddlewareHandler<ApiEnv> = async (c, next) => {
           error: "account_suspended",
           message:
             profile.statusReason ??
-            "Your account is suspended. Contact safety@spruetube.app.",
+            "Your account is suspended. You can appeal at spruetube.app/contact.",
         },
         403,
       ),

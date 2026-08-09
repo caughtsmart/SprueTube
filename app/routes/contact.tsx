@@ -5,14 +5,15 @@ import { useRoot } from "../root";
 import { operatorLine } from "../lib/legal";
 import { CONTACT_TOPICS, CONTACT_TOPIC_LABELS } from "../lib/taxonomy";
 
-/**
- * The address on the page, and the address the form falls back to.
+/*
+ * The only published way to reach us.
  *
- * Published deliberately. A contact form is a convenience; a person whose
- * message failed to send, or who does not trust a form with their words, needs
- * somewhere to write to that does not depend on our JavaScript working.
+ * No address appears anywhere on the site — not here, not on /safety, not in
+ * the privacy notice. Everything arrives through this form, which is why the
+ * topic list has to cover safety reports and data rights as well as questions
+ * about postage, and why a failed send is shown to the person rather than
+ * swallowed.
  */
-const FALLBACK = "graham@loadeddice.uk";
 
 export function meta() {
   return [
@@ -79,7 +80,7 @@ export default function Contact() {
           <p className="st-text-muted mt-2 text-sm leading-relaxed">
             A person reads these — there is no ticket system and no bot in the
             middle. Expect a reply to{" "}
-            <span className="st-text-strong">{email}</span> within a couple of
+            <span className="st-text-strong break-all">{email}</span> within a couple of
             working days.
           </p>
           <Link to="/" className="st-btn st-btn-ghost mt-6">
@@ -99,34 +100,31 @@ export default function Contact() {
       </p>
 
       {/*
-        Two things do not belong in a general enquiries inbox, and saying so
-        here is cheaper than triaging them afterwards. Safety reports have a
-        published response commitment attached to their own address; data
-        rights requests have a statutory clock that starts when they arrive.
+        Two topics carry a clock, and both used to have their own address.
+        Now that everything arrives here, the panel's job is the opposite of
+        what it was: not to send them away, but to make sure they pick the
+        topic that gets them read first.
       */}
       <div className="st-well mt-5 rounded-md p-3">
         <div className="mb-2 flex items-center gap-2">
           <span aria-hidden className="st-hazard-tag" />
-          <h2 className="text-sm font-medium">Some things go elsewhere</h2>
+          <h2 className="text-sm font-medium">Two of these jump the queue</h2>
         </div>
         <ul className="st-text-muted space-y-1.5 text-sm">
           <li>
-            Something unsafe, or appealing a moderation decision:{" "}
-            <a href="mailto:safety@spruetube.app" className="st-link">
-              safety@spruetube.app
-            </a>
-            . How that works is on the{" "}
+            Something unsafe, or a moderation appeal — picked from the list
+            below, it is read before anything else. How that works is on the{" "}
             <Link to="/safety" className="st-link">
               safety page
             </Link>
-            .
+            . For one particular post or comment, the{" "}
+            <strong className="st-text-strong">⋯ → Report</strong> menu on it is
+            faster than this form and tells us exactly what you mean.
           </li>
           <li>
-            Your data — a copy of it, or its deletion:{" "}
-            <a href="mailto:privacy@spruetube.app" className="st-link">
-              privacy@spruetube.app
-            </a>
-            , as set out in the{" "}
+            Your data — a copy, a correction, or deletion. Choose that topic and
+            the month we have to answer in starts the moment it arrives, as set
+            out in the{" "}
             <Link to="/privacy" className="st-link">
               privacy notice
             </Link>
@@ -234,22 +232,13 @@ export default function Contact() {
 
         {error ? <p className="st-error">{error}</p> : null}
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="st-btn st-btn-primary"
-          >
-            {submitting ? "Sending…" : "Send message"}
-          </button>
-          <p className="st-text-muted text-xs">
-            Or email{" "}
-            <a href={`mailto:${FALLBACK}`} className="st-link">
-              {FALLBACK}
-            </a>{" "}
-            directly.
-          </p>
-        </div>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="st-btn st-btn-primary w-full sm:w-auto"
+        >
+          {submitting ? "Sending…" : "Send message"}
+        </button>
       </form>
 
       <p className="st-text-muted mt-5 text-xs leading-relaxed">

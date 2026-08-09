@@ -67,14 +67,15 @@ export default function Safety() {
         Accounts are 13+. If you are under 18, keep identifying details out of
         your posts — school, street, the front of your house in a background
         shot. If an adult on here contacts you in a way that feels wrong, report
-        it and email us. We will act on it.
+        it and tell us. We will act on it.
       </p>
 
       <h2>Contact</h2>
       <p>
-        For anything urgent, or to appeal a decision:{" "}
-        <a href="mailto:safety@spruetube.app">safety@spruetube.app</a>. A person
-        reads that address.
+        For anything urgent, or to appeal a decision, use the{" "}
+        <Link to="/contact">contact form</Link> and choose the safety topic.
+        Those are marked as they arrive and read before anything else. A person
+        reads them — there is no ticket system in the way.
       </p>
       <p>
         If someone is in immediate danger, contact the police first. In the UK

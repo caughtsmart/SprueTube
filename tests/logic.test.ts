@@ -7,6 +7,10 @@ import { idTimestamp, newId } from "../server/db/id";
 import { compactCount, excerpt, parseBody } from "../app/lib/format";
 import { imageSrc } from "../app/lib/media";
 import { OPERATOR, operatorLine, operatorReady } from "../app/lib/legal";
+import {
+  CONTACT_TOPICS,
+  URGENT_CONTACT_TOPICS,
+} from "../app/lib/taxonomy";
 import { slugify } from "../server/api/routes/content";
 import {
   contactSchema,
@@ -330,6 +334,28 @@ describe("contact email", () => {
   it("puts the topic and the name in the subject so the inbox sorts itself", () => {
     const message = contactEmail(base);
     expect(message.subject).toBe("SprueTube — General enquiry — Graham");
+  });
+
+  it("marks the two topics that carry a clock", () => {
+    // Safety has published response times and a data request starts a
+    // statutory month. Both used to have their own address; now the subject
+    // line is the only thing separating them from a question about postage.
+    const message = contactEmail({ ...base, topic: "Safety", urgent: true });
+    expect(message.subject).toBe("SprueTube [priority] — Safety — Graham");
+  });
+
+  it("routes safety and data requests, and nothing else, to the front", () => {
+    expect(URGENT_CONTACT_TOPICS).toEqual(["safety", "data"]);
+    for (const topic of URGENT_CONTACT_TOPICS) {
+      expect(CONTACT_TOPICS).toContain(topic);
+    }
+  });
+
+  it("offers a topic for everything that used to have its own address", () => {
+    // No mailto: survives anywhere in the app, so a gap here is a route to us
+    // that simply no longer exists.
+    expect(CONTACT_TOPICS).toContain("safety");
+    expect(CONTACT_TOPICS).toContain("data");
   });
 
   it("escapes every field a stranger typed", () => {
