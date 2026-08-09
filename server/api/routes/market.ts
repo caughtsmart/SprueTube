@@ -19,7 +19,6 @@ import {
   updateListing,
   type ListingInput,
 } from "../../services/market";
-import { submitReport } from "../../services/moderation";
 import {
   GAME_SYSTEMS,
   LISTING_CONDITIONS,
@@ -76,11 +75,6 @@ const listingSchema = z.object({
 });
 
 const statusSchema = z.object({ status: z.enum(LISTING_STATUSES) });
-
-const listingReportSchema = z.object({
-  reason: z.enum(REPORT_REASONS),
-  details: z.string().trim().max(2000).nullish(),
-});
 
 /** Shared by create and edit: parse the form, convert the price, or explain. */
 function readListingBody(raw: unknown): ListingInput {
@@ -249,27 +243,3 @@ market.delete("/listings/:id", requireAuth, async (c) => {
   return c.json({ ok: true });
 });
 
-/**
- * Report a listing.
- *
- * Its own endpoint rather than the shared /reports one, because that route's
- * validator only admits posts, comments and people. The report row is identical
- * — `report.subjectType` already accepts "listing" — so a moderator sees these
- * in the same queue at the same priority.
- */
-market.post("/listings/:id/report", requireAuth, async (c) => {
-  await rateLimit(c, "report", { max: 20, windowSeconds: 3600 });
-
-  const parsed = listingReportSchema.safeParse(await c.req.json());
-  if (!parsed.success) throw badRequest("Pick a reason.");
-
-  const id = await submitReport(c.get("db"), {
-    reporterId: c.get("user")!.id,
-    subjectType: "listing",
-    subjectId: c.req.param("id"),
-    reason: parsed.data.reason,
-    details: parsed.data.details ?? null,
-  });
-
-  return c.json({ id, ok: true }, 201);
-});

@@ -493,17 +493,23 @@ export async function sendMessage(
   return { id, createdAt: nowSeconds };
 }
 
-/** Moves this side's read cursor to now. */
+/**
+ * Moves this side's read cursor to now.
+ *
+ * Goes through getThread rather than checking participation alone, so that a
+ * hidden thread answers this the same way it answers everything else. A route
+ * that 404s on read but 200s on "mark read" is a way to ask whether a thread
+ * exists.
+ */
 export async function markThreadRead(
   db: Db,
   conversationId: string,
   viewerId: string,
 ): Promise<boolean> {
-  const row = await db.query.conversation.findFirst({
-    where: eq(conversation.id, conversationId),
-  });
-  if (!row) return false;
+  const thread = await getThread(db, conversationId, viewerId);
+  if (!thread) return false;
 
+  const row = thread.conversation;
   const side = sideOf(row, viewerId);
   if (!side) return false;
 
@@ -574,6 +580,10 @@ export async function deleteMessage(
  * Returns the message only when the viewer is in its thread. Reporting is the
  * caller that matters: it must not become a way to confirm that a given id
  * exists somewhere in somebody else's inbox.
+ *
+ * Note what this deliberately does *not* check: a block. Block-then-report is
+ * the order people actually do it in, and a report that stops working the
+ * moment you protect yourself is worse than useless.
  */
 export async function messageForParticipant(
   db: Db,

@@ -10,7 +10,7 @@ import {
 } from "../context";
 import type { Db } from "../../db/client";
 import { newId } from "../../db/id";
-import { comment, like, post, profile, project } from "../../db/schema";
+import { block, comment, like, post, profile, project } from "../../db/schema";
 import {
   getBookmarks,
   getFeed,
@@ -201,6 +201,13 @@ content.get("/posts/:id/comments", async (c) => {
     .where(
       and(
         eq(comment.postId, postId),
+        /*
+         * Comments on one photograph carry the post's id as well as the image's,
+         * so that moderation and the cascade still reach them. Without this they
+         * would surface a second time in the post's main thread, out of the
+         * context that made them make sense.
+         */
+        isNull(comment.mediaId),
         eq(comment.status, "published"),
         isNull(comment.deletedAt),
       ),
@@ -401,7 +408,12 @@ content.get("/profiles/:username/projects", async (c) => {
 /** One build log, by owner and slug. Public — anyone can read a build log. */
 content.get("/projects/:username/:slug", async (c) => {
   const db = c.get("db");
-  const found = await loadProject(db, c.req.param("username"), c.req.param("slug"));
+  const found = await loadProject(
+    db,
+    c.req.param("username"),
+    c.req.param("slug"),
+    c.get("user")?.id ?? null,
+  );
   return c.json({ project: found.project, owner: found.owner });
 });
 
@@ -413,7 +425,12 @@ content.get("/projects/:username/:slug", async (c) => {
  */
 content.get("/projects/:username/:slug/posts", async (c) => {
   const db = c.get("db");
-  const found = await loadProject(db, c.req.param("username"), c.req.param("slug"));
+  const found = await loadProject(
+    db,
+    c.req.param("username"),
+    c.req.param("slug"),
+    c.get("user")?.id ?? null,
+  );
   const page = await getProjectPosts(
     db,
     found.project.id,
@@ -484,11 +501,37 @@ content.delete("/projects/:id", requireAuth, async (c) => {
   return c.json({ ok: true });
 });
 
-async function loadProject(db: Db, username: string, slug: string) {
+/**
+ * A build log by owner and slug, with the same block rule the page applies.
+ *
+ * The block check is not decoration: without it, blocking someone still leaves
+ * this endpoint as a readable route to their work, and the API is a route like
+ * any other. The page loader has always checked; these endpoints did not.
+ */
+async function loadProject(
+  db: Db,
+  username: string,
+  slug: string,
+  viewerId: string | null,
+) {
   const owner = await db.query.profile.findFirst({
     where: sql`lower(${profile.username}) = ${username.toLowerCase()}`,
   });
   if (!owner) throw apiError(404, "not_found", "No such painter.");
+
+  if (viewerId && viewerId !== owner.userId) {
+    const blocked = await db
+      .select({ blockerId: block.blockerId })
+      .from(block)
+      .where(
+        sql`(${block.blockerId} = ${viewerId} and ${block.blockedId} = ${owner.userId})
+            or (${block.blockerId} = ${owner.userId} and ${block.blockedId} = ${viewerId})`,
+      )
+      .limit(1);
+    // Same 404 as a missing log, so the response cannot be used to detect a
+    // block that the other person chose not to announce.
+    if (blocked.length) throw apiError(404, "not_found", "No such build log.");
+  }
 
   const found = await db.query.project.findFirst({
     where: and(eq(project.ownerId, owner.userId), eq(project.slug, slug)),

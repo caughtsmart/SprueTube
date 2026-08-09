@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { data, Link, useRevalidator } from "react-router";
+import { data, Link, useNavigate, useRevalidator } from "react-router";
 import type { Route } from "./+types/listing";
 import { Avatar } from "../components/Avatar";
 import { MarketSafetyNote } from "../components/ListingCard";
+import { ReportButton } from "../components/ReportButton";
 import { api, ApiError } from "../lib/api";
 import { getScope } from "../lib/data.server";
 import { fullDate, parseBody, timeAgo } from "../lib/format";
@@ -16,9 +17,6 @@ import {
   GAME_SYSTEM_LABELS,
   LISTING_CONDITION_LABELS,
   LISTING_KIND_LABELS,
-  REPORT_REASONS,
-  REPORT_REASON_LABELS,
-  type ReportReason,
 } from "../lib/taxonomy";
 
 export function meta({ loaderData: loaded }: Route.MetaArgs) {
@@ -92,11 +90,41 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
 export default function ListingPage({ loaderData }: Route.ComponentProps) {
   const { listing, seller, isOwner, photos } = loaderData;
   const revalidator = useRevalidator();
+  const navigate = useNavigate();
   const [active, setActive] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
 
   const wanted = listing.kind === "wanted";
+
+  /**
+   * Open the thread with the seller and go to it.
+   *
+   * The conversation row is created here rather than on first send, which is
+   * what the commission page does too — it means both buttons behave the same,
+   * and an opened-but-unused thread is harmless. A block in either direction is
+   * refused by the API, so the error is shown rather than guessed at.
+   */
+  async function openThread() {
+    setOpening(true);
+    setContactError(null);
+    try {
+      const opened = await api.post<{ conversationId: string }>(
+        "/conversations",
+        { username: seller.username },
+      );
+      void navigate(`/messages/${opened.conversationId}`);
+    } catch (caught) {
+      setOpening(false);
+      setContactError(
+        caught instanceof ApiError
+          ? caught.message
+          : "Could not open a conversation.",
+      );
+    }
+  }
 
   async function act(work: () => Promise<unknown>) {
     setBusy(true);
@@ -258,17 +286,29 @@ export default function ListingPage({ loaderData }: Route.ComponentProps) {
            * "buy" button and no money: the two of them arrange it between
            * themselves, exactly as they would in a club.
            *
-           * The messages section is being built alongside this one, so the link
-           * hands over a username in the query string rather than reaching into
-           * a conversations API that does not exist here yet.
+           * This opens the thread through the conversations API and goes
+           * straight to it, the same way the commission page does. It first
+           * pointed at /messages?to=username, which nothing ever read — the
+           * button landed people on an empty inbox.
            */
           loaderData.signedIn ? (
-            <Link
-              to={`/messages?to=${encodeURIComponent(seller.username)}`}
-              className="st-btn st-btn-primary mt-4 w-full"
-            >
-              {wanted ? "Message them" : "Message the seller"}
-            </Link>
+            <>
+              <button
+                type="button"
+                onClick={openThread}
+                disabled={opening}
+                className="st-btn st-btn-primary mt-4 w-full"
+              >
+                {opening
+                  ? "Opening…"
+                  : wanted
+                    ? "Message them"
+                    : "Message the seller"}
+              </button>
+              {contactError ? (
+                <p className="st-error">{contactError}</p>
+              ) : null}
+            </>
           ) : (
             <Link
               to={`/login?next=${encodeURIComponent(
@@ -310,7 +350,7 @@ export default function ListingPage({ loaderData }: Route.ComponentProps) {
       </div>
 
       {!isOwner && loaderData.signedIn ? (
-        <ReportListing listingId={listing.id} />
+        <ReportButton subjectType="listing" subjectId={listing.id} />
       ) : null}
     </div>
   );
@@ -401,106 +441,5 @@ function OwnerControls({
           : "Bumping moves this back to the top of the board, once a day at most."}
       </p>
     </div>
-  );
-}
-
-/**
- * Reporting, on its own endpoint.
- *
- * The shared ReportButton posts to /reports, whose validator only admits posts,
- * comments and people — so listings get this until that widens. Same reasons,
- * same queue, same priorities.
- */
-function ReportListing({ listingId }: { listingId: string }) {
-  const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState<ReportReason>("spam");
-  const [details, setDetails] = useState("");
-  const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
-  const [error, setError] = useState<string | null>(null);
-
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    setState("sending");
-    setError(null);
-    try {
-      await api.post(`/listings/${listingId}/report`, {
-        reason,
-        details: details.trim() || null,
-      });
-      setState("sent");
-    } catch (caught) {
-      setState("idle");
-      setError(
-        caught instanceof ApiError ? caught.message : "Could not send that.",
-      );
-    }
-  }
-
-  if (state === "sent") {
-    return (
-      <p className="st-text-muted mt-4 text-xs">
-        Report sent. A moderator will look at it.
-      </p>
-    );
-  }
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="st-text-muted mt-4 text-xs hover:underline"
-      >
-        Report this listing
-      </button>
-    );
-  }
-
-  return (
-    <form onSubmit={submit} className="st-card mt-4 p-4">
-      <h2 className="text-sm font-semibold">Report this listing</h2>
-
-      <label className="st-label mt-3">Reason</label>
-      <select
-        value={reason}
-        onChange={(event) => setReason(event.target.value as ReportReason)}
-        className="st-input"
-      >
-        {REPORT_REASONS.map((value) => (
-          <option key={value} value={value}>
-            {REPORT_REASON_LABELS[value]}
-          </option>
-        ))}
-      </select>
-
-      <label className="st-label mt-3">Anything else? (optional)</label>
-      <textarea
-        value={details}
-        onChange={(event) => setDetails(event.target.value)}
-        rows={3}
-        maxLength={2000}
-        className="st-input resize-y"
-        placeholder="Context helps us act faster."
-      />
-
-      {error ? <p className="st-error">{error}</p> : null}
-
-      <div className="mt-3 flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="st-btn st-btn-ghost text-sm"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={state === "sending"}
-          className="st-btn st-btn-primary text-sm"
-        >
-          {state === "sending" ? "Sending…" : "Send report"}
-        </button>
-      </div>
-    </form>
   );
 }

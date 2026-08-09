@@ -1,7 +1,8 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Route } from "./+types/sitemap";
 import { getScope } from "../lib/data.server";
-import { post, profile } from "../../server/db/schema";
+import { commission, listing, post, profile, project } from "../../server/db/schema";
+import { recentNewsSlugs } from "../../server/services/news";
 import { GAME_SYSTEMS } from "../lib/taxonomy";
 
 /**
@@ -16,7 +17,8 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const scope = await getScope(context, request);
   const base = scope.env.SITE_URL;
 
-  const [posts, people] = await Promise.all([
+  const [posts, people, buildLogs, news, listings, commissions] =
+    await Promise.all([
     scope.db
       .select({ id: post.id, updatedAt: post.updatedAt })
       .from(post)
@@ -36,11 +38,55 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       .where(eq(profile.status, "active"))
       .orderBy(desc(profile.updatedAt))
       .limit(2000),
+    /*
+     * Build logs are the pages most worth finding from a search engine — "Death
+     * Guard army blog" is a search someone actually makes, and a whole log
+     * answers it better than any single post in it.
+     */
+    scope.db
+      .select({
+        slug: project.slug,
+        updatedAt: project.updatedAt,
+        username: profile.username,
+      })
+      .from(project)
+      .innerJoin(profile, eq(profile.userId, project.ownerId))
+      .where(eq(profile.status, "active"))
+      .orderBy(desc(project.updatedAt))
+      .limit(2000),
+    recentNewsSlugs(scope.db, 200),
+    // Only open listings: a sold item indexed for a year is a bad result for
+    // the searcher and a nuisance for the seller who keeps being asked about it.
+    scope.db
+      .select({
+        slug: listing.slug,
+        updatedAt: listing.updatedAt,
+        username: profile.username,
+      })
+      .from(listing)
+      .innerJoin(profile, eq(profile.userId, listing.sellerId))
+      .where(and(eq(listing.status, "open"), eq(profile.status, "active")))
+      .orderBy(desc(listing.bumpedAt))
+      .limit(2000),
+    scope.db
+      .select({
+        slug: commission.slug,
+        updatedAt: commission.updatedAt,
+        username: profile.username,
+      })
+      .from(commission)
+      .innerJoin(profile, eq(profile.userId, commission.ownerId))
+      .where(and(eq(commission.status, "active"), eq(profile.status, "active")))
+      .orderBy(desc(commission.updatedAt))
+      .limit(1000),
   ]);
 
   const entries: { loc: string; lastmod?: number; priority: string }[] = [
     { loc: base, priority: "1.0" },
     { loc: `${base}/explore`, priority: "0.9" },
+    { loc: `${base}/news`, priority: "0.8" },
+    { loc: `${base}/market`, priority: "0.7" },
+    { loc: `${base}/commissions`, priority: "0.7" },
     { loc: `${base}/about`, priority: "0.5" },
     { loc: `${base}/rules`, priority: "0.3" },
     { loc: `${base}/safety`, priority: "0.3" },
@@ -58,6 +104,26 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     ...people.map((person) => ({
       loc: `${base}/@${person.username}`,
       lastmod: person.updatedAt,
+      priority: "0.6",
+    })),
+    ...buildLogs.map((entry) => ({
+      loc: `${base}/@${entry.username}/projects/${entry.slug}`,
+      lastmod: entry.updatedAt,
+      priority: "0.8",
+    })),
+    ...news.map((entry) => ({
+      loc: `${base}/news/${entry.slug}`,
+      lastmod: entry.publishedAt,
+      priority: "0.5",
+    })),
+    ...listings.map((entry) => ({
+      loc: `${base}/market/${entry.username}/${entry.slug}`,
+      lastmod: entry.updatedAt,
+      priority: "0.5",
+    })),
+    ...commissions.map((entry) => ({
+      loc: `${base}/commissions/${entry.username}/${entry.slug}`,
+      lastmod: entry.updatedAt,
       priority: "0.6",
     })),
   ];

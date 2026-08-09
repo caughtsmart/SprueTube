@@ -126,8 +126,14 @@ export const commentSchema = z.object({
   parentId: z.string().max(60).nullish(),
 });
 
+/*
+ * Messages are absent on purpose. Reporting one has to prove the reporter is in
+ * the thread, which this endpoint cannot do — so messages keep their own route
+ * at POST /messages/:id/report, which checks participation and then calls the
+ * same service. Everything else reports through here.
+ */
 export const reportSchema = z.object({
-  subjectType: z.enum(["post", "comment", "user"]),
+  subjectType: z.enum(["post", "comment", "user", "project", "listing"]),
   subjectId: z.string().min(1).max(60),
   reason: z.enum(REPORT_REASONS),
   details: z.string().trim().max(2000).nullish(),

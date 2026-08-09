@@ -541,7 +541,7 @@ export function parseFeed(xml: string | null | undefined): ParsedItem[] {
     if (!link) continue;
 
     items.push({
-      title: title.slice(0, MAX_TITLE_LENGTH),
+      title: truncateOnWord(title, MAX_TITLE_LENGTH),
       link,
       // `description`/`summary` are the excerpt; `content:encoded`/`content`
       // are the whole article, used only when there is no excerpt at all.

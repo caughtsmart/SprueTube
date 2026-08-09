@@ -49,6 +49,8 @@ const VERB: Record<string, string> = {
   reply: "replied to you",
   follow: "started following you",
   mention: "mentioned you",
+  message: "sent you a message",
+  listing_reply: "replied about your listing",
   system: "",
 };
 
@@ -82,12 +84,20 @@ export default function Notifications({ loaderData }: Route.ComponentProps) {
 
       <ul className="flex flex-col gap-2">
         {loaderData.notifications.map((item) => {
+          /*
+           * A message notification carries the conversation id, not a message
+           * id — one message is not a thing you can navigate to, and landing
+           * someone in the middle of a thread is worse than landing them at the
+           * top of it.
+           */
           const href =
             item.type === "follow"
               ? `/@${item.actorUsername ?? ""}`
-              : item.subjectType === "post" && item.subjectId
-                ? `/posts/${item.subjectId}`
-                : "/";
+              : item.subjectType === "message" && item.subjectId
+                ? `/messages/${item.subjectId}`
+                : item.subjectType === "post" && item.subjectId
+                  ? `/posts/${item.subjectId}`
+                  : "/";
 
           return (
             <li

@@ -69,9 +69,19 @@ function TopBar() {
   );
 }
 
+/*
+ * Order is roughly "how often would someone want this", not feature importance.
+ * News and the market are public: a visitor who has not signed up yet is
+ * exactly who they are for, and hiding them behind auth would make the site
+ * look emptier than it is.
+ */
 const NAV = [
   { to: "/", label: "Feed", icon: "▤", end: true },
   { to: "/explore", label: "Explore", icon: "◈" },
+  { to: "/news", label: "News", icon: "◰" },
+  { to: "/market", label: "Buy & sell", icon: "◫" },
+  { to: "/commissions", label: "Commissions", icon: "✦" },
+  { to: "/messages", label: "Messages", icon: "✉", auth: true },
   { to: "/notifications", label: "Notifications", icon: "◎", auth: true },
   { to: "/saved", label: "Saved", icon: "❏", auth: true },
   { to: "/settings", label: "Settings", icon: "⚙", auth: true },

@@ -38,8 +38,7 @@ export default {
   /*
    * Discover ranks by a score that decays with age, so a post nobody touches
    * still has to fall down the page over time. Nothing writes to that score
-   * unless the post gets engagement, hence this sweep. It also rescues videos
-   * whose Stream webhook never arrived.
+   * unless the post gets engagement, hence this sweep.
    *
    * There is one cron expression for the whole Worker, so the daily news ingest
    * rides this quarter-hourly tick and picks its own slot out of it rather than
