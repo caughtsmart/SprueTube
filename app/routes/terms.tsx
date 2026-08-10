@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { Prose } from "../components/Prose";
 import {
+  CONTACT_EMAIL,
   LEGAL_UPDATED,
   OPERATOR,
   operatorName,
@@ -34,6 +35,12 @@ export default function Terms() {
       {OPERATOR.address ? (
         <p>Our registered office is at {OPERATOR.address}.</p>
       ) : null}
+      <p>
+        You can reach us at{" "}
+        <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>, or through the{" "}
+        <Link to="/contact">contact form</Link>, which is quicker because it
+        tells us what the message is about before we open it.
+      </p>
 
       <h2>2. Your account</h2>
       <ul>

@@ -2,17 +2,20 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { api, ApiError } from "../lib/api";
 import { useRoot } from "../root";
-import { operatorLine } from "../lib/legal";
+import { CONTACT_EMAIL, operatorLine } from "../lib/legal";
 import { CONTACT_TOPICS, CONTACT_TOPIC_LABELS } from "../lib/taxonomy";
 
 /*
- * The only published way to reach us.
+ * The way in that the site pushes people towards, and the one it can route.
  *
- * No address appears anywhere on the site — not here, not on /safety, not in
- * the privacy notice. Everything arrives through this form, which is why the
- * topic list has to cover safety reports and data rights as well as questions
- * about postage, and why a failed send is shown to the person rather than
- * swallowed.
+ * `hello@spruetube.app` is published beside it because the law requires an
+ * address — see the note on CONTACT_EMAIL in app/lib/legal.ts — and because a
+ * form is no use to someone whose message just failed to send. It is a role
+ * address forwarded by Email Routing; no personal address appears anywhere on
+ * the site.
+ *
+ * The form still earns its place: it collects a topic, which is what lets a
+ * shared inbox put a safety report in front of a question about postage.
  */
 
 export function meta() {
@@ -232,13 +235,22 @@ export default function Contact() {
 
         {error ? <p className="st-error">{error}</p> : null}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="st-btn st-btn-primary w-full sm:w-auto"
-        >
-          {submitting ? "Sending…" : "Send message"}
-        </button>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="st-btn st-btn-primary w-full sm:w-auto"
+          >
+            {submitting ? "Sending…" : "Send message"}
+          </button>
+          <p className="st-text-muted text-xs">
+            Or email{" "}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="st-link break-all">
+              {CONTACT_EMAIL}
+            </a>
+            .
+          </p>
+        </div>
       </form>
 
       <p className="st-text-muted mt-5 text-xs leading-relaxed">

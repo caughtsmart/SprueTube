@@ -297,32 +297,49 @@ than swallowed: they get a 502 saying so, with their text still in the box. A
 contact form that quietly bins messages is worse than no contact form, and that
 matters more here than it would elsewhere — see below.
 
-### No address is published anywhere
+### One published address, and only one
 
-`/contact` is the **only** route in. There is no `mailto:` left in the app:
-`safety@spruetube.app` and `privacy@spruetube.app` have been replaced with links
-to the form, and no personal address appears at all. `grep -rn "mailto:" app/
-server/` should return nothing, and it is worth re-running after any edit to the
-legal pages.
+`hello@spruetube.app` is the only address in the app, defined once as
+`CONTACT_EMAIL` in `app/lib/legal.ts` and shown on `/contact`, `/terms` and
+`/privacy`. It is published because regulation 6 of the Electronic Commerce (EC
+Directive) Regulations 2002 requires it and a form alone does not satisfy that —
+the reasoning is on the constant.
 
-Two consequences follow, and neither is optional:
+No personal address appears anywhere, and `safety@` / `privacy@` are gone: both
+were published for months without ever being onboarded, so anything sent to them
+would have bounced. `tests/no-published-email.test.ts` fails the build on any
+address that is not `hello@` or `noreply@`, and also fails if `hello@` is ever
+deleted — losing it would put the site back out of step with reg. 6 silently,
+since nothing else would break.
 
-1. **The form covers everything.** Safety reports and UK GDPR data rights
-   requests are topics in the dropdown, not addresses. The two carrying a clock
-   — `safety` and `data` — are listed in `URGENT_CONTACT_TOPICS` and get
-   `[priority]` in the subject line so they can be filtered in a shared inbox.
-2. **If the form is down, nobody can reach us.** Which is why the endpoint
-   reports its failures rather than swallowing them, and why the Email Sending
-   binding is now load-bearing for compliance and not just for convenience.
+`/contact` is still the route the site pushes people towards, because it
+collects a topic. Safety reports and UK GDPR requests are topics rather than
+addresses; the two that carry a clock are listed in `URGENT_CONTACT_TOPICS` and
+get `[priority]` in the subject line so a shared inbox can filter them.
 
-There is a live question about whether this satisfies regulation 6 of the
-Electronic Commerce (EC Directive) Regulations 2002, which requires a service
-provider to publish an email address. See `docs/COMPLIANCE.md`.
+### Receiving — Cloudflare Email Routing
 
-Cloudflare **Email Routing** is therefore no longer needed for `safety@` and
-`privacy@`. Set it up anyway if you ever publish an address again — Routing owns
-the inbound MX, Sending adds SPF and DKIM for outbound, and enabling one does
-not disturb the other.
+`hello@spruetube.app` must reach a person. Cloudflare **Email Routing** forwards
+it for free:
+
+1. **Email → Email Routing** on the `spruetube.app` zone, then **Get started**.
+   Adding the MX and TXT records is offered automatically; take it.
+2. **Destination addresses** → add `graham@loadeddice.uk` and
+   `leigh@loadeddice.uk`. Each gets a confirmation email that has to be clicked
+   before it can receive anything — a rule pointing at an unverified address
+   silently drops mail.
+3. **Routing rules** → **Create address**: custom address `hello`, action
+   *Send to*, and select both destinations.
+4. Leave the catch-all **off**. On a domain with a published address, a
+   catch-all is a spam magnet and nothing needs it.
+
+Routing and Sending are halves of the same product and coexist: Routing owns the
+inbound MX, Sending adds SPF and DKIM for outbound. Enabling one does not
+disturb the other.
+
+Verify by emailing `hello@spruetube.app` from outside and confirming it lands in
+both inboxes. Until it does, the address on the terms page is a dead end, which
+is worse than the form-only state it replaced.
 
 ### Turning on mandatory verification
 
