@@ -41,11 +41,12 @@ from.
       `app/lib/legal.ts` and guarded by a test that fails if it is ever removed.
       A role address, so no personal address is on a page that is crawled and
       scraped, and so the person reading it can change without a deploy.
-- [ ] **Point it at a human.** Cloudflare Email Routing, steps in
-      `docs/DEPLOY.md` §11. Both destination addresses must confirm by email
-      before a rule can deliver to them — until then the address on the terms
-      page is a dead end, which is worse than not publishing one. Verify by
-      sending to it from outside.
+- [x] **Point it at a human.** Cloudflare Email Routing forwards
+      `hello@spruetube.app` to Graham and Leigh; steps in `docs/DEPLOY.md` §11.
+      Verified on 10 August 2026 by sending to it from outside and watching it
+      arrive. Worth re-testing after any DNS change to `spruetube.app`: the MX
+      records are what carry it, and a routing rule pointing at a destination
+      that has stopped confirming drops mail silently rather than bouncing it.
 - [ ] **Decide who moderates, and when.** One person is enough at this size, but
       "nobody looks at the queue at weekends" is a decision you should make
       deliberately rather than discover.
