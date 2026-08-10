@@ -41,23 +41,26 @@ from.
       `app/lib/legal.ts` and guarded by a test that fails if it is ever removed.
       A role address, so no personal address is on a page that is crawled and
       scraped, and so the person reading it can change without a deploy.
-- [ ] **Point it at a human.** `hello@spruetube.app` is published on the site
-      but **nothing can deliver to it**: as of 10 August 2026 `spruetube.app`
-      has no MX record at all, confirmed against both Cloudflare's and Google's
-      resolvers. Email Routing has not been onboarded — `cf-bounce` carries the
-      Sending records but the root domain carries none of Routing's. Steps in
-      `docs/DEPLOY.md` §11, rewritten for the current dashboard (Email Routing
-      moved to **Compute → Email Service**, at account level) and ending with
-      the one-line DNS check that would have caught this.
+- [ ] **Point it at a human.** DNS is now in place; delivery is unconfirmed.
 
-      This was briefly ticked off on the strength of a test that appeared to
-      work. It was not re-checked against DNS, and DNS is the thing that
-      decides. Outbound mail — password resets, the contact form — is a
-      separate path that never touches MX, which is why it kept working and
-      made the inbound side look fine.
+      Email Routing was onboarded on 10 August 2026 and all three of its records
+      are live on the root domain — three `*.mx.cloudflare.net` MX entries,
+      `v=spf1 include:_spf.mx.cloudflare.net ~all`, and the `cf2024-1` DKIM key.
+      Earlier that day the domain had **no MX at all**, which is why nothing
+      sent to `hello@` could arrive.
 
-      Until an MX exists, the address on `/terms` is exactly the dead end the
-      note in `app/lib/legal.ts` warns about, and reg. 6 is not satisfied.
+      What DNS cannot show is the last hop: whether both destination addresses
+      have clicked their verification email, and whether the `hello` routing
+      rule exists and is enabled. A rule pointing at an unverified destination
+      stays disabled and drops mail without bouncing it, so the symptom is
+      identical to the one already fixed. **Tick this only after a message sent
+      from outside lands in both inboxes.**
+
+      Worth keeping in mind for next time: this was briefly ticked off on the
+      strength of a test that appeared to work, without checking DNS. DNS is
+      what decides. Outbound mail — password resets, the contact form — runs
+      through the Email Sending binding and never consults the MX, so it kept
+      working throughout and told us nothing about the inbound side.
 - [ ] **Decide who moderates, and when.** One person is enough at this size, but
       "nobody looks at the queue at weekends" is a decision you should make
       deliberately rather than discover.
