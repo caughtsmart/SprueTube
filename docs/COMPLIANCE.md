@@ -41,12 +41,21 @@ from.
       `app/lib/legal.ts` and guarded by a test that fails if it is ever removed.
       A role address, so no personal address is on a page that is crawled and
       scraped, and so the person reading it can change without a deploy.
-- [x] **Point it at a human.** Cloudflare Email Routing forwards
-      `hello@spruetube.app` to Graham and Leigh; steps in `docs/DEPLOY.md` §11.
-      Verified on 10 August 2026 by sending to it from outside and watching it
-      arrive. Worth re-testing after any DNS change to `spruetube.app`: the MX
-      records are what carry it, and a routing rule pointing at a destination
-      that has stopped confirming drops mail silently rather than bouncing it.
+- [ ] **Point it at a human.** `hello@spruetube.app` is published on the site
+      but **nothing can deliver to it**: as of 10 August 2026 `spruetube.app`
+      has no MX record at all, confirmed against both Cloudflare's and Google's
+      resolvers. Email Routing has not been enabled on the zone, or its records
+      did not survive. Steps in `docs/DEPLOY.md` §11, which now ends with the
+      one-line DNS check that would have caught this.
+
+      This was briefly ticked off on the strength of a test that appeared to
+      work. It was not re-checked against DNS, and DNS is the thing that
+      decides. Outbound mail — password resets, the contact form — is a
+      separate path that never touches MX, which is why it kept working and
+      made the inbound side look fine.
+
+      Until an MX exists, the address on `/terms` is exactly the dead end the
+      note in `app/lib/legal.ts` warns about, and reg. 6 is not satisfied.
 - [ ] **Decide who moderates, and when.** One person is enough at this size, but
       "nobody looks at the queue at weekends" is a decision you should make
       deliberately rather than discover.

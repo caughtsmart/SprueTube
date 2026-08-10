@@ -337,9 +337,40 @@ Routing and Sending are halves of the same product and coexist: Routing owns the
 inbound MX, Sending adds SPF and DKIM for outbound. Enabling one does not
 disturb the other.
 
-Verify by emailing `hello@spruetube.app` from outside and confirming it lands in
-both inboxes. Until it does, the address on the terms page is a dead end, which
-is worse than the form-only state it replaced.
+**Check DNS first, then send a test.** A test message that fails to arrive tells
+you nothing about why; the MX record tells you whether delivery was ever
+possible:
+
+```bash
+dig +short MX spruetube.app        # expect route1/2/3.mx.cloudflare.net
+```
+
+Empty output means Email Routing is not live on the zone, and every message to
+`hello@` is undeliverable no matter what the routing rules say. Senders fall
+back to the A record under RFC 5321 §5.1, which here is Cloudflare's HTTP proxy
+— it does not speak SMTP, so the mail hangs and eventually bounces.
+
+Then email `hello@spruetube.app` from outside and confirm it lands in both
+inboxes. Until both checks pass, the address on the terms page is a dead end,
+which is worse than the form-only state it replaced.
+
+Two traps worth knowing, because both fail quietly:
+
+- A destination address that has not confirmed by email is dropped rather than
+  bounced. The dashboard shows it as unverified; nothing else will tell you.
+- Outbound mail is a different path entirely. Password resets and the contact
+  form work off the Email Sending binding and never consult the MX, so they
+  will keep working perfectly while inbound is completely dead. Do not read one
+  as evidence about the other.
+
+### Outbound authentication
+
+Also worth a look while you are in DNS: `spruetube.app` publishes
+`_dmarc` as `p=reject` but has **no SPF record on the apex** (`dig +short TXT
+spruetube.app` returns nothing). Mail is arriving, so DKIM must be signing and
+aligned — but with `p=reject` and only one passing mechanism, anything that
+breaks the DKIM signature fails DMARC outright and is rejected rather than
+spam-foldered. Publishing SPF gives it a second leg.
 
 ### Turning on mandatory verification
 
