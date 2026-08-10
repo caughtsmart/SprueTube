@@ -322,27 +322,42 @@ get `[priority]` in the subject line so a shared inbox can filter them.
 `hello@spruetube.app` must reach a person. Cloudflare **Email Routing** forwards
 it for free:
 
-1. **Email → Email Routing** on the `spruetube.app` zone, then **Get started**.
-   Adding the MX and TXT records is offered automatically; take it.
-2. **Destination addresses** → add `graham@loadeddice.uk` and
-   `leigh@loadeddice.uk`. Each gets a confirmation email that has to be clicked
-   before it can receive anything — a rule pointing at an unverified address
-   silently drops mail.
-3. **Routing rules** → **Create address**: custom address `hello`, action
-   *Send to*, and select both destinations.
-4. Leave the catch-all **off**. On a domain with a published address, a
-   catch-all is a spam magnet and nothing needs it.
+It now lives under **Compute → Email Service → Email Routing**, at the *account*
+level rather than on the zone — it used to be an **Email** tab inside the domain,
+which is where older instructions (including an earlier version of this file)
+send you. Direct link: `https://dash.cloudflare.com/?to=/:account/email-service/routing`.
 
-Routing and Sending are halves of the same product and coexist: Routing owns the
-inbound MX, Sending adds SPF and DKIM for outbound. Enabling one does not
-disturb the other.
+1. **Onboard Domain** → pick `spruetube.app`. It offers to add the MX, SPF and
+   DKIM records to the root domain; take it. This is the step that creates the
+   MX, and without it nothing below has any effect.
+2. **Destination Addresses** → add `graham@loadeddice.uk` and
+   `leigh@loadeddice.uk`. These are account-level, not per-domain. Each gets a
+   verification email that has to be clicked — **any rule pointing at an
+   unverified address stays disabled**, which is the failure that looks like
+   nothing happening.
+3. **Routing Rules** → **Create routing rule**. Email pattern `hello`, domain
+   `spruetube.app`, action *Send to an email*, destination both addresses.
+4. Leave the catch-all **off**. On a domain with a published address it is a
+   spam magnet and nothing needs it.
+
+Sending and Routing are separate halves that do not disturb each other, and
+they keep their records in different places — which matters when you are
+reading DNS to work out what is wrong:
+
+| | Records live on | DKIM selector |
+|---|---|---|
+| Email **Sending** (outbound) | `cf-bounce.spruetube.app` | `cf-bounce._domainkey` |
+| Email **Routing** (inbound) | the root domain | `cf2024-1._domainkey` |
+
+So an apex with no MX and no SPF, while `cf-bounce` has both, means exactly one
+thing: Sending is onboarded and Routing is not.
 
 **Check DNS first, then send a test.** A test message that fails to arrive tells
 you nothing about why; the MX record tells you whether delivery was ever
 possible:
 
 ```bash
-dig +short MX spruetube.app        # expect route1/2/3.mx.cloudflare.net
+dig +short MX spruetube.app        # expect three *.mx.cloudflare.net entries
 ```
 
 Empty output means Email Routing is not live on the zone, and every message to
@@ -363,14 +378,24 @@ Two traps worth knowing, because both fail quietly:
   will keep working perfectly while inbound is completely dead. Do not read one
   as evidence about the other.
 
-### Outbound authentication
+### Outbound authentication is already sound
 
-Also worth a look while you are in DNS: `spruetube.app` publishes
-`_dmarc` as `p=reject` but has **no SPF record on the apex** (`dig +short TXT
-spruetube.app` returns nothing). Mail is arriving, so DKIM must be signing and
-aligned — but with `p=reject` and only one passing mechanism, anything that
-breaks the DKIM signature fails DMARC outright and is rejected rather than
-spam-foldered. Publishing SPF gives it a second leg.
+Worth writing down, because the apex looks alarming until you know where to
+look. `dig +short TXT spruetube.app` returns nothing and `_dmarc` says
+`p=reject`, which reads like a domain that publishes a strict policy it cannot
+satisfy. It isn't. Email Sending keeps its SPF and DKIM on the `cf-bounce`
+subdomain, and all three are present and correct:
+
+```bash
+dig +short TXT cf-bounce.spruetube.app              # v=spf1 include:_spf.mx.cloudflare.net ~all
+dig +short TXT cf-bounce._domainkey.spruetube.app   # v=DKIM1; ...
+dig +short MX  cf-bounce.spruetube.app              # route1/2/3.mx.cloudflare.net
+```
+
+The apex SPF is Email **Routing**'s to add, and it appears when Routing is
+onboarded. Do not hand-write one on the root domain to "fix" the gap — you would
+be authorising the wrong thing, and Routing's onboarding wants to manage that
+record itself.
 
 ### Turning on mandatory verification
 

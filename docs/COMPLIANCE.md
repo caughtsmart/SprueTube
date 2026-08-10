@@ -44,9 +44,11 @@ from.
 - [ ] **Point it at a human.** `hello@spruetube.app` is published on the site
       but **nothing can deliver to it**: as of 10 August 2026 `spruetube.app`
       has no MX record at all, confirmed against both Cloudflare's and Google's
-      resolvers. Email Routing has not been enabled on the zone, or its records
-      did not survive. Steps in `docs/DEPLOY.md` §11, which now ends with the
-      one-line DNS check that would have caught this.
+      resolvers. Email Routing has not been onboarded — `cf-bounce` carries the
+      Sending records but the root domain carries none of Routing's. Steps in
+      `docs/DEPLOY.md` §11, rewritten for the current dashboard (Email Routing
+      moved to **Compute → Email Service**, at account level) and ending with
+      the one-line DNS check that would have caught this.
 
       This was briefly ticked off on the strength of a test that appeared to
       work. It was not re-checked against DNS, and DNS is the thing that
