@@ -93,7 +93,7 @@ const SLOT_IDS: Record<string, string> = {
   // ad, so positions can be switched on one at a time.
   feed: "2579941153",
   sidebar: "",
-  post: "",
+  post: "2659832205",
 };
 
 function AdSenseUnit({
@@ -136,10 +136,11 @@ function AdSenseUnit({
       <ins
         ref={ref}
         className="adsbygoogle block w-full max-w-full"
-        style={{ display: "block" }}
+        style={{ display: "block", textAlign: slot === "post" ? "center" : undefined }}
         data-ad-client={client}
         data-ad-slot={slotId}
         data-ad-format={slot === "sidebar" ? "vertical" : "fluid"}
+        data-ad-layout={slot === "post" ? "in-article" : undefined}
         data-ad-layout-key={slot === "feed" ? "-fl+5z+3v-d0+94" : undefined}
         data-full-width-responsive="true"
       />
