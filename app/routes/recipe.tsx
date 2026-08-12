@@ -1,13 +1,18 @@
 import { data, Link } from "react-router";
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Route } from "./+types/recipe";
 import { Avatar } from "../components/Avatar";
+import { RecipeActions } from "../components/RecipeActions";
 import { RecipeView } from "../components/RecipeView";
 import { getScope } from "../lib/data.server";
 import { fullDate } from "../lib/format";
 import { imageSrc } from "../lib/media";
-import { findRecipe, getRecipeWithSteps } from "../../server/services/recipes";
-import { block, profile } from "../../server/db/schema";
+import {
+  canViewRecipe,
+  findRecipe,
+  getRecipeWithSteps,
+} from "../../server/services/recipes";
+import { block, profile, recipe, recipeSave } from "../../server/db/schema";
 import { GAME_SYSTEM_LABELS } from "../lib/taxonomy";
 
 const VISIBILITY_NOTE: Record<string, string | null> = {
@@ -78,6 +83,38 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
   const full = await getRecipeWithSteps(scope.db, found.id);
   if (!full) throw data({ message: "No such recipe." }, { status: 404 });
 
+  // Has the viewer saved this, and what was it forked from (if the origin is
+  // still there and they may see it)?
+  const saved = viewerId
+    ? Boolean(
+        await scope.db.query.recipeSave.findFirst({
+          where: and(
+            eq(recipeSave.recipeId, found.id),
+            eq(recipeSave.userId, viewerId),
+          ),
+        }),
+      )
+    : false;
+
+  let forkedFrom: { username: string; slug: string; title: string } | null = null;
+  if (found.forkedFromId) {
+    const origin = await scope.db.query.recipe.findFirst({
+      where: eq(recipe.id, found.forkedFromId),
+    });
+    if (origin && canViewRecipe(origin.visibility, origin.ownerId === viewerId)) {
+      const originOwner = await scope.db.query.profile.findFirst({
+        where: eq(profile.userId, origin.ownerId),
+      });
+      if (originOwner) {
+        forkedFrom = {
+          username: originOwner.username,
+          slug: origin.slug,
+          title: origin.title,
+        };
+      }
+    }
+  }
+
   const config = { imagesAccountHash: scope.env.CF_IMAGES_ACCOUNT_HASH };
 
   return {
@@ -89,8 +126,12 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
       gameSystem: found.gameSystem,
       scale: found.scale,
       visibility: found.visibility,
+      saveCount: found.saveCount,
+      forkCount: found.forkCount,
       updatedAt: found.updatedAt,
     },
+    saved,
+    forkedFrom,
     steps: full.steps.map((step) => ({
       id: step.id,
       position: step.position,
@@ -158,8 +199,28 @@ export default function RecipePage({ loaderData }: Route.ComponentProps) {
             >
               Edit
             </Link>
-          ) : null}
+          ) : (
+            <RecipeActions
+              recipeId={recipe.id}
+              path={`/@${owner.username}/recipes/${recipe.slug}`}
+              initialSaved={loaderData.saved}
+              saveCount={recipe.saveCount}
+            />
+          )}
         </div>
+
+        {loaderData.forkedFrom ? (
+          <p className="st-text-muted mt-3 text-sm">
+            🔱 Forked from{" "}
+            <Link
+              to={`/@${loaderData.forkedFrom.username}/recipes/${loaderData.forkedFrom.slug}`}
+              className="st-link"
+            >
+              {loaderData.forkedFrom.title}
+            </Link>{" "}
+            by @{loaderData.forkedFrom.username}
+          </p>
+        ) : null}
 
         {recipe.summary ? (
           <p className="mt-4 text-[0.9375rem] leading-relaxed">
@@ -171,6 +232,8 @@ export default function RecipePage({ loaderData }: Route.ComponentProps) {
           {facts.map((fact) => (
             <span key={fact}>{fact}</span>
           ))}
+          {recipe.saveCount > 0 ? <span>{recipe.saveCount} saved</span> : null}
+          {recipe.forkCount > 0 ? <span>{recipe.forkCount} forked</span> : null}
           <span>updated {fullDate(recipe.updatedAt)}</span>
           {visibilityNote ? (
             <span className="st-chip text-xs">{visibilityNote}</span>
