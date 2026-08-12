@@ -369,6 +369,41 @@ Then email `hello@spruetube.app` from outside and confirm it lands in both
 inboxes. Until both checks pass, the address on the terms page is a dead end,
 which is worse than the form-only state it replaced.
 
+### When a test message does not arrive
+
+**Look at the Activity log first.** Compute → Email Service → **Activity log**,
+which lists every inbound message and what Email Routing did with it —
+*Forwarded*, *Dropped*, *Rejected*, *Delivery failed* or *Error* — and expands to
+show the SPF, DKIM and DMARC results. It answers the only question that matters
+at this point: did the message reach Cloudflare at all? Everything below is
+guesswork until you have looked.
+
+- **Nothing in the log.** The message never arrived. DNS or the sending side.
+- **Forwarded.** Cloudflare did its job and the message is at Google. Look
+  again in the destination mailbox, including All Mail.
+- **Dropped / Rejected / Delivery failed.** The row says which, and expanding it
+  says why.
+
+Three things that produce "it just never turned up", in the order they are
+worth checking:
+
+1. **You sent it from the destination address.** Sending from
+   `graham@loadeddice.uk` to `hello@spruetube.app`, which forwards straight back
+   to `graham@loadeddice.uk`, is the single most likely cause. Google suppresses
+   a message that returns to the account that sent it — it is not in the inbox,
+   not in spam, and nothing anywhere reports a failure. Cloudflare's own
+   documentation says to test from a different account for exactly this reason.
+   Send from a personal address on another provider before concluding anything.
+2. **A destination address has not been verified.** Its rule stays disabled and
+   the mail is dropped. Destination Addresses shows this and nothing else does.
+3. **The routing rule is disabled**, or its pattern does not match. Check the
+   status toggle reads Active.
+
+And one thing that is *not* evidence: **Email Routing does not send non-delivery
+reports.** A message it drops or rejects produces no bounce to the sender, so
+"I did not get a bounce" tells you nothing at all about whether it was
+delivered.
+
 Two traps worth knowing, because both fail quietly:
 
 - A destination address that has not confirmed by email is dropped rather than
