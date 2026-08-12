@@ -9,6 +9,7 @@ import {
 } from "react-router";
 import type { Route } from "./+types/root";
 import "./app.css";
+import { AdSenseScript } from "./components/AdSlot";
 import { AppShell } from "./components/AppShell";
 import {
   getScope,
@@ -61,6 +62,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="theme-color" content="#333333" />
         <Meta />
         <Links />
+        <AdSenseScript />
       </head>
       <body>
         {children}

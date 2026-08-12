@@ -86,8 +86,8 @@
     // secret: these addresses are already published on the site as the mailto
     // fallback for when the form itself is down.
     "CONTACT_RECIPIENTS": "graham@loadeddice.uk,leigh@loadeddice.uk",
-    // Leave empty until AdSense approves the site; ad slots render house ads.
-    "ADSENSE_CLIENT": "",
+    // Set once AdSense approves the site; unfilled slots fall back to house ads.
+    "ADSENSE_CLIENT": "ca-pub-2476850287043544",
     "ENVIRONMENT": "production"
   }
 
