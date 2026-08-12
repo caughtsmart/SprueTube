@@ -113,6 +113,7 @@ content.post("/posts", requireAuth, async (c) => {
       wipStage: input.wipStage ?? null,
       projectId: input.projectId ?? null,
     },
+    c.env,
     pushDelivery(c),
   );
 
