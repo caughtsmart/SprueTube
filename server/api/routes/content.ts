@@ -11,6 +11,7 @@ import {
 } from "../context";
 import type { Db } from "../../db/client";
 import { newId } from "../../db/id";
+import { slugify } from "../../../app/lib/slug";
 import { block, comment, like, post, profile, project } from "../../db/schema";
 import {
   getBookmarks,
@@ -579,24 +580,10 @@ async function loadProject(
   return { project: found, owner };
 }
 
-/** Exported for tests: this decides every build-log URL. */
-export function slugify(value: string) {
-  return (
-    value
-      .toLowerCase()
-      // NFKD splits an accented letter into the letter plus a combining mark.
-      // Dropping the marks turns "Légion" into "legion"; without this line the
-      // mark survives to the next rule and becomes a dash, giving "le-gion".
-      .normalize("NFKD")
-      .replace(/[̀-ͯ]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60)
-      // The slice can leave a trailing dash behind if it lands on one, and a
-      // slug ending in '-' looks like a typo in a shared link.
-      .replace(/-+$/, "") || "project"
-  );
-}
+// The slug rule lives in app/lib/slug.ts so a recipe and a build log share it
+// without this route module becoming a dependency of the recipe service.
+// Re-exported because tests address it here.
+export { slugify };
 
 async function uniqueProjectSlug(
   db: Db,
