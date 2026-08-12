@@ -113,6 +113,7 @@ everything.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the pieces fit, and why
 - [`docs/DEPLOY.md`](docs/DEPLOY.md) — first deploy to spruetube.app, step by step
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — what is next, including the iOS app
+- [`docs/NOTIFICATIONS.md`](docs/NOTIFICATIONS.md) — Web Push and email digests, designed
 - [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) — what must be true before launch
 
 ## Before you launch
