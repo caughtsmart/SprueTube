@@ -51,7 +51,8 @@ static site with extra steps.
 5. **Follow suggestions.** "Painters who also do Necromunda" — the `systems`
    field on a profile already carries the signal.
 6. **Email digests.** A weekly "what you missed" is the single most effective
-   retention mechanic for a small community.
+   retention mechanic for a small community. Designed alongside Web Push in
+   [`docs/NOTIFICATIONS.md`](NOTIFICATIONS.md).
 
 ## Deferred on purpose
 
@@ -74,7 +75,12 @@ When it does happen, the order that works:
    other social login exists. Re-add the bearer plugin then.
 3. **Posting.** The camera is the reason a hobby app exists on a phone. Direct
    upload to Images works identically from a native client.
-4. **Push.** Re-add the token table and an APNs sender.
+4. **Push.** ~~Web Push~~ is **done** — browsers and installed PWAs, no app
+   required, built on the current Worker with a VAPID key pair and no
+   dependency. See [`docs/NOTIFICATIONS.md`](NOTIFICATIONS.md). Native APNs is
+   the mobile sibling: re-add the token table in its APNs form and an APNs
+   sender alongside the existing `pushToUser`, which is already the shared
+   fan-out point.
 
 Build it with **Expo** — this codebase is already TypeScript and React, and the
 taxonomy and API-client modules port straight across.

@@ -15,6 +15,13 @@
       "when": 1786233696020,
       "tag": "0001_fluffy_drax",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786555048178,
+      "tag": "0002_brainy_stick",
+      "breakpoints": true
     }
   ]
 }

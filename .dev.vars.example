@@ -18,6 +18,13 @@ GOOGLE_CLIENT_SECRET=""
 APPLE_CLIENT_ID=""
 APPLE_CLIENT_SECRET=""
 
+# Web Push (VAPID). Leave blank to keep push off — the app runs fine without it
+# and every send becomes a no-op. Generate a pair with:
+#   node scripts/generate-vapid-keys.mjs
+VAPID_PUBLIC_KEY=""
+VAPID_PRIVATE_KEY=""
+VAPID_SUBJECT="mailto:safety@spruetube.app"
+
 # Local dev overrides. These shadow the vars in wrangler.jsonc so that auth
 # origins, links and the sitemap all point at the dev server rather than at
 # the live domain.

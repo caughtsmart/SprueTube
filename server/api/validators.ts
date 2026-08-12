@@ -202,3 +202,42 @@ export const projectPatchSchema = z.object({
   status: z.enum(PROJECT_STATUSES).optional(),
   coverImageId: z.string().max(100).nullish(),
 });
+
+/*
+ * The notification `type` values a person can mute. Kept in step with the enum
+ * on the `notification` table (server/db/schema.ts). `system` is deliberately
+ * absent — a moderation or account message is not something to silence.
+ */
+export const MUTABLE_NOTIFICATION_TYPES = [
+  "like",
+  "comment",
+  "reply",
+  "follow",
+  "mention",
+  "message",
+  "listing_reply",
+] as const;
+
+/*
+ * A PushSubscription serialised by the browser. `endpoint` is the push service
+ * URL; `keys.p256dh` and `keys.auth` are the client keys we encrypt to. The
+ * lengths are generous bounds against a junk payload, not a spec — a real
+ * endpoint is a couple of hundred characters, a p256dh 87, an auth 22.
+ */
+export const pushSubscribeSchema = z.object({
+  endpoint: z.string().url().max(1000),
+  keys: z.object({
+    p256dh: z.string().min(1).max(200),
+    auth: z.string().min(1).max(100),
+  }),
+});
+
+export const pushUnsubscribeSchema = z.object({
+  endpoint: z.string().url().max(1000),
+});
+
+/** Notification preferences a person can change from Settings. */
+export const notificationPrefSchema = z.object({
+  emailDigest: z.enum(["off", "weekly", "daily"]).optional(),
+  mutedTypes: z.array(z.enum(MUTABLE_NOTIFICATION_TYPES)).max(8).optional(),
+});

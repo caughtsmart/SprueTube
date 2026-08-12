@@ -4,6 +4,7 @@ import {
   apiError,
   badRequest,
   fieldErrors,
+  pushDelivery,
   rateLimit,
   requireAuth,
   type ApiEnv,
@@ -100,15 +101,20 @@ content.post("/posts", requireAuth, async (c) => {
     if (!owned) throw badRequest("That project does not exist.");
   }
 
-  const created = await createPost(db, c.get("user")!.id, {
-    ...input,
-    title: input.title ?? null,
-    body: input.body ?? null,
-    gameSystem: input.gameSystem ?? null,
-    scale: input.scale ?? null,
-    wipStage: input.wipStage ?? null,
-    projectId: input.projectId ?? null,
-  });
+  const created = await createPost(
+    db,
+    c.get("user")!.id,
+    {
+      ...input,
+      title: input.title ?? null,
+      body: input.body ?? null,
+      gameSystem: input.gameSystem ?? null,
+      scale: input.scale ?? null,
+      wipStage: input.wipStage ?? null,
+      projectId: input.projectId ?? null,
+    },
+    pushDelivery(c),
+  );
 
   return c.json(created, 201);
 });
@@ -151,7 +157,13 @@ content.delete("/posts/:id", requireAuth, async (c) => {
 content.post("/posts/:id/like", requireAuth, async (c) => {
   await rateLimit(c, "like", { max: 300, windowSeconds: 300 });
   return c.json(
-    await setPostLike(c.get("db"), c.get("user")!.id, c.req.param("id"), true),
+    await setPostLike(
+      c.get("db"),
+      c.get("user")!.id,
+      c.req.param("id"),
+      true,
+      pushDelivery(c),
+    ),
   );
 });
 
@@ -298,6 +310,7 @@ content.post("/posts/:id/comments", requireAuth, async (c) => {
       postId,
       parsed.data.body,
       parsed.data.parentId,
+      pushDelivery(c),
     );
     return c.json({ id }, 201);
   } catch (error) {

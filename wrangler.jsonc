@@ -96,4 +96,10 @@
   //   CF_API_TOKEN              — Cloudflare Images edit permission
   //   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
   //   APPLE_CLIENT_ID / APPLE_CLIENT_SECRET  (needed before iOS submission)
+  //   VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT
+  //                             — Web Push. Generate a pair with
+  //                               `node scripts/generate-vapid-keys.mjs`; all
+  //                               three unset ⇒ push is off. The public key is
+  //                               shipped to browsers but set as a secret so the
+  //                               three keys are managed together.
 }

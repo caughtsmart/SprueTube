@@ -67,6 +67,23 @@ npx wrangler secret put CF_API_TOKEN
 There is no email API key. Transactional email goes through the Cloudflare
 `EMAIL` binding, which is authorised by being bound — see step 11.
 
+**Web Push (optional, but cheap).** Generate a VAPID key pair once and set the
+three keys. With them unset, push is simply off and every send is a no-op; with
+them set, the Settings → Notifications toggle starts working and interactions
+reach people with the tab closed.
+
+```bash
+node scripts/generate-vapid-keys.mjs   # prints the three values below
+echo -n "<public key>"  | npx wrangler secret put VAPID_PUBLIC_KEY
+echo -n "<private key>" | npx wrangler secret put VAPID_PRIVATE_KEY
+echo -n "mailto:safety@spruetube.app" | npx wrangler secret put VAPID_SUBJECT
+```
+
+The public key is genuinely public — it is shipped to every browser so it can
+subscribe — but it lives with the other two as a secret so the trio is managed
+together and rotating them is one operation. Rotating the pair invalidates every
+existing subscription; browsers re-subscribe on their next visit to Settings.
+
 Create that token at **My Profile → API Tokens → Create Token → Custom token**
 with exactly one permission: *Account · Cloudflare Images · Edit*. Nothing else
 — this token is used by a Worker that serves the public internet.

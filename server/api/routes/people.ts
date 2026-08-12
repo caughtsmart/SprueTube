@@ -4,6 +4,7 @@ import {
   apiError,
   badRequest,
   fieldErrors,
+  pushDelivery,
   rateLimit,
   requireAuth,
   type ApiContext,
@@ -273,7 +274,14 @@ async function toggleFollow(
     throw apiError(403, "forbidden", "That account is unavailable.");
   }
 
-  return setFollow(db, viewer.id, target.userId, following);
+  // A push only makes sense on a new follow, not on an unfollow.
+  return setFollow(
+    db,
+    viewer.id,
+    target.userId,
+    following,
+    following ? pushDelivery(c) : undefined,
+  );
 }
 
 people.get("/profiles/:username/followers", async (c) => {

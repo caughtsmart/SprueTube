@@ -25,6 +25,7 @@ import {
 import type { FeedPost } from "./feed";
 import { checkInteraction } from "./moderation";
 import { createNotification } from "./posts";
+import type { PushDelivery } from "./push";
 /*
  * The ordering rules themselves are in app/lib, not here, because the owner's
  * reorder controls run in the browser and must sort by exactly what the server
@@ -652,6 +653,7 @@ export async function addProjectComment(
   projectId: string,
   body: string,
   parentId?: string | null,
+  delivery?: PushDelivery,
 ): Promise<string> {
   const target = await db.query.project.findFirst({
     where: eq(project.id, projectId),
@@ -677,14 +679,18 @@ export async function addProjectComment(
     body,
   });
 
-  await notifyComment(db, {
-    ownerId: target.ownerId,
-    authorId,
-    resolvedParent,
-    subjectType: "project",
-    subjectId: projectId,
-    body,
-  });
+  await notifyComment(
+    db,
+    {
+      ownerId: target.ownerId,
+      authorId,
+      resolvedParent,
+      subjectType: "project",
+      subjectId: projectId,
+      body,
+    },
+    delivery,
+  );
 
   return id;
 }
@@ -697,6 +703,7 @@ export async function addMediaComment(
   mediaId: string,
   body: string,
   parentId?: string | null,
+  delivery?: PushDelivery,
 ): Promise<string> {
   const target = await db.query.post.findFirst({ where: eq(post.id, postId) });
   if (!target || target.deletedAt) throw new Error("post_not_found");
@@ -721,14 +728,18 @@ export async function addMediaComment(
     body,
   });
 
-  await notifyComment(db, {
-    ownerId: target.authorId,
-    authorId,
-    resolvedParent,
-    subjectType: "post",
-    subjectId: postId,
-    body,
-  });
+  await notifyComment(
+    db,
+    {
+      ownerId: target.authorId,
+      authorId,
+      resolvedParent,
+      subjectType: "post",
+      subjectId: postId,
+      body,
+    },
+    delivery,
+  );
 
   return id;
 }
@@ -743,18 +754,23 @@ async function notifyComment(
     subjectId: string;
     body: string;
   },
+  delivery?: PushDelivery,
 ) {
   const preview = input.body.trim().slice(0, 140);
 
   if (input.ownerId !== input.authorId) {
-    await createNotification(db, {
-      userId: input.ownerId,
-      actorId: input.authorId,
-      type: input.resolvedParent ? "reply" : "comment",
-      subjectType: input.subjectType,
-      subjectId: input.subjectId,
-      preview,
-    });
+    await createNotification(
+      db,
+      {
+        userId: input.ownerId,
+        actorId: input.authorId,
+        type: input.resolvedParent ? "reply" : "comment",
+        subjectType: input.subjectType,
+        subjectId: input.subjectId,
+        preview,
+      },
+      delivery,
+    );
   }
 
   // The person being replied to wants to know too, unless they are the owner we
@@ -768,14 +784,18 @@ async function notifyComment(
     parent.authorId !== input.authorId &&
     parent.authorId !== input.ownerId
   ) {
-    await createNotification(db, {
-      userId: parent.authorId,
-      actorId: input.authorId,
-      type: "reply",
-      subjectType: input.subjectType,
-      subjectId: input.subjectId,
-      preview,
-    });
+    await createNotification(
+      db,
+      {
+        userId: parent.authorId,
+        actorId: input.authorId,
+        type: "reply",
+        subjectType: input.subjectType,
+        subjectId: input.subjectId,
+        preview,
+      },
+      delivery,
+    );
   }
 }
 

@@ -478,6 +478,70 @@ export const notification = sqliteTable(
 );
 
 /* -------------------------------------------------------------------------- */
+/* Notification delivery: preferences and push subscriptions                  */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * One row per person, created lazily the first time they touch a notification
+ * setting. Absence means defaults, so no existing account needs a backfill and
+ * anyone who never opts in behaves exactly as before — in-app only.
+ *
+ * `mutedTypes` is a JSON array of notification `type` values the person never
+ * wants pushed or digested. It reuses the enum on `notification` above rather
+ * than inventing a second taxonomy; in-app notifications ignore it.
+ */
+export const notificationPref = sqliteTable("notification_pref", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  /** Master switch for Web Push. Off until the person grants it. */
+  pushEnabled: integer("push_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  /** Email digest cadence. Reserved for the digest work; unused by push. */
+  emailDigest: text("email_digest", { enum: ["off", "weekly", "daily"] })
+    .notNull()
+    .default("weekly"),
+  /** JSON array of muted notification `type` values, e.g. ["like"]. */
+  mutedTypes: text("muted_types", { mode: "json" })
+    .$type<string[]>()
+    .notNull()
+    .default(sql`'[]'`),
+  /** Watermark for the digest job, so it never repeats a notification. */
+  digestLastSentAt: integer("digest_last_sent_at"),
+  updatedAt: integer("updated_at").notNull().default(now),
+});
+
+/*
+ * A person has many subscriptions — one per browser or device. This is the
+ * table the roadmap calls "the push-token table", in its Web Push form: a
+ * native APNs/FCM sibling would sit alongside it later.
+ *
+ * `endpoint` is unique so re-subscribing the same browser upserts rather than
+ * piling up dead rows. `p256dh` and `auth` are the client's keys, needed to
+ * encrypt the payload per RFC 8291.
+ */
+export const pushSubscription = sqliteTable(
+  "push_subscription",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    /** So a person can recognise "Firefox on the laptop" in a device list. */
+    userAgent: text("user_agent"),
+    createdAt: integer("created_at").notNull().default(now),
+    lastSuccessAt: integer("last_success_at"),
+    /** Consecutive failed sends; the row is pruned once it climbs too high. */
+    failureCount: integer("failure_count").notNull().default(0),
+  },
+  (t) => [index("push_subscription_user_idx").on(t.userId)],
+);
+
+/* -------------------------------------------------------------------------- */
 /* Trust and safety                                                           */
 /* -------------------------------------------------------------------------- */
 
@@ -633,6 +697,8 @@ export type PostProduct = typeof postProduct.$inferSelect;
 export type Project = typeof project.$inferSelect;
 export type Comment = typeof comment.$inferSelect;
 export type Notification = typeof notification.$inferSelect;
+export type NotificationPref = typeof notificationPref.$inferSelect;
+export type PushSubscription = typeof pushSubscription.$inferSelect;
 export type Report = typeof report.$inferSelect;
 export type AdPlacement = typeof adPlacement.$inferSelect;
 

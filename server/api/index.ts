@@ -14,6 +14,7 @@ import { news } from "./routes/news";
 import { people } from "./routes/people";
 import { projects } from "./routes/projects";
 import { promos } from "./routes/promos";
+import { push } from "./routes/push";
 import { safety } from "./routes/safety";
 
 /*
@@ -75,6 +76,7 @@ api.route("/v1", commissions);
 api.route("/v1", messages);
 api.route("/v1", market);
 api.route("/v1", contact);
+api.route("/v1", push);
 
 api.notFound((c) =>
   c.json({ error: "not_found", message: "No such endpoint." }, 404),
