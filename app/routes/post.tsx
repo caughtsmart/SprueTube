@@ -54,6 +54,10 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
     throw data({ message: "That post is not here." }, { status: 404 });
   }
 
+  // The author gets a picker of their own recipes and sees their private ones
+  // attached; nobody else does.
+  const isAuthor = scope.viewer?.userId === post.author.userId;
+
   const [comments, ad, postRecipeRows] = await Promise.all([
     scope.db
       .select({
@@ -81,12 +85,11 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
       .orderBy(asc(commentTable.createdAt))
       .limit(200),
     pickAd(scope.db, "post"),
-    getPostRecipes(scope.db, params.postId),
+    getPostRecipes(scope.db, params.postId, { includePrivate: isAuthor }),
   ]);
 
-  // The author gets a picker of their own recipes to attach; nobody else does,
-  // and the attach API refuses a recipe that is not theirs regardless.
-  const isAuthor = scope.viewer?.userId === post.author.userId;
+  // The attach picker is the author's own recipes; the attach API refuses a
+  // recipe that is not theirs regardless.
   const ownRecipes = isAuthor
     ? await listRecipesByOwner(scope.db, post.author.userId, true)
     : [];

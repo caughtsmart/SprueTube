@@ -319,8 +319,20 @@ export async function listRecipesByOwner(
   return visibleInList(rows, isOwner);
 }
 
-/** The recipes attached to a post, for the "paints used" strip on a post page. */
-export async function getPostRecipes(db: Db, postId: string) {
+/**
+ * The recipes attached to a post, for the "paints used" strip on a post page.
+ *
+ * A `private` recipe is the owner's alone even when attached: attaching is a
+ * deliberate act, but "only you" has to keep meaning that, so a private recipe
+ * is hidden from everyone but its owner. `includePrivate` is set only when the
+ * viewer is the post's author (who is also the recipe's owner — attach requires
+ * owning both). Unlisted is shown, matching its "anyone with the link" meaning.
+ */
+export async function getPostRecipes(
+  db: Db,
+  postId: string,
+  options: { includePrivate?: boolean } = {},
+) {
   const links = await db
     .select({ recipeId: postRecipe.recipeId })
     .from(postRecipe)
@@ -328,11 +340,17 @@ export async function getPostRecipes(db: Db, postId: string) {
   if (!links.length) return [];
 
   const ids = links.map((link) => link.recipeId);
-  const recipes = await db.select().from(recipe).where(inArray(recipe.id, ids));
+  const found = await db.select().from(recipe).where(inArray(recipe.id, ids));
+  const recipes = options.includePrivate
+    ? found
+    : found.filter((row) => row.visibility !== "private");
+  if (!recipes.length) return [];
+
+  const visibleIds = recipes.map((row) => row.id);
   const steps = await db
     .select()
     .from(recipeStep)
-    .where(inArray(recipeStep.recipeId, ids))
+    .where(inArray(recipeStep.recipeId, visibleIds))
     .orderBy(recipeStep.position);
 
   return recipes.map((row) => ({

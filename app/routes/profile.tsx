@@ -13,7 +13,7 @@ import { useRoot } from "../root";
 import { pickAd } from "../../server/services/ads";
 import { getProfilePosts } from "../../server/services/feed";
 import { listRecipesByOwner } from "../../server/services/recipes";
-import { block, follow, profile, project, recipe } from "../../server/db/schema";
+import { block, follow, profile, project } from "../../server/db/schema";
 import {
   GAME_SYSTEM_LABELS,
   PROJECT_STATUS_LABELS,

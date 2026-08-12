@@ -28,6 +28,11 @@ export function meta({ loaderData: loaded }: Route.MetaArgs) {
     { property: "og:title", content: recipe.title },
     { property: "og:description", content: description },
     { property: "og:type", content: "article" },
+    // Only a public recipe is for search. "Unlisted" means link-only, so it
+    // must not be indexed if a crawler ever finds the URL.
+    ...(recipe.visibility === "public"
+      ? []
+      : [{ name: "robots", content: "noindex" }]),
   ];
 }
 

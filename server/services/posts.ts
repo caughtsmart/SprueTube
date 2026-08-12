@@ -169,14 +169,15 @@ export async function createPost(
   if (input.products?.length) {
     const capped = input.products.slice(0, 20);
     // Resolve paint names to shop links at write time, so the feed never calls
-    // the shop. Only paints, and only where the client did not already resolve
-    // one. `resolvePaints` is a no-op returning nulls when the shop is not
-    // configured or `env` is absent, so a post never depends on it.
+    // the shop. Only paints, and only where the client did not already supply a
+    // link — a product that already has one is not looked up. `resolvePaints`
+    // is a no-op returning nulls when the shop is not configured or `env` is
+    // absent, so a post never depends on it.
     const resolved = env
       ? await resolvePaints(
           env,
           capped.map((product) =>
-            (product.kind ?? "paint") === "paint"
+            !product.shopUrl && (product.kind ?? "paint") === "paint"
               ? { name: product.name, brand: product.brand }
               : null,
           ),
