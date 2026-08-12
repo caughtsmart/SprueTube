@@ -92,7 +92,7 @@ const SLOT_IDS: Record<string, string> = {
   // Slot ids from the AdSense dashboard. An empty slot keeps serving the house
   // ad, so positions can be switched on one at a time.
   feed: "2579941153",
-  sidebar: "",
+  sidebar: "6407505526",
   post: "2659832205",
 };
 
@@ -139,7 +139,7 @@ function AdSenseUnit({
         style={{ display: "block", textAlign: slot === "post" ? "center" : undefined }}
         data-ad-client={client}
         data-ad-slot={slotId}
-        data-ad-format={slot === "sidebar" ? "vertical" : "fluid"}
+        data-ad-format={slot === "sidebar" ? "auto" : "fluid"}
         data-ad-layout={slot === "post" ? "in-article" : undefined}
         data-ad-layout-key={slot === "feed" ? "-fl+5z+3v-d0+94" : undefined}
         data-full-width-responsive="true"
