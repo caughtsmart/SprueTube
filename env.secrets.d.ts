@@ -20,4 +20,20 @@ declare interface Env {
   /** Services id for Sign in with Apple, required before iOS submission. */
   APPLE_CLIENT_ID: string;
   APPLE_CLIENT_SECRET: string;
+
+  /*
+   * Web Push (VAPID). All three unset ⇒ push is disabled and every send is a
+   * no-op, the same way the mailer is without its binding. Generate a pair with
+   * `node scripts/generate-vapid-keys.mjs`.
+   *
+   * PUBLIC_KEY is genuinely public — it is shipped to every browser so it can
+   * subscribe — but it lives here rather than in wrangler.jsonc so the three
+   * move together and an environment with no keys stays a clean no-op.
+   */
+  /** base64url of the 65-byte uncompressed P-256 point. Sent to browsers. */
+  VAPID_PUBLIC_KEY: string;
+  /** base64url of the 32-byte private scalar. Signs push requests — a secret. */
+  VAPID_PRIVATE_KEY: string;
+  /** Contact for the push service, e.g. "mailto:safety@spruetube.app". */
+  VAPID_SUBJECT: string;
 }

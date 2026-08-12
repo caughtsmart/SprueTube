@@ -1,10 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Form, redirect } from "react-router";
 import type { Route } from "./+types/settings";
 import { Avatar } from "../components/Avatar";
 import { api, ApiError, uploadImage } from "../lib/api";
 import { getScope } from "../lib/data.server";
 import { imageSrc } from "../lib/media";
+import {
+  disablePush,
+  enablePush,
+  isSubscribed,
+  pushPermission,
+  pushSupported,
+} from "../lib/push";
 import { useRoot } from "../root";
 import {
   GAME_SYSTEMS,
@@ -264,6 +271,8 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 
       {loaderData.hasPassword ? <ChangePassword /> : null}
 
+      <NotificationSettings />
+
       <section className="st-card mt-5 p-4 sm:p-5">
         <h2 className="text-base font-semibold">Your account</h2>
         <p className="st-text-muted mt-1 text-sm">
@@ -284,6 +293,107 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
         </Form>
       </section>
     </div>
+  );
+}
+
+/**
+ * Web Push, per browser.
+ *
+ * A subscription belongs to this exact browser, not the account, so the toggle
+ * reflects the browser's own state — the permission it granted and whether it
+ * currently holds a subscription — not just a database flag. A person can have
+ * push on their phone and off on this laptop, and the button has to tell the
+ * truth about the device it is on.
+ */
+function NotificationSettings() {
+  const { config, viewer } = useRoot();
+  const [supported, setSupported] = useState<boolean | null>(null);
+  const [subscribed, setSubscribed] = useState(false);
+  const [permission, setPermission] = useState<
+    NotificationPermission | "unsupported"
+  >("default");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSupported(pushSupported());
+    setPermission(pushPermission());
+    void isSubscribed().then(setSubscribed);
+  }, []);
+
+  // Push has no meaning for a signed-out visitor, and none if the server has no
+  // VAPID key to hand the browser.
+  if (!viewer || !config.vapidPublicKey) return null;
+
+  async function toggle() {
+    setBusy(true);
+    setError(null);
+    try {
+      if (subscribed) {
+        await disablePush();
+        setSubscribed(false);
+      } else {
+        const ok = await enablePush(config.vapidPublicKey!);
+        setSubscribed(ok);
+        setPermission(pushPermission());
+        if (!ok) {
+          setError("You will need to allow notifications to turn these on.");
+        }
+      }
+    } catch {
+      setError("Could not change that. Try again in a moment.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const blocked = permission === "denied";
+
+  return (
+    <section className="st-card mt-5 p-4 sm:p-5">
+      <h2 className="text-base font-semibold">Notifications</h2>
+      <p className="st-text-muted mt-1 text-sm">
+        Get a push notification on this device when someone likes, comments,
+        follows or messages you — even when the tab is closed.
+      </p>
+
+      {supported === false ? (
+        <p className="st-text-muted mt-3 text-sm">
+          This browser cannot do push notifications. Try Chrome, Firefox, Edge,
+          or add SprueTube to your home screen on iOS.
+        </p>
+      ) : blocked ? (
+        <p className="st-text-muted mt-3 text-sm">
+          Notifications are blocked for SprueTube in your browser settings.
+          Allow them there, then come back and turn this on.
+        </p>
+      ) : (
+        <div className="mt-4 flex items-center justify-between gap-4">
+          <span className="text-sm">
+            Push on this device is{" "}
+            <span className="st-text-strong font-semibold">
+              {subscribed ? "on" : "off"}
+            </span>
+            .
+          </span>
+          <button
+            type="button"
+            onClick={toggle}
+            disabled={busy || supported === null}
+            aria-pressed={subscribed}
+            className={`st-btn ${subscribed ? "st-btn-ghost" : "st-btn-primary"}`}
+          >
+            {busy
+              ? "Just a moment…"
+              : subscribed
+                ? "Turn off"
+                : "Turn on"}
+          </button>
+        </div>
+      )}
+
+      {error ? <p className="st-error mt-3">{error}</p> : null}
+    </section>
   );
 }
 

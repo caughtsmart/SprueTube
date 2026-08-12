@@ -19,6 +19,7 @@ import type { Db } from "../db/client";
 import { newId } from "../db/id";
 import { block, conversation, message, profile } from "../db/schema";
 import { createNotification } from "./posts";
+import type { PushDelivery } from "./push";
 import { encodeCursor, decodeCursor } from "./feed";
 import { MAX_MESSAGE_LENGTH } from "../../app/lib/taxonomy";
 
@@ -435,6 +436,7 @@ export async function listMessages(
 export async function sendMessage(
   db: Db,
   input: { conversationId: string; senderId: string; body: string },
+  delivery?: PushDelivery,
 ): Promise<{ id: string; createdAt: number }> {
   const row = await db.query.conversation.findFirst({
     where: eq(conversation.id, input.conversationId),
@@ -481,14 +483,18 @@ export async function sendMessage(
    * single message is not a place anyone can navigate to — a thread is — and
    * the only job of this notification is to open the right one.
    */
-  await createNotification(db, {
-    userId: recipientId,
-    actorId: input.senderId,
-    type: "message",
-    subjectType: "message",
-    subjectId: row.id,
-    preview: messagePreview(validated.body),
-  });
+  await createNotification(
+    db,
+    {
+      userId: recipientId,
+      actorId: input.senderId,
+      type: "message",
+      subjectType: "message",
+      subjectId: row.id,
+      preview: messagePreview(validated.body),
+    },
+    delivery,
+  );
 
   return { id, createdAt: nowSeconds };
 }

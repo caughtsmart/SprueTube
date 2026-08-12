@@ -3,6 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { getAuth } from "../auth";
 import { createDb, type Db } from "../db/client";
 import type { Profile } from "../db/schema";
+import type { PushDelivery } from "../services/push";
 
 export type SessionUser = {
   id: string;
@@ -114,6 +115,19 @@ export function apiError(
   return new HTTPException(status, {
     res: json({ error, message, ...extra }, status),
   });
+}
+
+/**
+ * The handle a notification-creating service needs to also fan out over Web
+ * Push. `waitUntil` keeps the send off the response's critical path — the like
+ * returns immediately and the push happens after. Pass this to any service that
+ * calls `createNotification` and wants the notification delivered off-device.
+ */
+export function pushDelivery(c: ApiContext): PushDelivery {
+  return {
+    env: c.env,
+    waitUntil: (promise) => c.executionCtx.waitUntil(promise),
+  };
 }
 
 export const unauthorized = () =>

@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import {
   apiError,
   badRequest,
+  pushDelivery,
   rateLimit,
   requireAuth,
   type ApiEnv,
@@ -120,11 +121,15 @@ messages.post("/conversations/:id/messages", requireAuth, async (c) => {
   }
 
   try {
-    const sent = await sendMessage(c.get("db"), {
-      conversationId: c.req.param("id"),
-      senderId: c.get("user")!.id,
-      body: validated.body,
-    });
+    const sent = await sendMessage(
+      c.get("db"),
+      {
+        conversationId: c.req.param("id"),
+        senderId: c.get("user")!.id,
+        body: validated.body,
+      },
+      pushDelivery(c),
+    );
     return c.json(sent, 201);
   } catch (error) {
     throw translate(error);

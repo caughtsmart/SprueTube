@@ -75,10 +75,12 @@ When it does happen, the order that works:
    other social login exists. Re-add the bearer plugin then.
 3. **Posting.** The camera is the reason a hobby app exists on a phone. Direct
    upload to Images works identically from a native client.
-4. **Push.** Re-add the token table and an APNs sender. Web Push (browsers and
-   installed PWAs, no app required) is designed in
-   [`docs/NOTIFICATIONS.md`](NOTIFICATIONS.md) and reuses the same
-   `pushToUser` shape; native APNs is the mobile sibling of it.
+4. **Push.** ~~Web Push~~ is **done** — browsers and installed PWAs, no app
+   required, built on the current Worker with a VAPID key pair and no
+   dependency. See [`docs/NOTIFICATIONS.md`](NOTIFICATIONS.md). Native APNs is
+   the mobile sibling: re-add the token table in its APNs form and an APNs
+   sender alongside the existing `pushToUser`, which is already the shared
+   fan-out point.
 
 Build it with **Expo** — this codebase is already TypeScript and React, and the
 taxonomy and API-client modules port straight across.

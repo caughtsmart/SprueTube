@@ -1,10 +1,19 @@
 # Notifications: Web Push and email digests
 
-A design for reaching people when they are not looking at the site. Today
-notifications are in-app only — a row in the `notification` table, a bell badge,
-a list at `/notifications`. Nobody is told anything until they open the tab.
+A design for reaching people when they are not looking at the site. Until
+recently notifications were in-app only — a row in the `notification` table, a
+bell badge, a list at `/notifications`, and nothing until the tab was opened.
 This document plans the two channels that change that, in the order they should
 be built: **Web Push** first, **email digests** second.
+
+> **Status.** Web Push is **built** — the `notification_pref` and
+> `push_subscription` tables, the `server/services/push.ts` sender (VAPID +
+> aes128gcm, no dependencies), the `createNotification` fan-out, the
+> subscribe/unsubscribe API, the `/sw.js` service worker, and the Settings
+> toggle all shipped. Turn it on for an environment by setting the three
+> `VAPID_*` keys (`node scripts/generate-vapid-keys.mjs`); with them unset every
+> send is a no-op. **Email digests remain a design** — the sections below are
+> the plan of record for that half.
 
 Native mobile push (APNs/FCM) is out of scope here — it is gated on the iOS app,
 which does not exist yet. See `docs/ROADMAP.md`. Everything below runs on the

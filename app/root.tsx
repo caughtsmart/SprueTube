@@ -47,6 +47,7 @@ export function useRoot(): RootData {
         shopUrl: "https://www.loadeddice.uk",
         adsenseClient: null,
         imagesAccountHash: "",
+        vapidPublicKey: null,
       },
     }
   );

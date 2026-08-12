@@ -16,6 +16,7 @@ import {
   tag,
 } from "../db/schema";
 import { hotScore } from "./ranking";
+import { pushToUser, type PushDelivery } from "./push";
 
 import {
   MAX_BODY_LENGTH,
@@ -97,6 +98,7 @@ export async function createPost(
   db: Db,
   authorId: string,
   input: CreatePostInput,
+  delivery?: PushDelivery,
 ): Promise<{ id: string; status: "published" }> {
   const id = newId("p");
   const nowSeconds = Math.floor(Date.now() / 1000);
@@ -218,7 +220,7 @@ export async function createPost(
   // either all land or none do.
   await db.batch(statements as [any, ...any[]]);
 
-  await notifyMentions(db, { authorId, postId: id, body });
+  await notifyMentions(db, { authorId, postId: id, body }, delivery);
 
   return { id, status };
 }
@@ -296,6 +298,7 @@ export async function setPostLike(
   userId: string,
   postId: string,
   liked: boolean,
+  delivery?: PushDelivery,
 ): Promise<{ liked: boolean; likeCount: number }> {
   const target = await db.query.post.findFirst({ where: eq(post.id, postId) });
   if (!target) throw new Error("post_not_found");
@@ -322,13 +325,17 @@ export async function setPostLike(
         .where(eq(post.id, postId)),
     ]);
     if (target.authorId !== userId) {
-      await createNotification(db, {
-        userId: target.authorId,
-        actorId: userId,
-        type: "like",
-        subjectType: "post",
-        subjectId: postId,
-      });
+      await createNotification(
+        db,
+        {
+          userId: target.authorId,
+          actorId: userId,
+          type: "like",
+          subjectType: "post",
+          subjectId: postId,
+        },
+        delivery,
+      );
     }
   } else {
     await db.batch([
@@ -377,6 +384,7 @@ export async function addComment(
   postId: string,
   body: string,
   parentId?: string | null,
+  delivery?: PushDelivery,
 ) {
   const target = await db.query.post.findFirst({ where: eq(post.id, postId) });
   if (!target || target.deletedAt) throw new Error("post_not_found");
@@ -409,14 +417,18 @@ export async function addComment(
   ]);
 
   if (target.authorId !== authorId) {
-    await createNotification(db, {
-      userId: target.authorId,
-      actorId: authorId,
-      type: resolvedParent ? "reply" : "comment",
-      subjectType: "post",
-      subjectId: postId,
-      preview: body.trim().slice(0, 140),
-    });
+    await createNotification(
+      db,
+      {
+        userId: target.authorId,
+        actorId: authorId,
+        type: resolvedParent ? "reply" : "comment",
+        subjectType: "post",
+        subjectId: postId,
+        preview: body.trim().slice(0, 140),
+      },
+      delivery,
+    );
   }
 
   // The person being replied to also wants to know, unless they are the author
@@ -426,18 +438,22 @@ export async function addComment(
       where: eq(comment.id, resolvedParent),
     });
     if (parent && parent.authorId !== authorId && parent.authorId !== target.authorId) {
-      await createNotification(db, {
-        userId: parent.authorId,
-        actorId: authorId,
-        type: "reply",
-        subjectType: "post",
-        subjectId: postId,
-        preview: body.trim().slice(0, 140),
-      });
+      await createNotification(
+        db,
+        {
+          userId: parent.authorId,
+          actorId: authorId,
+          type: "reply",
+          subjectType: "post",
+          subjectId: postId,
+          preview: body.trim().slice(0, 140),
+        },
+        delivery,
+      );
     }
   }
 
-  await notifyMentions(db, { authorId, postId, body });
+  await notifyMentions(db, { authorId, postId, body }, delivery);
   await refreshHotScore(db, postId);
 
   return id;
@@ -500,6 +516,7 @@ export async function setFollow(
   followerId: string,
   followeeId: string,
   following: boolean,
+  delivery?: PushDelivery,
 ) {
   if (followerId === followeeId) return { following: false };
 
@@ -522,13 +539,17 @@ export async function setFollow(
         .set({ followingCount: sql`${profile.followingCount} + 1` })
         .where(eq(profile.userId, followerId)),
     ]);
-    await createNotification(db, {
-      userId: followeeId,
-      actorId: followerId,
-      type: "follow",
-      subjectType: "user",
-      subjectId: followerId,
-    });
+    await createNotification(
+      db,
+      {
+        userId: followeeId,
+        actorId: followerId,
+        type: "follow",
+        subjectType: "user",
+        subjectId: followerId,
+      },
+      delivery,
+    );
   } else if (!following && existing) {
     await db.batch([
       db
@@ -582,6 +603,12 @@ export async function createNotification(
     subjectId?: string | null;
     preview?: string | null;
   },
+  /*
+   * When present, the same notification is also delivered by Web Push, out of
+   * band on `waitUntil` so it never sits on the request's critical path. Absent
+   * ⇒ in-app only — every existing caller keeps working by passing nothing.
+   */
+  delivery?: PushDelivery,
 ) {
   await db.insert(notification).values({
     id: newId("n"),
@@ -592,11 +619,20 @@ export async function createNotification(
     subjectId: input.subjectId ?? null,
     preview: input.preview ?? null,
   });
+
+  if (delivery) {
+    delivery.waitUntil(
+      pushToUser(delivery.env, input).catch((error) =>
+        console.error("push: fan-out failed", error),
+      ),
+    );
+  }
 }
 
 async function notifyMentions(
   db: Db,
   input: { authorId: string; postId: string; body: string | null | undefined },
+  delivery?: PushDelivery,
 ) {
   const usernames = extractMentions(input.body);
   if (!usernames.length) return;
@@ -613,13 +649,17 @@ async function notifyMentions(
 
   for (const row of mentioned) {
     if (row.userId === input.authorId) continue;
-    await createNotification(db, {
-      userId: row.userId,
-      actorId: input.authorId,
-      type: "mention",
-      subjectType: "post",
-      subjectId: input.postId,
-      preview: input.body?.slice(0, 140) ?? null,
-    });
+    await createNotification(
+      db,
+      {
+        userId: row.userId,
+        actorId: input.authorId,
+        type: "mention",
+        subjectType: "post",
+        subjectId: input.postId,
+        preview: input.body?.slice(0, 140) ?? null,
+      },
+      delivery,
+    );
   }
 }

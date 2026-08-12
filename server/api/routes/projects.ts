@@ -5,6 +5,7 @@ import {
   apiError,
   badRequest,
   fieldErrors,
+  pushDelivery,
   rateLimit,
   requireAuth,
   type ApiEnv,
@@ -234,6 +235,7 @@ projects.post("/projects/:id/comments", requireAuth, async (c) => {
       c.req.param("id"),
       parsed.data.body,
       parsed.data.parentId,
+      pushDelivery(c),
     );
     return c.json({ id }, 201);
   } catch (error) {
@@ -298,6 +300,7 @@ projects.post(
         c.req.param("mediaId"),
         parsed.data.body,
         parsed.data.parentId,
+        pushDelivery(c),
       );
       return c.json({ id }, 201);
     } catch (error) {
