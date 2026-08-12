@@ -387,13 +387,14 @@ guesswork until you have looked.
 Three things that produce "it just never turned up", in the order they are
 worth checking:
 
-1. **You sent it from the destination address.** Sending from
+1. **You sent it from the destination address.** This is what it was in August
+   2026, after an afternoon spent looking everywhere else. Sending from
    `graham@loadeddice.uk` to `hello@spruetube.app`, which forwards straight back
-   to `graham@loadeddice.uk`, is the single most likely cause. Google suppresses
-   a message that returns to the account that sent it — it is not in the inbox,
-   not in spam, and nothing anywhere reports a failure. Cloudflare's own
-   documentation says to test from a different account for exactly this reason.
-   Send from a personal address on another provider before concluding anything.
+   to `graham@loadeddice.uk`, means Google suppresses the message as one
+   returning to the account that sent it — not in the inbox, not in spam,
+   nothing anywhere reporting a failure. Cloudflare's own documentation says to
+   test from a different account for exactly this reason. Send from a personal
+   address on another provider before concluding anything is broken.
 2. **A destination address has not been verified.** Its rule stays disabled and
    the mail is dropped. Destination Addresses shows this and nothing else does.
 3. **The routing rule is disabled**, or its pattern does not match. Check the

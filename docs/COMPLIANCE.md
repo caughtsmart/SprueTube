@@ -41,26 +41,24 @@ from.
       `app/lib/legal.ts` and guarded by a test that fails if it is ever removed.
       A role address, so no personal address is on a page that is crawled and
       scraped, and so the person reading it can change without a deploy.
-- [ ] **Point it at a human.** DNS is now in place; delivery is unconfirmed.
+- [x] **Point it at a human.** Confirmed by delivery on 12 August 2026: a
+      message sent to `hello@spruetube.app` from an unrelated account arrived.
 
-      Email Routing was onboarded on 10 August 2026 and all three of its records
-      are live on the root domain — three `*.mx.cloudflare.net` MX entries,
+      Email Routing was onboarded on 10 August; all three of its records are
+      live on the root domain — three `*.mx.cloudflare.net` MX entries,
       `v=spf1 include:_spf.mx.cloudflare.net ~all`, and the `cf2024-1` DKIM key.
-      Earlier that day the domain had **no MX at all**, which is why nothing
-      sent to `hello@` could arrive.
 
-      What DNS cannot show is the last hop: whether both destination addresses
-      have clicked their verification email, and whether the `hello` routing
-      rule exists and is enabled. A rule pointing at an unverified destination
-      stays disabled and drops mail without bouncing it, so the symptom is
-      identical to the one already fixed. **Tick this only after a message sent
-      from outside lands in both inboxes.**
-
-      Worth keeping in mind for next time: this was briefly ticked off on the
-      strength of a test that appeared to work, without checking DNS. DNS is
-      what decides. Outbound mail — password resets, the contact form — runs
-      through the Email Sending binding and never consults the MX, so it kept
-      working throughout and told us nothing about the inbound side.
+      Two days were lost to this, and both dead ends are worth remembering.
+      First it was ticked off on the strength of a test that seemed to work,
+      without checking DNS — and the domain had no MX at all, so nothing could
+      ever have arrived. Outbound mail runs through the Email Sending binding
+      and never consults the MX, so password resets and the contact form kept
+      working throughout and proved nothing about the inbound side. Then, once
+      the MX existed, the test still appeared to fail because it was sent from
+      the destination address itself: Google suppresses a message that returns
+      to the account that sent it, so it was neither in the inbox nor in spam.
+      Email Routing sends no non-delivery reports, so nothing reported either
+      fault. Troubleshooting order is in `docs/DEPLOY.md` §11.
 - [ ] **Decide who moderates, and when.** One person is enough at this size, but
       "nobody looks at the queue at weekends" is a decision you should make
       deliberately rather than discover.
