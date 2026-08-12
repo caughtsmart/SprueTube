@@ -431,6 +431,10 @@ of losers).
 
 # Part three: the adjacent bet — Recipes
 
+> Now designed in full in **`docs/RECIPES.md`**. The summary below is why it
+> belongs at the top of "what to build next"; the schema, the paint-resolution
+> engine, forking and the SEO surface live in that document.
+
 The strongest "different / better than Reddit" idea to come out of review is not
 in either half above, so it gets its own note. The best answers to "what colours
 did you use" currently evaporate into comment threads. `post_product` — the
