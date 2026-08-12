@@ -1,5 +1,6 @@
 import { Link, NavLink, useLocation } from "react-router";
 import { useRoot } from "../root";
+import { AdSlot } from "./AdSlot";
 import { Avatar } from "./Avatar";
 import { Logo } from "./Logo";
 
@@ -29,6 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         <SideNav />
         <main className="min-w-0 flex-1 py-5">{children}</main>
+        <SideRail />
       </div>
       {viewer ? <MobileBar /> : null}
     </div>
@@ -151,6 +153,22 @@ function SideNav() {
         <FooterLinks />
       </div>
     </nav>
+  );
+}
+
+/*
+ * A right rail that only appears once there is room for it — a 300px ad plus
+ * the feed plus the left nav needs a wide viewport, so it is hidden below xl
+ * rather than squeezing the feed on laptops. Empty (unfilled or ad-blocked)
+ * it collapses to nothing.
+ */
+function SideRail() {
+  return (
+    <aside className="hidden w-[300px] shrink-0 py-5 xl:block">
+      <div className="sticky top-20">
+        <AdSlot slot="sidebar" ad={null} />
+      </div>
+    </aside>
   );
 }
 

@@ -92,7 +92,7 @@ const SLOT_IDS: Record<string, string> = {
   // Slot ids from the AdSense dashboard. An empty slot keeps serving the house
   // ad, so positions can be switched on one at a time.
   feed: "2579941153",
-  sidebar: "6407505526",
+  sidebar: "8595323192",
   post: "2659832205",
 };
 
@@ -133,17 +133,29 @@ function AdSenseUnit({
       <p className="st-text-muted mb-1 text-[0.625rem] font-semibold tracking-widest uppercase">
         Advertisement
       </p>
-      <ins
-        ref={ref}
-        className="adsbygoogle block w-full max-w-full"
-        style={{ display: "block", textAlign: slot === "post" ? "center" : undefined }}
-        data-ad-client={client}
-        data-ad-slot={slotId}
-        data-ad-format={slot === "sidebar" ? "auto" : "fluid"}
-        data-ad-layout={slot === "post" ? "in-article" : undefined}
-        data-ad-layout-key={slot === "feed" ? "-fl+5z+3v-d0+94" : undefined}
-        data-full-width-responsive="true"
-      />
+      {slot === "sidebar" ? (
+        // Fixed 300x600 unit — no format/responsive attributes; the size is the
+        // whole point of a fixed unit, and the rail it sits in is 300px wide.
+        <ins
+          ref={ref}
+          className="adsbygoogle"
+          style={{ display: "inline-block", width: 300, height: 600 }}
+          data-ad-client={client}
+          data-ad-slot={slotId}
+        />
+      ) : (
+        <ins
+          ref={ref}
+          className="adsbygoogle block w-full max-w-full"
+          style={{ display: "block", textAlign: slot === "post" ? "center" : undefined }}
+          data-ad-client={client}
+          data-ad-slot={slotId}
+          data-ad-format="fluid"
+          data-ad-layout={slot === "post" ? "in-article" : undefined}
+          data-ad-layout-key={slot === "feed" ? "-fl+5z+3v-d0+94" : undefined}
+          data-full-width-responsive="true"
+        />
+      )}
     </aside>
   );
 }
