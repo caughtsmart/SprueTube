@@ -19,6 +19,32 @@ Native mobile push (APNs/FCM) is out of scope here — it is gated on the iOS ap
 which does not exist yet. See `docs/ROADMAP.md`. Everything below runs on the
 current stack: one Cloudflare Worker, D1, KV, Drizzle.
 
+## Turning Web Push on
+
+The code is live but dormant until the VAPID keys exist. To switch it on in
+production (roughly ten minutes, most of it the deploy):
+
+1. **Merge PR #14** if it is not already in `main`.
+2. **Mint the key pair** — `node scripts/generate-vapid-keys.mjs`. Generate it
+   once and keep it; regenerating invalidates every existing subscription
+   (browsers re-subscribe on their next Settings visit, so it is recoverable).
+   Point `VAPID_SUBJECT` at a mailbox you actually read.
+3. **Apply the migration** — `npm run db:migrate:remote` (creates
+   `notification_pref` and `push_subscription`; additive, touches nothing else).
+4. **Set the three secrets** —
+   `echo -n "<value>" | npx wrangler secret put VAPID_PUBLIC_KEY`, and the same
+   for `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT`.
+5. **Deploy** — `npm run deploy`.
+6. **Verify** — Settings → Notifications now shows the toggle; `curl
+   https://spruetube.app/api/v1/push/config` returns the public key; a like or
+   comment from a second account produces a push with the tab closed.
+
+Notes: HTTPS only (localhost counts); iPhone needs the site added to the Home
+Screen before it will push; the toggle is per-device, not per-account; a like or
+comment on your own post never notifies you, so test with a second account. To
+try it locally first, put the keys in `.dev.vars`, `npm run db:migrate:local`,
+`npm run dev`.
+
 ## Principles
 
 - **One write path already exists — use it.** Every interaction that becomes a
