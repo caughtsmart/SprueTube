@@ -89,8 +89,9 @@ function HouseAd({ ad, className }: { ad: ServedAd; className?: string }) {
 }
 
 const SLOT_IDS: Record<string, string> = {
-  // Fill these in from the AdSense dashboard once the site is approved.
-  feed: "",
+  // Slot ids from the AdSense dashboard. An empty slot keeps serving the house
+  // ad, so positions can be switched on one at a time.
+  feed: "2579941153",
   sidebar: "",
   post: "",
 };
@@ -139,7 +140,7 @@ function AdSenseUnit({
         data-ad-client={client}
         data-ad-slot={slotId}
         data-ad-format={slot === "sidebar" ? "vertical" : "fluid"}
-        data-ad-layout-key={slot === "feed" ? "-fb+5w+4e-db+86" : undefined}
+        data-ad-layout-key={slot === "feed" ? "-fl+5z+3v-d0+94" : undefined}
         data-full-width-responsive="true"
       />
     </aside>
