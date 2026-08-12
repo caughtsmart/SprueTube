@@ -257,6 +257,8 @@ export const MUTABLE_NOTIFICATION_TYPES = [
   "mention",
   "message",
   "listing_reply",
+  "recipe_saved",
+  "recipe_forked",
 ] as const;
 
 /*
@@ -280,5 +282,8 @@ export const pushUnsubscribeSchema = z.object({
 /** Notification preferences a person can change from Settings. */
 export const notificationPrefSchema = z.object({
   emailDigest: z.enum(["off", "weekly", "daily"]).optional(),
-  mutedTypes: z.array(z.enum(MUTABLE_NOTIFICATION_TYPES)).max(8).optional(),
+  mutedTypes: z
+    .array(z.enum(MUTABLE_NOTIFICATION_TYPES))
+    .max(MUTABLE_NOTIFICATION_TYPES.length)
+    .optional(),
 });

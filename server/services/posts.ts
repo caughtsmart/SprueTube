@@ -609,7 +609,9 @@ export async function createNotification(
       | "mention"
       | "system"
       | "message"
-      | "listing_reply";
+      | "listing_reply"
+      | "recipe_saved"
+      | "recipe_forked";
     subjectType?:
       | "post"
       | "comment"
@@ -617,6 +619,7 @@ export async function createNotification(
       | "project"
       | "listing"
       | "message"
+      | "recipe"
       | null;
     subjectId?: string | null;
     preview?: string | null;

@@ -34,6 +34,8 @@ const MAX_FAILURES = 5;
 const TTL_SECONDS = 24 * 60 * 60;
 
 export type NotificationType =
+  | "recipe_saved"
+  | "recipe_forked"
   | "like"
   | "comment"
   | "reply"
@@ -54,6 +56,7 @@ export type PushNotificationInput = {
     | "project"
     | "listing"
     | "message"
+    | "recipe"
     | null;
   subjectId?: string | null;
   preview?: string | null;
@@ -132,6 +135,8 @@ const VERB: Record<NotificationType, string> = {
   mention: "mentioned you",
   message: "sent you a message",
   listing_reply: "replied about your listing",
+  recipe_saved: "saved your recipe",
+  recipe_forked: "adapted your recipe",
   system: "",
 };
 

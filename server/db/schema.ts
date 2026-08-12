@@ -464,10 +464,12 @@ export const notification = sqliteTable(
         "system",
         "message",
         "listing_reply",
+        "recipe_saved",
+        "recipe_forked",
       ],
     }).notNull(),
     subjectType: text("subject_type", {
-      enum: ["post", "comment", "user", "project", "listing", "message"],
+      enum: ["post", "comment", "user", "project", "listing", "message", "recipe"],
     }),
     subjectId: text("subject_id"),
     /** Short pre-rendered line, so the list needs no extra joins. */
@@ -1046,5 +1048,27 @@ export const postRecipe = sqliteTable(
     primaryKey({ columns: [t.postId, t.recipeId] }),
     // "Which posts use this recipe" — the reverse of the primary key.
     index("post_recipe_recipe_idx").on(t.recipeId),
+  ],
+);
+
+/**
+ * A recipe kept in someone's collection. Idempotent by its composite key, the
+ * same shape as `like`, so a double-save cannot inflate `save_count`.
+ */
+export const recipeSave = sqliteTable(
+  "recipe_save",
+  {
+    recipeId: text("recipe_id")
+      .notNull()
+      .references(() => recipe.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [
+    primaryKey({ columns: [t.recipeId, t.userId] }),
+    // A person's saved recipes, newest first.
+    index("recipe_save_user_idx").on(t.userId, t.createdAt),
   ],
 );

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link, redirect } from "react-router";
-import { and, desc, eq, isNull, notInArray, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, notInArray, or } from "drizzle-orm";
 import type { Route } from "./+types/notifications";
 import { Avatar } from "../components/Avatar";
 import { api } from "../lib/api";
@@ -8,7 +8,7 @@ import { getScope } from "../lib/data.server";
 import { timeAgo } from "../lib/format";
 import { imageSrc } from "../lib/media";
 import { useRoot } from "../root";
-import { notification, profile } from "../../server/db/schema";
+import { notification, profile, recipe } from "../../server/db/schema";
 import { blockedUserIds } from "../../server/services/moderation";
 
 export function meta() {
@@ -58,7 +58,29 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     .orderBy(desc(notification.createdAt))
     .limit(100);
 
-  return { notifications: rows };
+  // Recipe notifications (saved/forked) point at the viewer's own recipe, so
+  // the link needs its slug — resolved here in one lookup rather than per row.
+  const recipeIds = [
+    ...new Set(
+      rows
+        .filter((row) => row.subjectType === "recipe" && row.subjectId)
+        .map((row) => row.subjectId as string),
+    ),
+  ];
+  const recipeSlugs: Record<string, string> = {};
+  if (recipeIds.length) {
+    const found = await scope.db
+      .select({ id: recipe.id, slug: recipe.slug })
+      .from(recipe)
+      .where(inArray(recipe.id, recipeIds));
+    for (const row of found) recipeSlugs[row.id] = row.slug;
+  }
+
+  return {
+    notifications: rows,
+    viewerUsername: scope.viewer.profile.username,
+    recipeSlugs,
+  };
 }
 
 const VERB: Record<string, string> = {
@@ -69,6 +91,8 @@ const VERB: Record<string, string> = {
   mention: "mentioned you",
   message: "sent you a message",
   listing_reply: "replied about your listing",
+  recipe_saved: "saved your recipe",
+  recipe_forked: "adapted your recipe",
   system: "",
 };
 
@@ -108,6 +132,10 @@ export default function Notifications({ loaderData }: Route.ComponentProps) {
            * someone in the middle of a thread is worse than landing them at the
            * top of it.
            */
+          const recipeSlug =
+            item.subjectType === "recipe" && item.subjectId
+              ? loaderData.recipeSlugs[item.subjectId]
+              : undefined;
           const href =
             item.type === "follow"
               ? `/@${item.actorUsername ?? ""}`
@@ -115,7 +143,9 @@ export default function Notifications({ loaderData }: Route.ComponentProps) {
                 ? `/messages/${item.subjectId}`
                 : item.subjectType === "post" && item.subjectId
                   ? `/posts/${item.subjectId}`
-                  : "/";
+                  : recipeSlug
+                    ? `/@${loaderData.viewerUsername}/recipes/${recipeSlug}`
+                    : "/";
 
           return (
             <li

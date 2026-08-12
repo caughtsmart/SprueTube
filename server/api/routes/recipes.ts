@@ -4,6 +4,7 @@ import {
   apiError,
   badRequest,
   fieldErrors,
+  pushDelivery,
   requireAuth,
   type ApiEnv,
 } from "../context";
@@ -20,8 +21,11 @@ import {
   deleteRecipe,
   detachRecipeFromPost,
   findRecipe,
+  forkRecipe,
   getRecipeWithSteps,
   listRecipesByOwner,
+  saveRecipe,
+  unsaveRecipe,
   updateRecipe,
 } from "../../services/recipes";
 
@@ -115,6 +119,48 @@ recipes.delete("/recipes/:id", requireAuth, async (c) => {
   const ok = await deleteRecipe(c.get("db"), c.get("user")!.id, c.req.param("id"));
   if (!ok) throw apiError(404, "not_found", "That recipe is not yours.");
   return c.json({ ok: true });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Save and fork                                                              */
+/* -------------------------------------------------------------------------- */
+
+recipes.post("/recipes/:id/save", requireAuth, async (c) => {
+  const result = await saveRecipe(
+    c.get("db"),
+    c.get("user")!.id,
+    c.req.param("id"),
+    pushDelivery(c),
+  );
+  if (result === "not_found") {
+    throw apiError(404, "not_found", "No such recipe.");
+  }
+  return c.json({ ok: true, saved: true });
+});
+
+recipes.delete("/recipes/:id/save", requireAuth, async (c) => {
+  const result = await unsaveRecipe(
+    c.get("db"),
+    c.get("user")!.id,
+    c.req.param("id"),
+  );
+  if (result === "not_found") {
+    throw apiError(404, "not_found", "That recipe was not saved.");
+  }
+  return c.json({ ok: true, saved: false });
+});
+
+recipes.post("/recipes/:id/fork", requireAuth, async (c) => {
+  const result = await forkRecipe(
+    c.get("db"),
+    c.get("user")!.id,
+    c.req.param("id"),
+    pushDelivery(c),
+  );
+  if (result === "not_found") {
+    throw apiError(404, "not_found", "No such recipe.");
+  }
+  return c.json(result, 201);
 });
 
 /* -------------------------------------------------------------------------- */

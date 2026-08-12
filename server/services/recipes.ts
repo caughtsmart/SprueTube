@@ -16,8 +16,17 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { newId } from "../db/id";
-import { post, postRecipe, profile, recipe, recipeStep } from "../db/schema";
+import {
+  post,
+  postRecipe,
+  profile,
+  recipe,
+  recipeSave,
+  recipeStep,
+} from "../db/schema";
 import { resolvePaints } from "./paints";
+import { createNotification } from "./posts";
+import type { PushDelivery } from "./push";
 import { slugify } from "../../app/lib/slug";
 import type { Technique } from "../../app/lib/taxonomy";
 import {
@@ -357,6 +366,202 @@ export async function getPostRecipes(
     recipe: row,
     steps: steps.filter((step) => step.recipeId === row.id),
   }));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Save and fork                                                              */
+/* -------------------------------------------------------------------------- */
+
+/** A private recipe is viewable only by its owner; public and unlisted are open. */
+export function canViewRecipe(visibility: string, isOwner: boolean): boolean {
+  return isOwner || visibility !== "private";
+}
+
+/**
+ * Copy a recipe's steps into rows for a fork, preserving the resolved shop
+ * links — the paints are the same, so there is nothing to look up again.
+ */
+export function copyStepRows(
+  recipeId: string,
+  steps: {
+    technique: string;
+    productName: string | null;
+    brand: string | null;
+    shopUrl: string | null;
+    note: string | null;
+  }[],
+): RecipeStepRow[] {
+  return steps.map((step, index) => ({
+    id: newId("rst"),
+    recipeId,
+    position: index,
+    technique: step.technique as Technique,
+    productName: step.productName,
+    brand: step.brand,
+    shopUrl: step.shopUrl,
+    note: step.note,
+  }));
+}
+
+/** Keep a recipe in your collection. Idempotent; notifies the owner. */
+export async function saveRecipe(
+  db: Db,
+  userId: string,
+  recipeId: string,
+  delivery?: PushDelivery,
+): Promise<"ok" | "not_found"> {
+  const target = await db.query.recipe.findFirst({ where: eq(recipe.id, recipeId) });
+  if (!target || !canViewRecipe(target.visibility, target.ownerId === userId)) {
+    return "not_found";
+  }
+
+  const already = await db.query.recipeSave.findFirst({
+    where: and(eq(recipeSave.recipeId, recipeId), eq(recipeSave.userId, userId)),
+  });
+  if (already) return "ok";
+
+  await db.batch([
+    db.insert(recipeSave).values({ recipeId, userId }).onConflictDoNothing(),
+    db
+      .update(recipe)
+      .set({ saveCount: sql`${recipe.saveCount} + 1` })
+      .where(eq(recipe.id, recipeId)),
+  ]);
+
+  if (target.ownerId !== userId) {
+    await createNotification(
+      db,
+      {
+        userId: target.ownerId,
+        actorId: userId,
+        type: "recipe_saved",
+        subjectType: "recipe",
+        subjectId: recipeId,
+        preview: target.title,
+      },
+      delivery,
+    );
+  }
+  return "ok";
+}
+
+export async function unsaveRecipe(
+  db: Db,
+  userId: string,
+  recipeId: string,
+): Promise<"ok" | "not_found"> {
+  const saved = await db.query.recipeSave.findFirst({
+    where: and(eq(recipeSave.recipeId, recipeId), eq(recipeSave.userId, userId)),
+  });
+  if (!saved) return "not_found";
+
+  await db.batch([
+    db
+      .delete(recipeSave)
+      .where(and(eq(recipeSave.recipeId, recipeId), eq(recipeSave.userId, userId))),
+    db
+      .update(recipe)
+      .set({ saveCount: sql`max(0, ${recipe.saveCount} - 1)` })
+      .where(eq(recipe.id, recipeId)),
+  ]);
+  return "ok";
+}
+
+/**
+ * Copy a recipe into one the forker owns and can edit, crediting the original
+ * via `forkedFromId`. The new recipe is public by default — the forker's own
+ * version, which they can then change. Notifies the original author.
+ */
+export async function forkRecipe(
+  db: Db,
+  userId: string,
+  recipeId: string,
+  delivery?: PushDelivery,
+): Promise<{ id: string; slug: string } | "not_found"> {
+  const origin = await getRecipeWithSteps(db, recipeId);
+  if (
+    !origin ||
+    !canViewRecipe(origin.recipe.visibility, origin.recipe.ownerId === userId)
+  ) {
+    return "not_found";
+  }
+
+  const id = newId("rcp");
+  const slug = await uniqueRecipeSlug(db, userId, origin.recipe.title);
+
+  const statements: any[] = [
+    db.insert(recipe).values({
+      id,
+      ownerId: userId,
+      slug,
+      title: origin.recipe.title,
+      summary: origin.recipe.summary,
+      gameSystem: origin.recipe.gameSystem,
+      scale: origin.recipe.scale,
+      visibility: "public",
+      forkedFromId: origin.recipe.id,
+    }),
+  ];
+
+  const rows = copyStepRows(id, origin.steps);
+  if (rows.length) statements.push(db.insert(recipeStep).values(rows));
+
+  statements.push(
+    db
+      .update(profile)
+      .set({ recipeCount: sql`${profile.recipeCount} + 1`, updatedAt: nowSeconds() })
+      .where(eq(profile.userId, userId)),
+    db
+      .update(recipe)
+      .set({ forkCount: sql`${recipe.forkCount} + 1` })
+      .where(eq(recipe.id, origin.recipe.id)),
+  );
+
+  await db.batch(statements as [any, ...any[]]);
+
+  if (origin.recipe.ownerId !== userId) {
+    await createNotification(
+      db,
+      {
+        userId: origin.recipe.ownerId,
+        actorId: userId,
+        type: "recipe_forked",
+        subjectType: "recipe",
+        subjectId: origin.recipe.id,
+        preview: origin.recipe.title,
+      },
+      delivery,
+    );
+  }
+  return { id, slug };
+}
+
+/**
+ * A person's saved recipes, newest save first, with the owner for the link.
+ * A recipe that has since gone private (and is not the viewer's) drops off.
+ */
+export async function listSavedRecipes(db: Db, userId: string) {
+  const rows = await db
+    .select({
+      id: recipe.id,
+      slug: recipe.slug,
+      title: recipe.title,
+      visibility: recipe.visibility,
+      ownerId: recipe.ownerId,
+      ownerUsername: profile.username,
+      ownerDisplayName: profile.displayName,
+      savedAt: recipeSave.createdAt,
+    })
+    .from(recipeSave)
+    .innerJoin(recipe, eq(recipe.id, recipeSave.recipeId))
+    .innerJoin(profile, eq(profile.userId, recipe.ownerId))
+    .where(eq(recipeSave.userId, userId))
+    .orderBy(desc(recipeSave.createdAt))
+    .limit(100);
+
+  return rows.filter((row) =>
+    canViewRecipe(row.visibility, row.ownerId === userId),
+  );
 }
 
 async function uniqueRecipeSlug(db: Db, ownerId: string, title: string) {
