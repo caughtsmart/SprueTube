@@ -194,11 +194,15 @@ AdSense will not approve an empty site. The order that works:
    by `scripts/seed.sql`.
 2. Get real content and real traffic — a few dozen posts and a few weeks.
 3. Apply to AdSense. Point it at `spruetube.app`.
-4. On approval: set `ADSENSE_CLIENT` to your `ca-pub-…` id in `wrangler.jsonc`,
-   fill in the three slot ids in `app/components/AdSlot.tsx`, and add
-   `<AdSenseScript />` to the `<head>` in `app/root.tsx`.
+4. On approval: set `ADSENSE_CLIENT` to your `ca-pub-…` id in `wrangler.jsonc`.
+   This loads `<AdSenseScript />` (already wired into the `<head>` in
+   `app/root.tsx`) so the site is verified and Auto ads can run.
+5. When you have real ad units, fill in the three slot ids in
+   `app/components/AdSlot.tsx`. Each slot only renders a network unit once its
+   id is set; until then it keeps serving the house ad.
 
-House ads keep running underneath as the fallback for unfilled impressions.
+House ads keep running underneath as the fallback for unfilled impressions and
+for any slot without a configured id.
 
 ## 8. Make yourself an admin
 

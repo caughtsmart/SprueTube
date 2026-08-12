@@ -27,7 +27,11 @@ export function AdSlot({
 }) {
   const { adsenseClient } = useRoot().config;
 
-  if (adsenseClient) {
+  // A network unit only where AdSense is configured *and* this slot has a real
+  // slot id. Until the slot ids are filled in, keep serving the house ad rather
+  // than an empty box — the loader script in the head is already live for
+  // verification and Auto ads.
+  if (adsenseClient && SLOT_IDS[slot]) {
     return <AdSenseUnit client={adsenseClient} slot={slot} className={className} />;
   }
   if (!ad) return null;
