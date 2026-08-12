@@ -27,38 +27,55 @@ that story start to end.
 So the whole design leans one way: **Reddit gamifies talking; SprueTube rewards
 making and finishing.** A community here is people working on the same thing, not
 people arguing about it. A reward here is recognition for a model painted or a
-newcomer helped, not a number that goes up when you post a hot take.
+newcomer helped, not a number that climbs when you post a hot take.
 
-This is not a tone preference. It is the difference between a mechanic that makes
-someone finish the kit that has sat primed on their desk for a year, and one that
-makes them refresh a feed. Only the first is worth building.
+### An honesty about retention, and about Reddit
+
+Two things have to be said plainly, because the rest of the document is only
+honest if they are.
+
+**Gamification is not the retention engine, and nothing here pretends it is.**
+The real reason a small hobby network keeps someone is the plain social loop it
+*already* ships: "someone answered my WIP question", "someone commented on my
+army". Everything below is **recognition and belonging layered on top of that
+loop** — a trophy cabinet, not a slot machine, and deliberately not a variable-
+reward mechanic engineered to be compulsive. A badge you earn once and keep
+forever is, by construction, not a thing that pulls you back tomorrow. That is a
+feature, not an oversight: the roadmap forbids the mechanics that *would* pull you
+back compulsively, and we are keeping that promise even where it costs us the
+easy retention win.
+
+**Gamification is also not the migration story.** r/minipainting is half a
+million people with instant answers and years of SEO. Nobody defects from that
+for a badge. What actually pulls a painter here is the *tooling Reddit cannot
+build* — structured build logs instead of flat threads, paint lists that resolve
+to a shop, the WIP-stage spine — most of which already exists or is on the
+roadmap. This document is mostly for the people **already here**, to make them
+stay and feel part of something. Where a mechanic *does* help acquisition, it is
+called out; the rest is retention-of-the-committed, not conquest of Reddit. (And
+the painters who most value "finishing" are as likely to be on **Instagram** as
+Reddit — a useful thing to remember when the wording drifts toward "beat
+Reddit".)
 
 ## What the roadmap already forbids, and why it is right
 
 `docs/ROADMAP.md` has a "Things worth not doing" section, and two of its three
-entries land directly on this work. They are load-bearing constraints, not
-suggestions:
+entries land directly on this work. They are load-bearing constraints:
 
 - **"Stories, streaks, or anything with a timer. Painting a model takes weeks.
   Mechanics that punish absence are wrong for this hobby."** So there are **no
-  streaks here.** A daily-streak counter is the single most obvious gamification
-  mechanic and it is banned on purpose: it would punish the person who spent the
-  week actually painting instead of posting, which is precisely backwards. The
-  test every mechanic below has to pass: *does it reward the hobby, or does it
-  reward opening the app?* Anything that only rewards the second is out.
+  streaks here.** The test every mechanic below has to pass: *does it reward the
+  hobby, or does it reward opening the app?* One mechanic — challenges — has a
+  deadline, and §Challenges argues *explicitly and by the ban's rationale rather
+  than its letter* why a chosen, no-penalty deadline is not the thing the ban is
+  about. It does not pretend a `closes_at` is not a timer; it argues it is a
+  harmless one.
 - **"An engagement-maximising algorithm. The whole pitch is that this is not
   that. Discover being a published formula in one file is a feature."** So every
-  score in this document — how a challenge is judged, how a badge is earned, what
-  makes the recognition strip — is a **published rule in one file**, the way
+  score here — how a challenge is judged, what earns a badge, what fills a
+  recognition strip — is a **published rule in code**, the way
   `server/services/ranking.ts` is. No opaque XP curve tuned in the dark to lift a
-  daily-actives graph. If we cannot write the rule on the About page without
-  embarrassment, it does not ship.
-
-There is a real tension to name out loud: gamification is *usually* the dark-
-pattern toolkit, and this codebase's entire pitch is being the opposite of that.
-The resolution is that the mechanics here are the **trophy cabinet, not the slot
-machine** — recognition of things that already happened, on transparent rules,
-never a variable-reward loop engineered to be compulsive.
+  daily-actives graph.
 
 ---
 
@@ -77,27 +94,29 @@ way the site records.
 ## The decision: curate communities, do not let anyone create them
 
 The obvious move is a `group` table anyone can create — subreddits. We are not
-doing that first, and possibly not at all, for the same reason DMs were cut
-(`docs/ARCHITECTURE.md`): **a feature that multiplies moderation surface on a
-platform with one moderator is a liability, not a feature.** Open group creation
-brings the two failure modes Reddit spent fifteen years fighting:
+doing that first, and possibly not at all. The reason is the safety posture the
+architecture already commits to (`docs/ARCHITECTURE.md`, "Safety is in the schema,
+not bolted on"): SprueTube is a UK user-to-user service under the Online Safety
+Act, run by **one moderator**. Open group creation multiplies the moderation
+surface without multiplying the moderators, and brings the two failure modes
+Reddit spent fifteen years fighting:
 
 - **Dead communities.** A thousand groups with one post each. The taxonomy does
   not have this problem because content already flows through it — the Warhammer
   40K feed is never empty.
 - **Unsupervised spaces.** A user-created group is a room whose door the operator
-  did not build and cannot see into, on a UK user-to-user service where the
-  Online Safety Act makes the operator responsible for what happens in it.
+  did not build and cannot see into, on a service where the operator is legally
+  responsible for what happens in it.
 
 So **communities are the existing taxonomy, promoted to first-class objects** —
 curated, finite, already full of content — with membership and identity layered
 on. Every game system becomes a community. Nobody has to seed one, and there is a
 bounded, known list to moderate.
 
-Open, user-created **Clubs** — a real-world gaming club or a painting circle
-running its own space — is a genuinely good idea and a natural paid-tier or
-later feature, but it inherits every moderation problem above and should not lead.
-It is in "Further out" at the end of this document, not here.
+Open, user-created **Clubs** — a real-world gaming club or painting circle
+running its own space — is a genuinely good idea and a natural paid-tier feature,
+but it inherits every moderation problem above and must not lead. It is in
+"Further out".
 
 ## Schema
 
@@ -109,202 +128,119 @@ belong in a code constant.
 ### `community`
 
 One row per system slug, created lazily the first time an admin edits it or the
-first member joins. Absence means "use the taxonomy defaults", so no backfill and
-no migration of the existing systems is needed.
+first member joins. Absence means "use the taxonomy defaults", so no backfill.
 
 | Column | Type | Meaning |
 | --- | --- | --- |
 | `id` | text, PK | `comm_` + the standard id scheme. |
 | `slug` | text, unique | The system slug from `taxonomy.ts`. The join key to feeds and profiles. |
 | `description` | text, null | The "about" panel. Falls back to a taxonomy default. |
-| `rules` | text, null | Community-specific posting rules, shown on the page and in the report context. |
+| `rules` | text, null | Community-specific posting rules. |
 | `banner_image_id` | text, null | Cloudflare Images id, same as a profile banner. |
-| `pinned_post_id` | text, null → post | One pinned post, like a project's `pinnedPostId`. |
-| `member_count` | int, default 0 | Denormalised, batched with the join/leave write, `max(0, n-1)` on leave — the house pattern. |
+| `pinned_post_id` | text, null, FK → post | One pinned post. Unlike `project.pinnedPostId` (which carries *no* FK, to avoid a circular table-definition bootstrap — see `schema.ts`), this table is declared after `post`, so it can carry a real foreign key. |
+| `member_count` | int, default 0 | Denormalised, batched with the join/leave write, `max(0, n-1)` on leave. |
 | `created_at` / `updated_at` | int | |
 
 ### `community_member`
 
 | Column | Type | Meaning |
 | --- | --- | --- |
+| `id` | text, PK | `cmem_` + id scheme. A monotonic id so membership lists paginate keyset on the primary key, like every other list on the site (`docs/ARCHITECTURE.md`, "Ids") rather than falling back to `OFFSET`. |
 | `community_id` | text, FK → community, cascade | |
 | `user_id` | text, FK → user, cascade | |
-| `role` | text enum | `member` \| `moderator`. A community moderator is scoped to one community; the global `profile.role` is unchanged and still outranks it. |
+| `role` | text enum | `member` \| `moderator`. Scoped to one community; the global `profile.role` is unchanged and still outranks it. |
 | `created_at` | int | |
 
-Composite primary key `(community_id, user_id)` — a person is in a community once
-— which doubles as the "am I a member" lookup and the membership-list index, the
-same shape as `follow` and `like`.
+A unique constraint on `(community_id, user_id)` — a person is in a community
+once — is the "am I a member" lookup and the membership index, the same role the
+composite key plays on `follow` and `like`; the separate `id` exists only so the
+list is keyset-pageable.
 
 ## What a community page is
 
 `/systems/:system` stops being only a feed and becomes the community. Reusing the
 existing route means every link already pointing there keeps working.
 
-- A **header**: name, banner, member count, a **Join** button (the only genuinely
-  new interaction — everything below already exists).
+- A **header**: name, banner, a **Join** button (the only genuinely new
+  interaction — everything below already exists).
 - The **feed**, exactly `getFeed({ gameSystem })` as today.
 - An **about / rules** panel from the `community` row.
-- A **pinned post**, reusing the project pin pattern.
+- A **pinned post**.
 - **Your communities** becomes a nav section and a home surface: the systems you
-  have joined, so the site has a shape that is *yours* rather than one global
-  feed. This is the belonging the gap was about.
+  joined. Joining also gives a real "communities" home feed — posts from systems
+  you joined — which is a better cold-start feed for a new painter than "people
+  you follow" when they follow nobody yet.
 
-Joining also gives the feed a real "Following"-style signal it lacks: a
-"communities" home tab can show posts from systems you joined, which is a better
-cold-start feed for a new painter than "people you follow" when they follow
-nobody yet.
+## Small numbers are a deadness signal — hide them until they aren't
+
+This is the correction that makes communities safe to ship at a hundred users.
+A **`member_count` of 3 next to a Join button reads as "abandoned", not
+"exclusive"** — surfacing a small number is worse than surfacing none. So:
+
+- **Member counts and per-community highlight strips are hidden below a
+  threshold** (start at ~25 members / ~10 distinct recent authors, tuned in one
+  constant). Below it, the page shows the feed and the Join button and *no
+  numbers*. The community still works; it just does not advertise its own
+  emptiness. This mirrors what Reddit itself learned about suppressing low counts.
+- The threshold lives beside the highlights constants, published like everything
+  else — not a hidden growth hack, a stated "we don't show a number until it
+  means something".
 
 ## Moderation
 
 A `community_member.role` of `moderator` may remove a post *from the community*
-(unset its `gameSystem`, not delete it) and pin. Every such action writes a
-`moderation_action` row exactly as global moderation does — the audit log is
-append-only and already built, and community mod actions belong in it for the
-same Online Safety Act reason global ones do. Reports from a community page carry
-the community's `rules` into the report context so the queue sees which rule was
-broken. No new moderation *machinery* — only a new, narrower actor who can reach
-part of it.
+(unset its `gameSystem`, not delete it) and pin. Three honest consequences the
+first draft glossed:
+
+1. **This needs a new `moderation_action.action` value.** That enum is a closed
+   set today (`remove_post`, `restore_post`, … — `schema.ts`) with no
+   "remove-from-community" or "pin" member. Recording a community-mod action
+   faithfully — which the append-only audit log and the OSA both require — means
+   an additive enum change and its migration. It is small, but it is *not* "no new
+   machinery"; it is new machinery that reuses the existing table.
+2. **Appointing a community moderator is itself an admin-only, logged action.**
+   The whole case against user-created groups is unsupervised delegated power, so
+   we do not then hand out delegated power casually: community mods are appointed
+   by a global admin only, cannot appoint others, and the appointment writes to
+   `moderation_action` like any other privileged act. Otherwise the clubs
+   rejection and the community-mod grant would be governed by inconsistent
+   standards.
+3. **The community's own `description`/`rules` are admin/mod-authored free text**,
+   and unlike a post they are not automatically covered by `ReportButton`. They
+   need the same report path a bio has. Reports from a community page carry the
+   broken rule in the report `details` field (the `report` table has a `reason`
+   enum plus free-text `details`, no structured rule field), which is workable,
+   not literal.
 
 ---
 
 # Part two: Gamification
 
-Four mechanics, each of which had to pass *rewards the hobby, not the app*. They
-are ordered by how native they are to the craft.
+The trophy cabinet, not the slot machine. Four mechanics — but reordered from the
+first draft, because the review made one thing obvious: **most of these need a
+crowd, and the site does not have one yet.** Only two work when there are fifty
+people in the building, and those two now lead.
 
-## 1. Achievements — the trophy cabinet
-
-Recognition for things a painter actually did, shown on their profile. Not a
-level, not points, not a currency. A badge is binary and permanent: you finished
-your first build log, or you have not yet.
-
-The catalogue is **code, not data** — a constant in `app/lib/taxonomy.ts` beside
-the WIP stages, so a badge's existence and its rule live in the same reviewed,
-version-controlled place as everything else transparent on this site. Only the
-*award* is a row.
-
-### `user_badge`
-
-| Column | Type | Meaning |
+| Mechanic | Works at tiny scale? | Why |
 | --- | --- | --- |
-| `id` | text, PK | `badge_` + id scheme. |
-| `user_id` | text, FK → user, cascade | |
-| `badge_slug` | text | Key into the code catalogue. |
-| `awarded_at` | int | |
-| `context_id` | text, null | The post/project/community that earned it, for a "for *this*" link. |
+| **Helpfulness marks** | ✅ Yes | One person helping one person is a complete unit. Needs no crowd. |
+| **Challenges (moderator-judged / sponsored)** | ✅ Yes | Graham picks a winner from three entries. Works day one. |
+| **Achievements / badges** | ⚠️ Partly | Individual, but the most generic mechanic and the least differentiating. |
+| **Challenges (community-judged, most-likes)** | ❌ No | "Winner by most likes" among two entries and five voters is a popularity vote among friends. |
+| **Recognition strips** | ❌ No | A wall capped at two-per-author needs more than two authors. |
 
-Unique on `(user_id, badge_slug)` — a badge is earned once. A small
-`badge_count` on `profile` follows the denormalisation convention so a profile
-header needs no `COUNT(*)`.
-
-### What earns one, and how it is checked
-
-Every rule is a pure predicate over data that already exists, evaluated at the
-moment the triggering write happens (a post published, a project marked
-finished) — never a background scan of everyone. Starting set, all derived from
-existing tables:
-
-- **First finished build log** — a `project` moved to `status = 'finished'`.
-- **The full journey** — a project whose posts span `sprue` through `finished`
-  in `wipStage`. This one badge does more for the product than any streak could:
-  it rewards documenting a model from frame to finish, which is exactly the
-  content the site wants and the hardest to get.
-- **Helping hand** — passed a threshold of *helpful* marks (Part two, §3).
-- **Challenge wins / entries** — awarded by the challenge machinery (§2).
-- **Community founder-era** — an early member of a community, from
-  `community_member.created_at`. A one-off, not a recurring timer.
-
-Awards fan out through the existing `createNotification()` — a new `badge`
-notification type — so they arrive by push once push is live, and never punish
-absence: you earn a badge by doing the thing, whenever you do it.
-
-**Anti-gaming.** Because every badge is binary and tied to a durable artefact (a
-finished project, a real win), there is nothing to farm — you cannot post your
-way to "finished a build log" without finishing a build log. Removing the
-artefact (deleting the project) revokes the badge in the same write.
-
-## 2. Challenges — the flagship
-
-Time-boxed, themed events people opt into: *"Paint the oldest kit in your pile."*
-*"Squad of the month."* *"Best rust."* This is the one mechanic that is both
-community and gamification at once, and it is already on the roadmap —
-"Painting competitions with judging. Loaded Dice already runs them." It is the
-feature most worth building well.
-
-It also threads the streak ban precisely. A challenge has a deadline, but it is a
-deadline you **chose to enter**, and not entering costs you nothing — no counter
-resets, no badge is lost, the page does not guilt you. That is the whole
-difference between a competition and a streak: one is an invitation, the other a
-punishment for living your life.
-
-### Schema
-
-#### `challenge`
-
-| Column | Type | Meaning |
-| --- | --- | --- |
-| `id` | text, PK | `chl_` + id scheme. |
-| `community_id` | text, null → community | Scoped to a community, or site-wide if null. |
-| `title` / `prompt` | text | The brief. |
-| `opens_at` / `closes_at` | int | The window. Entries only in it. |
-| `status` | text enum | `scheduled` \| `open` \| `judging` \| `closed`. Advanced by cron, never by hand. |
-| `judging` | text enum | `community` (most likes among entries) \| `moderator` (a judge picks). |
-| `winner_post_id` | text, null | Set when it closes. |
-| `entry_count` | int, default 0 | Denormalised. |
-
-#### `challenge_entry`
-
-An entry is a **post** — no new content type, no second compose flow. A post
-enters by pointing at the challenge.
-
-| Column | Type | Meaning |
-| --- | --- | --- |
-| `challenge_id` | text, FK, cascade | |
-| `post_id` | text, FK, cascade | |
-| `user_id` | text, FK, cascade | The entrant, denormalised off the post for the per-person cap. |
-| `created_at` | int | |
-
-Primary key `(challenge_id, post_id)`. A per-person entry cap (one, usually) is
-enforced on `user_id` at write time.
-
-### Lifecycle, on the existing cron
-
-There is one cron (`*/15 * * * *`), and the convention (`docs/NOTIFICATIONS.md`,
-the news ingest, `refreshHotScores`) is that new scheduled work **rides that tick
-and picks its own slot** rather than adding a schedule. Challenges do the same:
-
-1. `scheduled → open` when `opens_at` passes.
-2. `open → judging` when `closes_at` passes.
-3. In `judging`: for `community` judging, the winner is the entry with the most
-   likes — reusing the like count already on every post, no new voting system and
-   nothing new to game beyond likes themselves. For `moderator` judging, it waits
-   for a human pick.
-4. `judging → closed`: set `winner_post_id`, award a **challenge-winner badge**
-   to the winner and an **entrant badge** to everyone who entered (entering is
-   itself worth marking — it is the participation the site wants), and notify all
-   of them through `createNotification()`.
-
-Bounded, paged work per tick, like the digest and the hot-score sweep, so a busy
-month cannot blow the D1 statement limit in one invocation.
-
-### Why this beats a leaderboard
-
-A challenge is a *level playing field with a fresh start* — everyone begins the
-month at zero entries. That is the opposite of a global all-time chart, which
-just crowns whoever already had the most followers and demoralises everyone else.
-The next section makes that principle general.
-
-## 3. Helpfulness — reputation for teachers, not talkers
+## 1. Helpfulness — reputation for teachers, not talkers (build first)
 
 Karma rewards whoever posts most. The person who quietly answers "how did you get
-that oil-wash so clean" in ten comment threads is the reason a community is worth
-being in, and a like does not capture it — a like is a reflex (the ranking file
-says so), and it lands on pretty pictures, not good answers.
+that oil-wash so clean" in ten threads is the reason a community is worth being
+in, and a like does not capture it — `ranking.ts` itself says a like is a reflex,
+and it lands on pretty pictures, not good answers.
 
-So: a **"this helped me" mark on a comment**, distinct from a like. It is a new
-table rather than a reuse of the polymorphic `like`, because it means something
-different and should be counted and displayed differently.
+So: a **"this helped me" mark on a comment**, distinct from a like — a new table,
+because it means something different and should be counted and shown differently.
+It leads the build order precisely because it is the one mechanic that is *fully
+alive at any scale*: it needs no crowd, and "found helpful 147 times" is the most
+defensible answer to Reddit karma this design has.
 
 ### `helpful`
 
@@ -315,73 +251,245 @@ different and should be counted and displayed differently.
 | `created_at` | int | |
 
 Primary key `(comment_id, user_id)` — one mark per person per comment, the same
-idempotent shape as `like`, so it cannot be farmed by clicking twice.
+idempotent shape as `like`, so a second click is a no-op and it cannot be farmed.
 `comment.helpful_count` and `profile.helpful_received_count` are denormalised in
-the write batch, and the profile figure is the only reputation number on the
-site: not "karma", but "found helpful **147** times", which says exactly what it
-means and rewards exactly the right behaviour.
+the write batch.
 
-## 4. Recognition surfaces, not leaderboards
+**On the "not a number that goes up" thesis.** The thesis above says the reward
+is "not a number that climbs when you post a hot take", and here is a number that
+climbs. That is deliberate and it is the *single* exception: it is bounded to a
+behaviour the site actively wants (helping), not to volume, and it is capped at
+one per person per comment so it cannot be inflated by posting more. It is a
+number that goes up *for teaching*, which is the one thing worth counting. The
+thesis is not "no counts ever"; it is "no count that rewards noise" — and this
+one does not.
 
-The homepage already has the right instinct in `server/services/highlights.ts`:
-its own comment says it shows "a wall of models rather than a leaderboard of
-posts", and it **caps two per author** so one good month cannot become one
-person's gallery. That is the model for all recognition here, and it is why there
-is no global ranked chart anywhere in this design.
+## 2. Challenges — the flagship, led by its sponsored variant
 
-Reusing that exact pattern (compute in KV every 15 minutes, cap per author, apply
-the viewer's blocks to a short candidate list afterwards):
+Time-boxed, themed events people opt into. Already on the roadmap — "Painting
+competitions with judging. Loaded Dice already runs them." The most valuable
+mechanic here, and the review sharpened three things about it.
 
-- **Community highlights** — the highlights strip, scoped to one community, on
-  its page.
-- **Newcomer spotlight** — recent good work by people who joined recently, using
-  `profile.created_at`. New painters being seen is called out in the ranking file
-  as the thing that stops the front page ossifying; this makes it a surface.
-- **Challenge galleries** — every entry to a closed challenge, winner first, the
-  rest an unranked wall. The losers are not a list of losers.
+**Lead with real prizes, not badges.** The single change that makes a hundred
+people actually show up is a **Loaded Dice-sponsored challenge with a real prize**
+— a paint set, a voucher. The commercial tie-in is right there and the first
+draft used one line of it. A monthly sponsored challenge funds itself in goodwill,
+gives "an invitation, not a punishment" real stakes, and motivates more than the
+entire badge catalogue combined. This is the acquisition-helping mechanic; treat
+it as the headline.
 
-No all-time top-users board. It is the one recognition surface that would pull the
-whole site toward *rewards the app, not the hobby*, and it is deliberately absent
-for the same reason the engagement algorithm is.
+**Ride the hobby's real calendar; do not invent one.** Painters already rally
+around named seasonal events with existing gravity — **Dreadtober**,
+**Squaduary**, **Armies on Parade** season. A challenge that rides one of those
+walks into a crowd; a home-grown "Best Rust" for an empty network starts a party
+in an empty room. The schema below is event-shaped precisely so it can host an
+existing event, not only a bespoke one.
+
+**Default to moderator judging; treat most-likes as the crowd-only variant.** See
+the state machine.
+
+### Schema
+
+#### `challenge`
+
+| Column | Type | Meaning |
+| --- | --- | --- |
+| `id` | text, PK | `chl_` + id scheme. |
+| `community_id` | text, null → community | Scoped to a community, or site-wide. |
+| `title` / `prompt` | text | The brief. |
+| `opens_at` / `closes_at` | int | The window. Entries only in it. |
+| `status` | text enum | `scheduled` \| `open` \| `judging` \| `closed`. Advanced by cron. |
+| `judging` | text enum | `moderator` (a judge picks — the **default**) \| `community` (most likes among entries). |
+| `sponsor` | text, null | e.g. a Loaded Dice prize line, shown on the page. |
+| `winner_post_id` | text, null | Set when it closes. |
+| `entry_count` | int, default 0 | Denormalised. |
+
+#### `challenge_entry`
+
+An entry is a **post** — no new content type, no second compose flow.
+
+| Column | Type | Meaning |
+| --- | --- | --- |
+| `id` | text, PK | `cent_` + id scheme, so the entry list / gallery paginates keyset. |
+| `challenge_id` | text, FK, cascade | |
+| `post_id` | text, FK, cascade | |
+| `user_id` | text, FK, cascade | The entrant, for the per-person cap. |
+| `created_at` | int | |
+
+A unique `(challenge_id, post_id)`, and a per-person entry cap on `user_id`
+enforced at write time.
+
+### Lifecycle, on the existing cron
+
+One cron (`*/15 * * * *`); new scheduled work **rides that tick and picks its own
+slot** (`docs/NOTIFICATIONS.md`, `refreshHotScores`). Challenges do the same:
+
+1. `scheduled → open` when `opens_at` passes.
+2. `open → judging` when `closes_at` passes.
+3. In `judging`: **moderator** judging (the default) waits for a human pick.
+   **community** judging takes the entry with the most likes — see the
+   manipulation note below.
+4. `judging → closed`: set `winner_post_id`, award a winner badge and an entrant
+   badge (see §3 for why entering is markable), notify all through
+   `createNotification()`.
+
+Bounded, paged work per tick, like the digest and the hot-score sweep.
+
+**Like-manipulation is a real vector for community judging, and it is guarded.**
+The moment likes *decide a public winner*, they invite brigading and sockpuppet
+votes in a way the ambient feed never does — a gap the first draft waved away
+with "nothing new to game". So: **moderator judging is the default for anything
+with a prize**, and community judging discounts likes from accounts created after
+the challenge opened and from anyone the entrant has blocked/been blocked by. The
+schema-first safety posture applies to the *deciding metric*, not only to the
+entries.
+
+**On the timer ban, stated plainly.** `closes_at` is a timer. The roadmap bans
+timers because "mechanics that punish absence are wrong for this hobby" — so this
+is a reasoned exception to the *letter* of the ban, justified by its *rationale*:
+a challenge deadline punishes nothing. You opt in; not entering costs you nothing;
+no counter resets; nothing is lost. It is a competition, not a streak, and the
+distinction is the presence or absence of punishment, which the rationale is
+about. If a challenge ever grew a penalty for non-participation, it would fall
+under the ban.
+
+## 3. Achievements — a garnish, not a course
+
+Binary, permanent badges tied to durable artefacts, shown on a profile. Demoted
+from the first draft's second slot to a garnish, because the review is right: as a
+standalone build they are the most generic, most "gamification-y", least
+differentiating thing here. **Ship one or two badges as a garnish on Helpfulness
+and Challenges; do not spend a dedicated build cycle on a trophy cabinet before
+the room has people in it.**
+
+Two honest corrections to how they were specified:
+
+**Split the catalogue from the rule.** The first draft put both a badge's data
+*and its earning rule* in `taxonomy.ts`. That breaks the module's "imports
+nothing" invariant (`docs/ARCHITECTURE.md`, "The taxonomy module") — the
+catalogue (slug, label, description) is data and belongs there; the **earning
+predicate is logic** over `post`/`project` rows and belongs in a service,
+`server/services/badges.ts`, the `ranking.ts` analogue. Taxonomy keeps importing
+nothing; the predicate takes already-loaded plain data.
+
+**Be honest about what "the full journey" badge rewards.** A badge for a project
+whose posts span `sprue` through `finished` does **not** reward *painting well* —
+it rewards *documenting a build stage by stage*, which is a discipline most
+hobbyists do not naturally follow, and performing it is partly feed-serving
+behaviour. That is defensible, but only if stated: the site *wants* documented
+build logs (they are the best content and the SEO answers to "how to paint X"), so
+rewarding documentation is a legitimate aim — as long as we never dress it up as
+rewarding craft. The badge is "you documented a full build", not "you are a good
+painter".
+
+**Drop the founder-era badge.** "Early member of a community" fails the design's
+own headline test — joining is a pure app action with no craft artefact, so it
+rewards *opening the app early*, exactly what the thesis rules out. It also breaks
+the "nothing to farm, every badge tied to a durable artefact" guarantee. Cut it.
+The **entrant badge** is the milder, acceptable version — it is one-time and tied
+to a posted model — and the anti-gaming claim is narrowed to match: *every badge
+is tied either to a durable craft artefact or to a one-time, non-repeatable act
+that cannot be farmed.*
+
+Starting set, all pure predicates over existing rows: **first finished build log**
+(`project.status = 'finished'`), **the full journey** (documented sprue→finished,
+framed as above), **helping hand** (a threshold of `helpful` marks), **challenge
+winner / entrant**. Awards fan out through `createNotification()`; removing the
+artefact revokes the badge in the same write.
+
+## 4. Recognition surfaces, not leaderboards (crowd-gated)
+
+The homepage highlights instinct is right — `highlights.ts` shows "a wall of
+models rather than a leaderboard of posts" and caps two per author so one good
+month is not one person's gallery. That is the model, and there is **no global
+all-time leaderboard anywhere in this design** — it is the one surface that would
+pull the whole site toward *rewarding the app*.
+
+But this is crowd-gated and the first draft overstated the reuse. Three
+corrections:
+
+- **The pattern is reusable; the code is not "verbatim".** `getHighlights` reads
+  one global KV key (`highlights:v1`) over one global candidate set, and
+  `topProjects`/`topImages` take no scoping argument. Community-scoped highlights,
+  a newcomer spotlight and challenge galleries each need **their own cache key and
+  their own scoped query** — the shape carries over, the functions do not as-is.
+- **The two-per-author cap is images-only today.** `capPerAuthor` runs in
+  `assembleImageHighlights`; `assembleProjectHighlights` does *not* cap. Any
+  project-based community strip must add the cap, not inherit it.
+- These surfaces stay **hidden until a community crosses the count threshold**
+  (above) — a two-author wall is worse than none — and they apply the viewer's
+  **blocks and mutes** (`hiddenAmong` does both, not blocks alone).
+
+When they do light up: **community highlights** (scoped strip), **newcomer
+spotlight** (recent good work by recently-joined painters — `profile.created_at`;
+the ranking file already calls new painters being seen the thing that stops the
+front page ossifying), and **challenge galleries** (every entry to a closed
+challenge, winner first, the rest an *unranked* wall — the losers are not a list
+of losers).
+
+---
+
+# Part three: the adjacent bet — Recipes
+
+The strongest "different / better than Reddit" idea to come out of review is not
+in either half above, so it gets its own note. The best answers to "what colours
+did you use" currently evaporate into comment threads. `post_product` — the
+"paints used" strip — is already 80% of a reusable **paint recipe**: a named
+scheme (base / wash / highlight / technique) attached to a model, saveable,
+re-applicable to a new post, and resolving to the Loaded Dice catalogue exactly as
+roadmap item 3 ("paint links that resolve") already wants.
+
+Recipes are the single most-requested durable artefact in the hobby, Reddit's
+flat threads structurally cannot hold them, and they monetise directly through the
+shop. Where helpful-marks make good *answers* visible but ephemeral, recipes make
+the *knowledge itself* durable and searchable. This is a content feature more than
+a community or gamification one, and it deserves its own design rather than a
+subsection here — but it is flagged at the top of "what to build next", because it
+does more for the leave-Reddit case than every badge combined.
 
 ---
 
 ## Notifications
 
 Everything above fans out through the one existing choke point,
-`createNotification()` (`docs/NOTIFICATIONS.md`). New `notification` types —
-`badge`, `challenge_result`, `helpful` — slot into the existing enum and the
-existing `muted_types` preference, so a person who does not want to hear about
-likes-analogues can silence them and nothing about the plumbing is new. Once Web
-Push is live, a challenge result or a badge arrives as a push with no extra work;
-until then it is a bell badge, exactly like every other notification today.
+`createNotification()` (`docs/NOTIFICATIONS.md`). Adding the new types (`badge`,
+`challenge_result`, `helpful`) is **additive but not free**: it touches three
+places, not one — the Drizzle `notification.type` enum, the hardcoded `type` union
+in `createNotification`'s signature (`server/services/posts.ts`), and
+`NotificationType` in `server/services/push.ts`. They then ride the existing
+`muted_types` preference for nothing extra, and once Web Push is live a challenge
+result or badge arrives as a push with no further work.
 
 ## Safety
 
-New surfaces are new abuse surfaces, and the schema-first safety posture
-(`docs/ARCHITECTURE.md`) applies:
+The schema-first posture (`docs/ARCHITECTURE.md`) applies, and the review found
+three surfaces the first draft left uncovered — now folded into the sections above
+and gathered here:
 
-- **Community pages and challenge entries** are posts and profiles under the
-  hood, so `ReportButton`, `block` and `mute` already cover them — the
-  `hiddenAmong` filter in `highlights.ts` is reused verbatim for every new
-  recognition surface, so a blocked painter never appears in a spotlight or a
-  challenge gallery either.
-- **Badges and helpful marks** are un-forgeable by construction (tied to durable
-  artefacts; idempotent composite keys) and carry no free-text, so they are not a
-  harassment channel the way a rename or a bio can be.
-- **Community moderators** act only within their community and every action they
-  take is in the append-only `moderation_action` log, so a bad community mod is
-  auditable and reversible by a global moderator.
+- **Community pages and challenge entries** are posts/profiles under the hood, so
+  `ReportButton`, `block` and `mute` cover them, and `hiddenAmong` is reused so a
+  blocked painter never appears in a spotlight or gallery.
+- **A community's own `description`/`rules`** are admin/mod free text and need
+  their own report path — they are *not* auto-covered the way a post is.
+- **Community moderators** are admin-appointed only, cannot appoint others, act
+  only within their community, and every action (including the appointment) is in
+  the append-only `moderation_action` log — which needs a new enum value for the
+  community-remove/pin actions.
+- **Community-judged challenges** guard the deciding metric against like
+  manipulation (moderator judging by default for prizes; discounted likes from
+  fresh/blocked accounts).
+- **Badges and helpful marks** carry no free text and are idempotent and artefact-
+  tied, so they are not a harassment channel.
 
 ## Migrations
 
-Additive only, generated with `npm run db:generate` per the existing workflow:
-`community`, `community_member`, `user_badge`, `challenge`, `challenge_entry`,
-`helpful`, plus the denormalised counters (`community.member_count`,
-`profile.badge_count`, `profile.helpful_received_count`, `comment.helpful_count`,
-`challenge.entry_count`). Every existing account and post behaves exactly as it
-does today with none of these rows present — a person who joins nothing, enters
-nothing and is marked helpful by nobody sees the site unchanged.
+Additive only, generated with `npm run db:generate`: `community`,
+`community_member`, `user_badge`, `challenge`, `challenge_entry`, `helpful`, the
+denormalised counters (`community.member_count`, `profile.badge_count`,
+`profile.helpful_received_count`, `comment.helpful_count`, `challenge.entry_count`),
+**and one additive `moderation_action.action` enum value** for community actions.
+Every existing account and post behaves exactly as today with none of these rows
+present.
 
 ## Testing
 
@@ -389,47 +497,58 @@ Following the `tests/logic.test.ts` and highlights style — pure logic gets uni
 tests, the rest is thin:
 
 - **Challenge state machine** — `scheduled → open → judging → closed` on given
-  clock times, community-judging winner selection, the per-person entry cap.
-- **Badge predicates** — each rule is a pure function of existing rows; test that
-  a full sprue→finished project earns the journey badge and a three-post project
-  missing `primed` does not.
-- **Idempotent marks** — a second `helpful` from the same person is a no-op and
-  does not double the count; a `410`-style delete decrements with the
-  `max(0, n-1)` floor.
-- **Hidden filtering** — a blocked author is absent from community highlights,
-  the newcomer spotlight and a challenge gallery, reusing the highlights tests.
+  clock times; moderator vs community winner selection; the per-person entry cap;
+  the fresh-account like discount in community judging.
+- **Badge predicates** — each rule a pure function of existing rows: a full
+  sprue→finished project earns the journey badge; a project missing `primed` does
+  not; deleting the project revokes it.
+- **Idempotent marks** — a second `helpful` from the same person is a no-op; a
+  delete decrements with the `max(0, n-1)` floor.
+- **Count-threshold gating** — a community below the threshold surfaces no member
+  count and no highlight strip; above it, both appear.
+- **Hidden filtering** — a blocked *or muted* author is absent from community
+  highlights, the newcomer spotlight and a challenge gallery.
 
 ## Build order
 
-Ordered by what unlocks what, and so that each step is worth shipping alone.
+Reordered from the first draft to lead with what works at fifty users and to stop
+front-loading the least differentiating mechanic.
 
 1. **Communities** — `community` + `community_member`, the Join button, the
-   community page over the existing system feed, "your communities" in nav. This
-   is *belonging*, it reuses `getFeed` almost entirely, and it is the ground the
-   rest stands on (a challenge is scoped to a community; a community highlight is
-   a scoped highlight).
-2. **Achievements** — `user_badge`, the code catalogue, the award hooks on
-   publish/finish, the profile display. Small, self-contained, and it makes the
-   next step's rewards mean something.
-3. **Challenges** — the flagship. `challenge` + `challenge_entry`, entry from the
-   existing compose flow, the cron lifecycle, community-then-moderator judging,
-   winner and entrant badges, the challenge gallery.
-4. **Helpfulness** — the `helpful` mark and the one reputation number. Last
-   because it is the least urgent and the most easily added once the rest exists.
+   community page over the existing `getFeed`, "your communities" in nav — **with
+   member counts and highlight strips gated behind the count threshold**. This is
+   belonging, it reuses the feed almost entirely, and it is the ground the rest
+   stands on (a challenge scopes to a community; a community highlight is a scoped
+   highlight).
+2. **Helpfulness** — the `helpful` mark and the one reputation number. Second, not
+   last: it is the cheapest to build, the only mechanic fully alive at tiny scale,
+   and the most defensible answer to Reddit karma.
+3. **Challenges — sponsored / moderator-judged variant first.** The real value
+   driver. Ship the part that works small (a human picks a winner from a handful
+   of entries, ideally with a Loaded Dice prize, ideally riding Dreadtober or
+   Squaduary); add community/most-likes judging with its manipulation guards once
+   there is a crowd to vote.
+4. **Achievements** — a garnish of one or two badges on the above, catalogue in
+   `taxonomy.ts` and predicates in `badges.ts`. Not a dedicated cabinet-building
+   cycle.
+
+**Recipes** (Part three) and the **pile of shame** (below) are their own designs,
+sequenced against this by value — recipes rate highly.
 
 ## Further out — deliberately not first
 
-- **User-created Clubs.** Real gaming clubs and painting circles running their
-  own space. A strong feature and a natural paid tier, but it reintroduces every
-  moderation problem that curated communities avoid, so it waits until there is
-  more than one moderator and a reason. The `community` table is already the
-  shape it would take.
-- **The pile of shame.** A personal backlog tracker — the beloved hobby meme of
-  unbuilt kits — that celebrates a kit moving from "in the pile" to "painted". It
-  is a genuinely native retention tool *if* it is framed as help finishing and
-  never as a timer counting your guilt. It is a new content type rather than a
-  layer on existing ones, so it is a larger build than anything above and belongs
-  in its own design.
-- **A paid tier around all of this** — a bigger trophy cabinet, custom community
-  themes, running your own challenge — is the healthier revenue line the roadmap
+- **Recipes.** Big enough to deserve its own document (Part three). Rated the top
+  "next thing to design" for the leave-Reddit case.
+- **The pile of shame.** A personal backlog tracker — the universal hobby meme of
+  unbuilt kits — celebrating a kit moving from "in the pile" to "painted". It may
+  be the most native retention object in the hobby, and "help finishing" is
+  exactly the thesis; the reason it is not in Part two is only that it is a new
+  content type, a larger build than a layer on existing ones. Worth bringing
+  forward the moment communities land.
+- **User-created Clubs.** Real gaming clubs running their own space — a natural
+  paid tier, but it reintroduces every moderation problem curated communities
+  avoid, so it waits for a second moderator. The `community` table is already its
+  shape.
+- **A paid tier around all of this** — a bigger cabinet, custom community themes,
+  running your own sponsored challenge — the healthier revenue line the roadmap
   already anticipates, and this feature set is what would carry it.
