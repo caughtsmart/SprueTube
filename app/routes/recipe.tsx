@@ -133,38 +133,40 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
     throw data({ message: "No such recipe." }, { status: 404 });
   }
 
-  const full = await getRecipeWithSteps(scope.db, found.id);
+  // Independent reads run together: the steps, whether the viewer saved it, and
+  // the origin it was forked from. Only the origin's owner name (for the credit
+  // line) has to wait, and only when this is actually a fork.
+  const [full, saved, origin] = await Promise.all([
+    getRecipeWithSteps(scope.db, found.id),
+    viewerId
+      ? scope.db.query.recipeSave
+          .findFirst({
+            where: and(
+              eq(recipeSave.recipeId, found.id),
+              eq(recipeSave.userId, viewerId),
+            ),
+          })
+          .then(Boolean)
+      : Promise.resolve(false),
+    found.forkedFromId
+      ? scope.db.query.recipe.findFirst({
+          where: eq(recipe.id, found.forkedFromId),
+        })
+      : Promise.resolve(null),
+  ]);
   if (!full) throw data({ message: "No such recipe." }, { status: 404 });
 
-  // Has the viewer saved this, and what was it forked from (if the origin is
-  // still there and they may see it)?
-  const saved = viewerId
-    ? Boolean(
-        await scope.db.query.recipeSave.findFirst({
-          where: and(
-            eq(recipeSave.recipeId, found.id),
-            eq(recipeSave.userId, viewerId),
-          ),
-        }),
-      )
-    : false;
-
   let forkedFrom: { username: string; slug: string; title: string } | null = null;
-  if (found.forkedFromId) {
-    const origin = await scope.db.query.recipe.findFirst({
-      where: eq(recipe.id, found.forkedFromId),
+  if (origin && canViewRecipe(origin.visibility, origin.ownerId === viewerId)) {
+    const originOwner = await scope.db.query.profile.findFirst({
+      where: eq(profile.userId, origin.ownerId),
     });
-    if (origin && canViewRecipe(origin.visibility, origin.ownerId === viewerId)) {
-      const originOwner = await scope.db.query.profile.findFirst({
-        where: eq(profile.userId, origin.ownerId),
-      });
-      if (originOwner) {
-        forkedFrom = {
-          username: originOwner.username,
-          slug: origin.slug,
-          title: origin.title,
-        };
-      }
+    if (originOwner) {
+      forkedFrom = {
+        username: originOwner.username,
+        slug: origin.slug,
+        title: origin.title,
+      };
     }
   }
 

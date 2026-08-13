@@ -13,7 +13,7 @@
  * decremented with the `max(0, n-1)` floor — the house rule.
  */
 
-import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, ne, or, sql } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { newId } from "../db/id";
 import {
@@ -417,6 +417,11 @@ export async function saveRecipe(
     return "not_found";
   }
 
+  // You do not save your own recipe — it is already yours, and letting it count
+  // would let an owner pump their own work up the popular strip. A no-op, not an
+  // error, so the UI never has to special-case it.
+  if (target.ownerId === userId) return "ok";
+
   const already = await db.query.recipeSave.findFirst({
     where: and(eq(recipeSave.recipeId, recipeId), eq(recipeSave.userId, userId)),
   });
@@ -471,8 +476,10 @@ export async function unsaveRecipe(
 
 /**
  * Copy a recipe into one the forker owns and can edit, crediting the original
- * via `forkedFromId`. The new recipe is public by default — the forker's own
- * version, which they can then change. Notifies the original author.
+ * via `forkedFromId`. The fork inherits the origin's visibility rather than
+ * defaulting to public: forking an unlisted (link-only) recipe must not publish
+ * its title and steps to search against the author's intent. The forker can
+ * change it afterwards. Notifies the original author.
  */
 export async function forkRecipe(
   db: Db,
@@ -500,7 +507,8 @@ export async function forkRecipe(
       summary: origin.recipe.summary,
       gameSystem: origin.recipe.gameSystem,
       scale: origin.recipe.scale,
-      visibility: "public",
+      coverImageId: origin.recipe.coverImageId,
+      visibility: origin.recipe.visibility,
       forkedFromId: origin.recipe.id,
     }),
   ];
@@ -557,13 +565,18 @@ export async function listSavedRecipes(db: Db, userId: string) {
     .from(recipeSave)
     .innerJoin(recipe, eq(recipe.id, recipeSave.recipeId))
     .innerJoin(profile, eq(profile.userId, recipe.ownerId))
-    .where(eq(recipeSave.userId, userId))
+    .where(
+      and(
+        eq(recipeSave.userId, userId),
+        // A recipe that has since gone private (and is not the viewer's) drops
+        // off. Filtered in SQL so the limit counts only rows they can see.
+        or(ne(recipe.visibility, "private"), eq(recipe.ownerId, userId)),
+      ),
+    )
     .orderBy(desc(recipeSave.createdAt))
     .limit(100);
 
-  return rows.filter((row) =>
-    canViewRecipe(row.visibility, row.ownerId === userId),
-  );
+  return rows;
 }
 
 /* -------------------------------------------------------------------------- */

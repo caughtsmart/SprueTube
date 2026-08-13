@@ -1052,8 +1052,10 @@ export const postRecipe = sqliteTable(
 );
 
 /**
- * A recipe kept in someone's collection. Idempotent by its composite key, the
- * same shape as `like`, so a double-save cannot inflate `save_count`.
+ * A recipe kept in someone's collection. The composite key makes the save
+ * itself idempotent — a person cannot save a recipe twice — the same shape as
+ * `like`. `save_count` is a denormalised counter and carries the same accepted
+ * drift as every other count on the site (see the note in docs/ARCHITECTURE.md).
  */
 export const recipeSave = sqliteTable(
   "recipe_save",
