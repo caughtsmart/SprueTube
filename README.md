@@ -110,6 +110,8 @@ everything.
 
 ## Documentation
 
+- [`docs/HANDOVER.md`](docs/HANDOVER.md) — **start here** if you are picking this
+  up: what is live, what is outstanding, and the details that waste a day
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the pieces fit, and why
 - [`docs/DEPLOY.md`](docs/DEPLOY.md) — first deploy to spruetube.app, step by step
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — what is next, including the iOS app

@@ -17,8 +17,11 @@ without them.
   12429789, registered office in Sully, ICO ZB600982 — all in `OPERATOR` in
   `app/lib/legal.ts`, read by both documents. Still outstanding: a solicitor
   reading them. See `docs/COMPLIANCE.md`.
-- **The safety inboxes.** `safety@` and `privacy@` are published in the app and
-  must reach a person.
+- ~~**The safety inboxes.**~~ Done, by removing them. No address is published
+  except `hello@spruetube.app`, which Email Routing forwards to Graham and
+  Leigh and which has been confirmed by delivery. Safety reports and data
+  requests are topics on `/contact` instead, marked `[priority]` in the subject.
+  A test walks the source and fails if any other address appears.
 - **Someone made admin.** Reports pile up unactionable until then.
 - **A backup job.** `wrangler d1 export` on a schedule.
 
