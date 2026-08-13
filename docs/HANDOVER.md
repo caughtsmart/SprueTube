@@ -25,6 +25,16 @@ Recently finished, in order:
   clock get `[priority]` in the subject line.
 - **Mobile overflow.** A pasted link no longer widens the page on a phone.
 
+Landed in parallel with the above, from other sessions, so it is worth knowing
+this file did not build it:
+
+- **Web Push** — built end to end and **dormant**. Tables, sender, service
+  worker and the Settings toggle all shipped; every send is a no-op until the
+  three `VAPID_*` keys are set. `docs/NOTIFICATIONS.md` has the go-live runbook
+  and the design for email digests, which remain a design.
+- **AdSense** — `ADSENSE_CLIENT` is now a real publisher id, and the sidebar
+  unit sits in an xl-only right rail.
+
 ## What is outstanding
 
 Ranked by what actually blocks something.
@@ -38,16 +48,22 @@ Ranked by what actually blocks something.
 3. **A solicitor reading the terms and privacy notice.** They are complete and
    accurate about what the software does, which is the hard part, but nobody
    qualified has read them.
-4. **Mandatory email verification** is deliberately off. Turning it on is a
+4. **Web Push is off.** The code is shipped and inert until `VAPID_PUBLIC_KEY`,
+   `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` are set — roughly ten minutes, most
+   of it the deploy, per `docs/NOTIFICATIONS.md`. One detail that runbook
+   predates: `VAPID_SUBJECT` wants a mailbox somebody reads, and the only
+   address the site publishes now is `hello@spruetube.app`, so use
+   `mailto:hello@spruetube.app` rather than a personal one.
+5. **Mandatory email verification** is deliberately off. Turning it on is a
    one-way door that locks out every account created before the flip, including
    the admin. `DEPLOY.md` §11 has the order to do it in.
-5. **The rate limiter is not atomic.** KV read-compare-write, so a parallel
+6. **The rate limiter is not atomic.** KV read-compare-write, so a parallel
    burst passes almost entirely. It stops a runaway retry loop, which is what
    this actually sees. A real fix needs a Durable Object. Documented in
    `server/api/context.ts`, and honest about it.
-6. **The news sources need signing off.** Twelve feeds, chosen but never
+7. **The news sources need signing off.** Twelve feeds, chosen but never
    reviewed by a person.
-7. **Tab-bar glyphs** are Unicode characters standing in for a real 20px stroke
+8. **Tab-bar glyphs** are Unicode characters standing in for a real 20px stroke
    icon set.
 
 ## Things that will waste your time if you do not know them
@@ -84,7 +100,7 @@ would remove most of that limitation.
 
 ```bash
 npm run typecheck     # wrangler types + react-router typegen + tsc
-npm test              # 275 tests, no database needed
+npm test              # 285 tests, no database needed
 npm run check:mobile  # 375px and 320px sweep + component probes; needs npm run dev
 ```
 
@@ -93,8 +109,9 @@ It sweeps the public pages and then runs probes that paste real component markup
 into a real page, because a fresh local D1 has no posts in it and the sweep alone
 can only prove the chrome is sound.
 
-## Open pull request
+## Nothing is in flight
 
-**#11** — the Email Routing documentation and the compliance record. Docs only,
-CI green. Its history is left messy on purpose: it contains two wrong diagnoses
-and their corrections, and the wrong turns are the useful part of it.
+No open pull requests from this work, and `main` is deployed. PR #11 carried the
+Email Routing documentation and the compliance record; its history is messy on
+purpose, containing two wrong diagnoses and their corrections, and the wrong
+turns are the useful part of it.
