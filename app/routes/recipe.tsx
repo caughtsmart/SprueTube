@@ -13,7 +13,7 @@ import {
   getRecipeWithSteps,
 } from "../../server/services/recipes";
 import { block, profile, recipe, recipeSave } from "../../server/db/schema";
-import { GAME_SYSTEM_LABELS } from "../lib/taxonomy";
+import { GAME_SYSTEM_LABELS, TECHNIQUE_LABELS, type Technique } from "../lib/taxonomy";
 
 const VISIBILITY_NOTE: Record<string, string | null> = {
   public: null,
@@ -34,11 +34,64 @@ export function meta({ loaderData: loaded }: Route.MetaArgs) {
     { property: "og:description", content: description },
     { property: "og:type", content: "article" },
     // Only a public recipe is for search. "Unlisted" means link-only, so it
-    // must not be indexed if a crawler ever finds the URL.
+    // must not be indexed if a crawler ever finds the URL — and only a public
+    // recipe emits the HowTo rich-result data.
     ...(recipe.visibility === "public"
-      ? []
+      ? [{ "script:ld+json": howToJsonLd(loaded) }]
       : [{ name: "robots", content: "noindex" }]),
   ];
+}
+
+/**
+ * schema.org HowTo for a recipe — a method with steps and supplies is exactly
+ * what HowTo describes, and it makes "how to paint X" pages eligible for the
+ * rich result Google shows for method content. Emitted through React Router's
+ * `script:ld+json` meta descriptor, which serialises it safely (no
+ * dangerouslySetInnerHTML, per the architecture rule).
+ */
+function howToJsonLd(loaded: {
+  recipe: { title: string; summary: string | null };
+  steps: {
+    technique: string;
+    productName: string | null;
+    brand: string | null;
+    note: string | null;
+  }[];
+  owner: { displayName: string };
+}) {
+  const named = (productName: string | null, brand: string | null) =>
+    [brand, productName].filter(Boolean).join(" ");
+
+  const supplies = [
+    ...new Set(
+      loaded.steps
+        .filter((step) => step.productName)
+        .map((step) => named(step.productName, step.brand)),
+    ),
+  ];
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: loaded.recipe.title,
+    ...(loaded.recipe.summary ? { description: loaded.recipe.summary } : {}),
+    author: { "@type": "Person", name: loaded.owner.displayName },
+    ...(supplies.length
+      ? { supply: supplies.map((name) => ({ "@type": "HowToSupply", name })) }
+      : {}),
+    step: loaded.steps.map((step, index) => {
+      const label =
+        TECHNIQUE_LABELS[step.technique as Technique] ?? step.technique;
+      const paint = named(step.productName, step.brand);
+      const text = [paint, step.note].filter(Boolean).join(" — ") || label;
+      return {
+        "@type": "HowToStep",
+        position: index + 1,
+        name: label,
+        text,
+      };
+    }),
+  };
 }
 
 export async function loader({ context, request, params }: Route.LoaderArgs) {

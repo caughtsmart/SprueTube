@@ -13,7 +13,7 @@
  * decremented with the `max(0, n-1)` floor — the house rule.
  */
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { newId } from "../db/id";
 import {
@@ -24,6 +24,8 @@ import {
   recipeSave,
   recipeStep,
 } from "../db/schema";
+import { capPerAuthor } from "./highlights";
+import { blockedUserIds } from "./moderation";
 import { resolvePaints } from "./paints";
 import { createNotification } from "./posts";
 import type { PushDelivery } from "./push";
@@ -562,6 +564,106 @@ export async function listSavedRecipes(db: Db, userId: string) {
   return rows.filter((row) =>
     canViewRecipe(row.visibility, row.ownerId === userId),
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Discovery — popular recipes                                                */
+/* -------------------------------------------------------------------------- */
+
+export const POPULAR_RECIPES_CACHE_KEY = "popular_recipes:v1";
+export const POPULAR_RECIPES_TTL_SECONDS = 15 * 60;
+/** How many are shown, and how many are cached so the block filter stays free. */
+const SHOWN_RECIPES = 6;
+const CANDIDATE_RECIPES = 18;
+const MAX_RECIPES_PER_AUTHOR = 2;
+
+type PopularCandidate = {
+  id: string;
+  slug: string;
+  title: string;
+  ownerId: string;
+  ownerUsername: string;
+  ownerDisplayName: string;
+  saveCount: number;
+  forkCount: number;
+};
+
+export type PopularRecipe = Omit<PopularCandidate, "ownerId">;
+
+/**
+ * The most kept-and-adapted public recipes, computed into KV every fifteen
+ * minutes — the same shape as the homepage highlights, and a published rule
+ * (save + fork), not an opaque ranking. The cache holds a surplus so a viewer's
+ * blocks and mutes can be applied to a short list afterwards, and it is capped
+ * per author so one popular painter cannot become the whole strip.
+ */
+export async function getPopularRecipes(
+  env: Env,
+  db: Db,
+  options: {
+    viewerId?: string | null;
+    waitUntil?: (promise: Promise<unknown>) => void;
+  } = {},
+): Promise<PopularRecipe[]> {
+  try {
+    let candidates = await readPopularCache(env);
+    if (!candidates) {
+      candidates = await computePopularRecipes(db);
+      const write = env.CACHE.put(
+        POPULAR_RECIPES_CACHE_KEY,
+        JSON.stringify(candidates),
+        { expirationTtl: POPULAR_RECIPES_TTL_SECONDS },
+      );
+      if (options.waitUntil) options.waitUntil(write);
+      else await write;
+    }
+
+    const hidden = options.viewerId
+      ? new Set(await blockedUserIds(db, options.viewerId))
+      : new Set<string>();
+
+    const visible = hidden.size
+      ? candidates.filter((row) => !hidden.has(row.ownerId))
+      : candidates;
+
+    return capPerAuthor(visible, (row) => row.ownerId, MAX_RECIPES_PER_AUTHOR)
+      .slice(0, SHOWN_RECIPES)
+      .map(({ ownerId: _ownerId, ...rest }) => rest);
+  } catch {
+    // A missing strip is a much smaller problem than a page that will not render.
+    return [];
+  }
+}
+
+async function readPopularCache(env: Env): Promise<PopularCandidate[] | null> {
+  const cached = await env.CACHE.get(POPULAR_RECIPES_CACHE_KEY, "json");
+  return Array.isArray(cached) ? (cached as PopularCandidate[]) : null;
+}
+
+async function computePopularRecipes(db: Db): Promise<PopularCandidate[]> {
+  const score = sql<number>`${recipe.saveCount} + ${recipe.forkCount}`;
+  return db
+    .select({
+      id: recipe.id,
+      slug: recipe.slug,
+      title: recipe.title,
+      ownerId: recipe.ownerId,
+      ownerUsername: profile.username,
+      ownerDisplayName: profile.displayName,
+      saveCount: recipe.saveCount,
+      forkCount: recipe.forkCount,
+    })
+    .from(recipe)
+    .innerJoin(profile, eq(profile.userId, recipe.ownerId))
+    .where(
+      and(
+        eq(recipe.visibility, "public"),
+        eq(profile.status, "active"),
+        gt(score, 0),
+      ),
+    )
+    .orderBy(desc(score), desc(recipe.id))
+    .limit(CANDIDATE_RECIPES);
 }
 
 async function uniqueRecipeSlug(db: Db, ownerId: string, title: string) {
