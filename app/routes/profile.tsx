@@ -12,6 +12,7 @@ import { imageSrc } from "../lib/media";
 import { useRoot } from "../root";
 import { pickAd } from "../../server/services/ads";
 import { getProfilePosts } from "../../server/services/feed";
+import { listRecipesByOwner } from "../../server/services/recipes";
 import { block, follow, profile, project } from "../../server/db/schema";
 import {
   GAME_SYSTEM_LABELS,
@@ -74,7 +75,7 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
     }
   }
 
-  const [page, projects, relationship, ad] = await Promise.all([
+  const [page, projects, recipes, relationship, ad] = await Promise.all([
     getProfilePosts(scope.db, row.userId, viewerId),
     scope.db
       .select()
@@ -82,6 +83,8 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
       .where(eq(project.ownerId, row.userId))
       .orderBy(desc(project.updatedAt))
       .limit(12),
+    // Public recipes to anyone; all of them to the owner. `isSelf` decides.
+    listRecipesByOwner(scope.db, row.userId, isSelf),
     viewerId && !isSelf
       ? scope.db
           .select({ followerId: follow.followerId })
@@ -129,6 +132,12 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
       slug: p.slug,
       postCount: p.postCount,
       status: p.status,
+    })),
+    recipes: recipes.slice(0, 12).map((r) => ({
+      id: r.id,
+      title: r.title,
+      slug: r.slug,
+      visibility: r.visibility,
     })),
     isSelf,
     initiallyFollowing: relationship.length > 0,
@@ -318,6 +327,44 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
             <p className="st-text-muted text-sm">
               Group a long build into one place — an army, a single model, or
               something you keep coming back to.
+            </p>
+          )}
+        </section>
+      ) : null}
+
+      {loaderData.recipes.length || loaderData.isSelf ? (
+        <section className="mt-5" aria-label="Recipes">
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <h2 className="text-sm font-semibold">Paint recipes</h2>
+            {loaderData.isSelf ? (
+              <Link to="/recipes/new" className="st-link text-xs font-medium">
+                New recipe
+              </Link>
+            ) : null}
+          </div>
+
+          {loaderData.recipes.length ? (
+            <ul className="flex flex-wrap gap-2">
+              {loaderData.recipes.map((entry) => (
+                <li key={entry.id}>
+                  <Link
+                    to={`/@${person.username}/recipes/${entry.slug}`}
+                    className="st-card block px-3 py-2 transition hover:border-[var(--color-primer-500)]"
+                  >
+                    <p className="text-sm font-medium">{entry.title}</p>
+                    {entry.visibility !== "public" ? (
+                      <p className="st-text-muted text-xs capitalize">
+                        {entry.visibility}
+                      </p>
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="st-text-muted text-sm">
+              How did you get that oil wash so clean? Write it down once and link
+              the paints — others can follow it, and you can reuse it.
             </p>
           )}
         </section>

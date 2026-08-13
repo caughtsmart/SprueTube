@@ -135,6 +135,7 @@ export const profile = sqliteTable(
     followerCount: integer("follower_count").notNull().default(0),
     followingCount: integer("following_count").notNull().default(0),
     postCount: integer("post_count").notNull().default(0),
+    recipeCount: integer("recipe_count").notNull().default(0),
     createdAt: integer("created_at").notNull().default(now),
     updatedAt: integer("updated_at").notNull().default(now),
   },
@@ -463,10 +464,12 @@ export const notification = sqliteTable(
         "system",
         "message",
         "listing_reply",
+        "recipe_saved",
+        "recipe_forked",
       ],
     }).notNull(),
     subjectType: text("subject_type", {
-      enum: ["post", "comment", "user", "project", "listing", "message"],
+      enum: ["post", "comment", "user", "project", "listing", "message", "recipe"],
     }),
     subjectId: text("subject_id"),
     /** Short pre-rendered line, so the list needs no extra joins. */
@@ -936,4 +939,138 @@ export const message = sqliteTable(
     deletedAt: integer("deleted_at"),
   },
   (t) => [index("message_thread_idx").on(t.conversationId, t.createdAt)],
+);
+
+/* -------------------------------------------------------------------------- */
+/* Recipes — reusable, shoppable paint schemes (see docs/RECIPES.md)           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A paint scheme owned by a painter, not by a post — so it can be written from
+ * scratch, shown on many posts, and (later) saved and forked. The flat
+ * `post_product` list stays for a quick "paints used" under one photo; a recipe
+ * is the documented, reusable version.
+ */
+export const recipe = sqliteTable(
+  "recipe",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** Unique per owner, like a project slug. Lives at /@user/recipes/:slug. */
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    summary: text("summary"),
+    gameSystem: text("game_system"),
+    scale: text("scale"),
+    coverImageId: text("cover_image_id"),
+    visibility: text("visibility", { enum: ["public", "unlisted", "private"] })
+      .notNull()
+      .default("public"),
+    /**
+     * Set when this recipe was forked from another. No foreign key on purpose —
+     * the same call `project.pinnedPostId` makes — so a fork outlives its origin
+     * being deleted, showing a degraded credit rather than cascading away.
+     * Declared now; the fork flow that fills it is a later phase.
+     */
+    forkedFromId: text("forked_from_id"),
+    saveCount: integer("save_count").notNull().default(0),
+    forkCount: integer("fork_count").notNull().default(0),
+    /** Posts that attach this recipe. */
+    useCount: integer("use_count").notNull().default(0),
+    createdAt: integer("created_at").notNull().default(now),
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex("recipe_owner_slug_unique").on(t.ownerId, t.slug),
+    index("recipe_owner_idx").on(t.ownerId, t.createdAt),
+    index("recipe_system_idx").on(t.gameSystem, t.createdAt),
+  ],
+);
+
+export const recipeStep = sqliteTable(
+  "recipe_step",
+  {
+    id: text("id").primaryKey(),
+    recipeId: text("recipe_id")
+      .notNull()
+      .references(() => recipe.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    /*
+     * The technique vocabulary is inlined here rather than imported from
+     * taxonomy, the same call `post.wipStage` makes: importing the tuple would
+     * pull this Drizzle schema toward the client bundle the taxonomy split
+     * exists to keep it out of. Keep this list and TECHNIQUES in step.
+     */
+    technique: text("technique", {
+      enum: [
+        "prime",
+        "base",
+        "layer",
+        "wash",
+        "shade",
+        "drybrush",
+        "edge_highlight",
+        "glaze",
+        "wet_blend",
+        "weathering",
+        "other",
+      ],
+    }).notNull(),
+    /** Null for a pure-technique step ("stipple with a torn sponge"). */
+    productName: text("product_name"),
+    brand: text("brand"),
+    /** Resolved at write time, exactly like `post_product.shopUrl`. */
+    shopUrl: text("shop_url"),
+    note: text("note"),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [index("recipe_step_recipe_idx").on(t.recipeId, t.position)],
+);
+
+/**
+ * A recipe shown on a post. A join, not a column on `post`, so the hot post
+ * table is untouched and a diorama can credit more than one scheme later.
+ */
+export const postRecipe = sqliteTable(
+  "post_recipe",
+  {
+    postId: text("post_id")
+      .notNull()
+      .references(() => post.id, { onDelete: "cascade" }),
+    recipeId: text("recipe_id")
+      .notNull()
+      .references(() => recipe.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [
+    primaryKey({ columns: [t.postId, t.recipeId] }),
+    // "Which posts use this recipe" — the reverse of the primary key.
+    index("post_recipe_recipe_idx").on(t.recipeId),
+  ],
+);
+
+/**
+ * A recipe kept in someone's collection. The composite key makes the save
+ * itself idempotent — a person cannot save a recipe twice — the same shape as
+ * `like`. `save_count` is a denormalised counter and carries the same accepted
+ * drift as every other count on the site (see the note in docs/ARCHITECTURE.md).
+ */
+export const recipeSave = sqliteTable(
+  "recipe_save",
+  {
+    recipeId: text("recipe_id")
+      .notNull()
+      .references(() => recipe.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [
+    primaryKey({ columns: [t.recipeId, t.userId] }),
+    // A person's saved recipes, newest first.
+    index("recipe_save_user_idx").on(t.userId, t.createdAt),
+  ],
 );

@@ -16,6 +16,7 @@ import {
   tag,
 } from "../db/schema";
 import { hotScore } from "./ranking";
+import { resolvePaints } from "./paints";
 import { pushToUser, type PushDelivery } from "./push";
 
 import {
@@ -98,6 +99,7 @@ export async function createPost(
   db: Db,
   authorId: string,
   input: CreatePostInput,
+  env?: Env,
   delivery?: PushDelivery,
 ): Promise<{ id: string; status: "published" }> {
   const id = newId("p");
@@ -165,16 +167,32 @@ export async function createPost(
   }
 
   if (input.products?.length) {
+    const capped = input.products.slice(0, 20);
+    // Resolve paint names to shop links at write time, so the feed never calls
+    // the shop. Only paints, and only where the client did not already supply a
+    // link — a product that already has one is not looked up. `resolvePaints`
+    // is a no-op returning nulls when the shop is not configured or `env` is
+    // absent, so a post never depends on it.
+    const resolved = env
+      ? await resolvePaints(
+          env,
+          capped.map((product) =>
+            !product.shopUrl && (product.kind ?? "paint") === "paint"
+              ? { name: product.name, brand: product.brand }
+              : null,
+          ),
+        )
+      : [];
     statements.push(
       db.insert(postProduct).values(
-        input.products.slice(0, 20).map((product, index) => ({
+        capped.map((product, index) => ({
           id: newId("pp"),
           postId: id,
           position: index,
           kind: product.kind ?? ("paint" as const),
           name: product.name.slice(0, 120),
           brand: product.brand?.slice(0, 60) ?? null,
-          shopUrl: product.shopUrl ?? null,
+          shopUrl: product.shopUrl ?? resolved[index] ?? null,
         })),
       ),
     );
@@ -591,7 +609,9 @@ export async function createNotification(
       | "mention"
       | "system"
       | "message"
-      | "listing_reply";
+      | "listing_reply"
+      | "recipe_saved"
+      | "recipe_forked";
     subjectType?:
       | "post"
       | "comment"
@@ -599,6 +619,7 @@ export async function createNotification(
       | "project"
       | "listing"
       | "message"
+      | "recipe"
       | null;
     subjectId?: string | null;
     preview?: string | null;

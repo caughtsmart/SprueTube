@@ -36,4 +36,16 @@ declare interface Env {
   VAPID_PRIVATE_KEY: string;
   /** Contact for the push service, e.g. "mailto:safety@spruetube.app". */
   VAPID_SUBJECT: string;
+
+  /*
+   * Paint resolution against the Loaded Dice storefront (roadmap item 3). Both
+   * unset ⇒ paint names never resolve to a shop link and render as plain text,
+   * exactly the behaviour before this existed. The domain is public config and
+   * the token is a read-only Storefront API access token; they live here
+   * together so an environment with neither stays a clean no-op.
+   */
+  /** Storefront host, e.g. "www.loadeddice.uk". Unset ⇒ resolution is a no-op. */
+  SHOP_STOREFRONT_DOMAIN: string;
+  /** Shopify Storefront API access token (read-only). */
+  SHOP_STOREFRONT_TOKEN: string;
 }

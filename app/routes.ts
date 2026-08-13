@@ -24,6 +24,7 @@ export default [
   route("settings", "routes/settings.tsx"),
   route("posts/:postId", "routes/post.tsx"),
   route("projects/new", "routes/project-new.tsx"),
+  route("recipes/new", "routes/recipe-new.tsx"),
   route("tags/:tag", "routes/tag.tsx"),
   route("systems/:system", "routes/system.tsx"),
 
@@ -37,6 +38,9 @@ export default [
   // the order a person would guess.
   route(":handle/projects/:slug", "routes/project.tsx"),
   route(":handle/projects/:slug/edit", "routes/project-edit.tsx"),
+  // Recipes — reusable paint schemes — hang off the handle the same way.
+  route(":handle/recipes/:slug", "routes/recipe.tsx"),
+  route(":handle/recipes/:slug/edit", "routes/recipe-edit.tsx"),
   route(":handle", "routes/profile.tsx"),
 
   // News — a daily digest of hobby news, each item linking to its source.

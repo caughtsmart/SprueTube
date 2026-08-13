@@ -102,4 +102,10 @@
   //                               three unset ⇒ push is off. The public key is
   //                               shipped to browsers but set as a secret so the
   //                               three keys are managed together.
+  //   SHOP_STOREFRONT_DOMAIN / SHOP_STOREFRONT_TOKEN
+  //                             — Loaded Dice paint resolution (roadmap item 3).
+  //                               Read-only Storefront API. Both unset ⇒ paint
+  //                               names render as plain text, no lookups. Domain
+  //                               is public config kept here so the pair move
+  //                               together, mirroring the VAPID public key.
 }

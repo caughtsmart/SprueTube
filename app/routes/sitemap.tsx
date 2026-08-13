@@ -1,7 +1,14 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Route } from "./+types/sitemap";
 import { getScope } from "../lib/data.server";
-import { commission, listing, post, profile, project } from "../../server/db/schema";
+import {
+  commission,
+  listing,
+  post,
+  profile,
+  project,
+  recipe,
+} from "../../server/db/schema";
 import { recentNewsSlugs } from "../../server/services/news";
 import { GAME_SYSTEMS } from "../lib/taxonomy";
 
@@ -17,7 +24,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const scope = await getScope(context, request);
   const base = scope.env.SITE_URL;
 
-  const [posts, people, buildLogs, news, listings, commissions] =
+  const [posts, people, buildLogs, recipes, news, listings, commissions] =
     await Promise.all([
     /*
      * The join is the point, not decoration. Every other query below already
@@ -62,6 +69,19 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       .innerJoin(profile, eq(profile.userId, project.ownerId))
       .where(eq(profile.status, "active"))
       .orderBy(desc(project.updatedAt))
+      .limit(2000),
+    // Public recipes only — "how to paint Death Guard rust" is the query these
+    // answer, and unlisted/private ones are deliberately not for search.
+    scope.db
+      .select({
+        slug: recipe.slug,
+        updatedAt: recipe.updatedAt,
+        username: profile.username,
+      })
+      .from(recipe)
+      .innerJoin(profile, eq(profile.userId, recipe.ownerId))
+      .where(and(eq(recipe.visibility, "public"), eq(profile.status, "active")))
+      .orderBy(desc(recipe.updatedAt))
       .limit(2000),
     recentNewsSlugs(scope.db, 200),
     // Only open listings: a sold item indexed for a year is a bad result for
@@ -120,6 +140,11 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       loc: `${base}/@${entry.username}/projects/${entry.slug}`,
       lastmod: entry.updatedAt,
       priority: "0.8",
+    })),
+    ...recipes.map((entry) => ({
+      loc: `${base}/@${entry.username}/recipes/${entry.slug}`,
+      lastmod: entry.updatedAt,
+      priority: "0.7",
     })),
     ...news.map((entry) => ({
       loc: `${base}/news/${entry.slug}`,

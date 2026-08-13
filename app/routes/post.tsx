@@ -4,6 +4,7 @@ import type { Route } from "./+types/post";
 import { AdSlot } from "../components/AdSlot";
 import { Avatar } from "../components/Avatar";
 import { PostCard } from "../components/PostCard";
+import { PostRecipes } from "../components/PostRecipes";
 import { ReportButton } from "../components/ReportButton";
 import { api, ApiError } from "../lib/api";
 import { getScope } from "../lib/data.server";
@@ -12,6 +13,7 @@ import { imageSrc } from "../lib/media";
 import { useRoot } from "../root";
 import { pickAd } from "../../server/services/ads";
 import { getPost } from "../../server/services/feed";
+import { getPostRecipes, listRecipesByOwner } from "../../server/services/recipes";
 import { comment as commentTable, profile } from "../../server/db/schema";
 import { and, asc, eq, isNull } from "drizzle-orm";
 
@@ -52,7 +54,11 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
     throw data({ message: "That post is not here." }, { status: 404 });
   }
 
-  const [comments, ad] = await Promise.all([
+  // The author gets a picker of their own recipes and sees their private ones
+  // attached; nobody else does.
+  const isAuthor = scope.viewer?.userId === post.author.userId;
+
+  const [comments, ad, postRecipeRows] = await Promise.all([
     scope.db
       .select({
         id: commentTable.id,
@@ -79,7 +85,14 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
       .orderBy(asc(commentTable.createdAt))
       .limit(200),
     pickAd(scope.db, "post"),
+    getPostRecipes(scope.db, params.postId, { includePrivate: isAuthor }),
   ]);
+
+  // The attach picker is the author's own recipes; the attach API refuses a
+  // recipe that is not theirs regardless.
+  const ownRecipes = isAuthor
+    ? await listRecipesByOwner(scope.db, post.author.userId, true)
+    : [];
 
   const firstImage = post.media[0];
   const ogImage =
@@ -87,7 +100,30 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
       ? `https://imagedelivery.net/${scope.env.CF_IMAGES_ACCOUNT_HASH}/${firstImage.imageId}/full`
       : null;
 
-  return { post, comments, ad, ogImage };
+  return {
+    post,
+    comments,
+    ad,
+    ogImage,
+    isAuthor,
+    postRecipes: postRecipeRows.map(({ recipe, steps }) => ({
+      recipe: { id: recipe.id, slug: recipe.slug, title: recipe.title },
+      steps: steps.map((step) => ({
+        id: step.id,
+        position: step.position,
+        technique: step.technique,
+        productName: step.productName,
+        brand: step.brand,
+        shopUrl: step.shopUrl,
+        note: step.note,
+      })),
+    })),
+    ownRecipes: ownRecipes.map((recipe) => ({
+      id: recipe.id,
+      slug: recipe.slug,
+      title: recipe.title,
+    })),
+  };
 }
 
 export default function PostPage({ loaderData, params }: Route.ComponentProps) {
@@ -131,6 +167,14 @@ export default function PostPage({ loaderData, params }: Route.ComponentProps) {
   return (
     <div className="mx-auto max-w-2xl">
       <PostCard post={loaderData.post} />
+
+      <PostRecipes
+        postId={loaderData.post.id}
+        ownerUsername={loaderData.post.author.username}
+        attached={loaderData.postRecipes}
+        ownRecipes={loaderData.ownRecipes}
+        isAuthor={loaderData.isAuthor}
+      />
 
       <section className="mt-6" aria-label="Comments">
         <h2 className="mb-3 text-base font-semibold">

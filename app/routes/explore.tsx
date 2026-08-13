@@ -6,6 +6,7 @@ import { getScope } from "../lib/data.server";
 import { compactCount } from "../lib/format";
 import { pickAd } from "../../server/services/ads";
 import { getFeed } from "../../server/services/feed";
+import { getPopularRecipes } from "../../server/services/recipes";
 import { profile, tag } from "../../server/db/schema";
 import { GAME_SYSTEMS, GAME_SYSTEM_LABELS } from "../lib/taxonomy";
 
@@ -23,7 +24,7 @@ export function meta() {
 export async function loader({ context, request }: Route.LoaderArgs) {
   const scope = await getScope(context, request);
 
-  const [page, tags, newcomers, ad] = await Promise.all([
+  const [page, tags, newcomers, popularRecipes, ad] = await Promise.all([
     getFeed(scope.db, {
       tab: "discover",
       viewerId: scope.viewer?.userId ?? null,
@@ -45,6 +46,10 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       .where(eq(profile.status, "active"))
       .orderBy(desc(profile.postCount))
       .limit(8),
+    getPopularRecipes(scope.env, scope.db, {
+      viewerId: scope.viewer?.userId ?? null,
+      waitUntil: (promise) => scope.ctx.waitUntil(promise),
+    }),
     pickAd(scope.db, "feed"),
   ]);
 
@@ -53,6 +58,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     nextCursor: page.nextCursor,
     tags: tags.filter((t) => t.postCount > 0),
     newcomers: newcomers.filter((p) => p.postCount > 0),
+    popularRecipes,
     ad,
   };
 }
@@ -94,6 +100,32 @@ export default function Explore({ loaderData }: Route.ComponentProps) {
               </Link>
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {loaderData.popularRecipes.length ? (
+        <section className="mb-6" aria-label="Popular recipes">
+          <h2 className="st-text-muted mb-2 text-xs font-semibold tracking-wide uppercase">
+            Recipes people are keeping
+          </h2>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {loaderData.popularRecipes.map((recipe) => (
+              <li key={recipe.id} className="st-card p-3">
+                <Link
+                  to={`/@${recipe.ownerUsername}/recipes/${recipe.slug}`}
+                  className="st-text-strong text-sm font-semibold hover:underline"
+                >
+                  🎨 {recipe.title}
+                </Link>
+                <p className="st-text-muted mt-0.5 text-xs">
+                  by {recipe.ownerDisplayName} ·{" "}
+                  {recipe.saveCount + recipe.forkCount === 1
+                    ? "1 keep"
+                    : `${recipe.saveCount + recipe.forkCount} keeps`}
+                </p>
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
 

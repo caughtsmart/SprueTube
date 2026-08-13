@@ -105,6 +105,48 @@ export const WIP_STAGE_SHORT: Record<WipStage, string> = {
   finished: "Finished",
 };
 
+/**
+ * The steps a paint recipe is built from. This is the vocabulary, not the
+ * order — a recipe's order is the painter's, stored per step. Roughly listed
+ * base-upward so a dropdown reads in the order a model is usually painted.
+ */
+export const TECHNIQUES = [
+  "prime",
+  "base",
+  "layer",
+  "wash",
+  "shade",
+  "drybrush",
+  "edge_highlight",
+  "glaze",
+  "wet_blend",
+  "weathering",
+  "other",
+] as const;
+
+export type Technique = (typeof TECHNIQUES)[number];
+
+export const TECHNIQUE_LABELS: Record<Technique, string> = {
+  prime: "Prime",
+  base: "Base coat",
+  layer: "Layer",
+  wash: "Wash",
+  shade: "Shade",
+  drybrush: "Drybrush",
+  edge_highlight: "Edge highlight",
+  glaze: "Glaze",
+  wet_blend: "Wet blend",
+  weathering: "Weathering",
+  other: "Other",
+};
+
+/** Recipe size limits, agreed by the validators and the editor UI. */
+export const MAX_STEPS_PER_RECIPE = 40;
+export const MAX_RECIPE_TITLE = 120;
+export const MAX_RECIPE_SUMMARY = 300;
+export const MAX_STEP_PRODUCT_NAME = 120;
+export const MAX_STEP_NOTE = 300;
+
 export const REPORT_REASONS = [
   "spam",
   "harassment",

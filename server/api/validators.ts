@@ -4,9 +4,15 @@ import {
   GAME_SYSTEMS,
   MAX_BODY_LENGTH,
   MAX_IMAGES_PER_POST,
+  MAX_RECIPE_SUMMARY,
+  MAX_RECIPE_TITLE,
+  MAX_STEP_NOTE,
+  MAX_STEP_PRODUCT_NAME,
+  MAX_STEPS_PER_RECIPE,
   PROJECT_STATUSES,
   REPORT_REASONS,
   SCALES,
+  TECHNIQUES,
   USERNAME_MAX,
   USERNAME_MIN,
   WIP_STAGES,
@@ -23,6 +29,8 @@ export {
   PROJECT_STATUSES,
   PROJECT_STATUS_LABELS,
   SCALES,
+  TECHNIQUES,
+  TECHNIQUE_LABELS,
   WIP_STAGES,
   WIP_STAGE_LABELS,
 } from "../../app/lib/taxonomy";
@@ -203,6 +211,39 @@ export const projectPatchSchema = z.object({
   coverImageId: z.string().max(100).nullish(),
 });
 
+/* -------------------------------------------------------------------------- */
+/* Recipes                                                                    */
+/* -------------------------------------------------------------------------- */
+
+const recipeStepInput = z.object({
+  technique: z.enum(TECHNIQUES),
+  productName: optionalTrimmed(MAX_STEP_PRODUCT_NAME),
+  brand: optionalTrimmed(60),
+  note: optionalTrimmed(MAX_STEP_NOTE),
+});
+
+export const recipeSchema = z.object({
+  title: z.string().trim().min(1).max(MAX_RECIPE_TITLE),
+  summary: optionalTrimmed(MAX_RECIPE_SUMMARY),
+  gameSystem: z.enum(GAME_SYSTEMS).nullish(),
+  scale: z.enum(SCALES).nullish(),
+  visibility: z.enum(["public", "unlisted", "private"]).default("public"),
+  steps: z.array(recipeStepInput).max(MAX_STEPS_PER_RECIPE).default([]),
+});
+
+/*
+ * An edit sends the whole recipe, steps included — the step editor works on the
+ * full list and the service replaces it wholesale, so unlike the project patch
+ * there is nothing to merge. Title and visibility still carry their meaning, so
+ * they are required here rather than optional.
+ */
+export const recipePatchSchema = recipeSchema;
+
+/** Attaching an existing recipe to one of your posts. */
+export const attachRecipeSchema = z.object({
+  recipeId: z.string().min(1).max(60),
+});
+
 /*
  * The notification `type` values a person can mute. Kept in step with the enum
  * on the `notification` table (server/db/schema.ts). `system` is deliberately
@@ -216,6 +257,8 @@ export const MUTABLE_NOTIFICATION_TYPES = [
   "mention",
   "message",
   "listing_reply",
+  "recipe_saved",
+  "recipe_forked",
 ] as const;
 
 /*
@@ -239,5 +282,8 @@ export const pushUnsubscribeSchema = z.object({
 /** Notification preferences a person can change from Settings. */
 export const notificationPrefSchema = z.object({
   emailDigest: z.enum(["off", "weekly", "daily"]).optional(),
-  mutedTypes: z.array(z.enum(MUTABLE_NOTIFICATION_TYPES)).max(8).optional(),
+  mutedTypes: z
+    .array(z.enum(MUTABLE_NOTIFICATION_TYPES))
+    .max(MUTABLE_NOTIFICATION_TYPES.length)
+    .optional(),
 });
