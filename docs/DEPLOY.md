@@ -343,24 +343,116 @@ get `[priority]` in the subject line so a shared inbox can filter them.
 `hello@spruetube.app` must reach a person. Cloudflare **Email Routing** forwards
 it for free:
 
-1. **Email → Email Routing** on the `spruetube.app` zone, then **Get started**.
-   Adding the MX and TXT records is offered automatically; take it.
-2. **Destination addresses** → add `graham@loadeddice.uk` and
-   `leigh@loadeddice.uk`. Each gets a confirmation email that has to be clicked
-   before it can receive anything — a rule pointing at an unverified address
-   silently drops mail.
-3. **Routing rules** → **Create address**: custom address `hello`, action
-   *Send to*, and select both destinations.
-4. Leave the catch-all **off**. On a domain with a published address, a
-   catch-all is a spam magnet and nothing needs it.
+It now lives under **Compute → Email Service → Email Routing**, at the *account*
+level rather than on the zone — it used to be an **Email** tab inside the domain,
+which is where older instructions (including an earlier version of this file)
+send you. Direct link: `https://dash.cloudflare.com/?to=/:account/email-service/routing`.
 
-Routing and Sending are halves of the same product and coexist: Routing owns the
-inbound MX, Sending adds SPF and DKIM for outbound. Enabling one does not
-disturb the other.
+1. **Onboard Domain** → pick `spruetube.app`. It offers to add the MX, SPF and
+   DKIM records to the root domain; take it. This is the step that creates the
+   MX, and without it nothing below has any effect.
+2. **Destination Addresses** → add `graham@loadeddice.uk` and
+   `leigh@loadeddice.uk`. These are account-level, not per-domain. Each gets a
+   verification email that has to be clicked — **any rule pointing at an
+   unverified address stays disabled**, which is the failure that looks like
+   nothing happening.
+3. **Routing Rules** → **Create routing rule**. Email pattern `hello`, domain
+   `spruetube.app`, action *Send to an email*, destination both addresses.
+4. Leave the catch-all **off**. On a domain with a published address it is a
+   spam magnet and nothing needs it.
 
-Verify by emailing `hello@spruetube.app` from outside and confirming it lands in
-both inboxes. Until it does, the address on the terms page is a dead end, which
-is worse than the form-only state it replaced.
+Sending and Routing are separate halves that do not disturb each other, and
+they keep their records in different places — which matters when you are
+reading DNS to work out what is wrong:
+
+| | Records live on | DKIM selector |
+|---|---|---|
+| Email **Sending** (outbound) | `cf-bounce.spruetube.app` | `cf-bounce._domainkey` |
+| Email **Routing** (inbound) | the root domain | `cf2024-1._domainkey` |
+
+So an apex with no MX and no SPF, while `cf-bounce` has both, means exactly one
+thing: Sending is onboarded and Routing is not.
+
+**Check DNS first, then send a test.** A test message that fails to arrive tells
+you nothing about why; the MX record tells you whether delivery was ever
+possible:
+
+```bash
+dig +short MX spruetube.app        # expect three *.mx.cloudflare.net entries
+```
+
+Empty output means Email Routing is not live on the zone, and every message to
+`hello@` is undeliverable no matter what the routing rules say. Senders fall
+back to the A record under RFC 5321 §5.1, which here is Cloudflare's HTTP proxy
+— it does not speak SMTP, so the mail hangs and eventually bounces.
+
+Then email `hello@spruetube.app` from outside and confirm it lands in both
+inboxes. Until both checks pass, the address on the terms page is a dead end,
+which is worse than the form-only state it replaced.
+
+### When a test message does not arrive
+
+**Look at the Activity log first.** Compute → Email Service → **Activity log**,
+which lists every inbound message and what Email Routing did with it —
+*Forwarded*, *Dropped*, *Rejected*, *Delivery failed* or *Error* — and expands to
+show the SPF, DKIM and DMARC results. It answers the only question that matters
+at this point: did the message reach Cloudflare at all? Everything below is
+guesswork until you have looked.
+
+- **Nothing in the log.** The message never arrived. DNS or the sending side.
+- **Forwarded.** Cloudflare did its job and the message is at Google. Look
+  again in the destination mailbox, including All Mail.
+- **Dropped / Rejected / Delivery failed.** The row says which, and expanding it
+  says why.
+
+Three things that produce "it just never turned up", in the order they are
+worth checking:
+
+1. **You sent it from the destination address.** This is what it was in August
+   2026, after an afternoon spent looking everywhere else. Sending from
+   `graham@loadeddice.uk` to `hello@spruetube.app`, which forwards straight back
+   to `graham@loadeddice.uk`, means Google suppresses the message as one
+   returning to the account that sent it — not in the inbox, not in spam,
+   nothing anywhere reporting a failure. Cloudflare's own documentation says to
+   test from a different account for exactly this reason. Send from a personal
+   address on another provider before concluding anything is broken.
+2. **A destination address has not been verified.** Its rule stays disabled and
+   the mail is dropped. Destination Addresses shows this and nothing else does.
+3. **The routing rule is disabled**, or its pattern does not match. Check the
+   status toggle reads Active.
+
+And one thing that is *not* evidence: **Email Routing does not send non-delivery
+reports.** A message it drops or rejects produces no bounce to the sender, so
+"I did not get a bounce" tells you nothing at all about whether it was
+delivered.
+
+Two traps worth knowing, because both fail quietly:
+
+- A destination address that has not confirmed by email is dropped rather than
+  bounced. The dashboard shows it as unverified; nothing else will tell you.
+- Outbound mail is a different path entirely. Password resets and the contact
+  form work off the Email Sending binding and never consult the MX, so they
+  will keep working perfectly while inbound is completely dead. Do not read one
+  as evidence about the other.
+
+### Outbound authentication is already sound
+
+Worth writing down, because the apex looks alarming until you know where to
+look. `dig +short TXT spruetube.app` returns nothing and `_dmarc` says
+`p=reject`, which reads like a domain that publishes a strict policy it cannot
+satisfy. It isn't. Email Sending keeps its SPF and DKIM on the `cf-bounce`
+subdomain, and all three are present and correct:
+
+```bash
+dig +short TXT cf-bounce.spruetube.app              # v=spf1 include:_spf.mx.cloudflare.net ~all
+dig +short TXT cf-bounce._domainkey.spruetube.app   # v=DKIM1; ...
+dig +short MX  cf-bounce.spruetube.app              # route1/2/3.mx.cloudflare.net
+```
+
+The apex SPF is Email **Routing**'s to add, and it appears when Routing is
+onboarded. Do not hand-write one on the root domain to "fix" the gap — you would
+be authorising the wrong thing, and Routing's onboarding wants to manage that
+record itself.
 
 ### Turning on mandatory verification
 
