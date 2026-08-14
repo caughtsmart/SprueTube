@@ -25,6 +25,13 @@ VAPID_PUBLIC_KEY=""
 VAPID_PRIVATE_KEY=""
 VAPID_SUBJECT="mailto:safety@spruetube.app"
 
+# Launch curtain — a "coming soon" holding page in front of the whole site.
+# Leave COMING_SOON blank to keep it off. Set it to "true" to draw the curtain;
+# then open any URL with ?preview=<COMING_SOON_BYPASS> to get behind it. Set the
+# bypass token BEFORE turning the curtain on, or you lock yourself out too.
+COMING_SOON=""
+COMING_SOON_BYPASS=""
+
 # Local dev overrides. These shadow the vars in wrangler.jsonc so that auth
 # origins, links and the sitemap all point at the dev server rather than at
 # the live domain.

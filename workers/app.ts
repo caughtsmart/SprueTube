@@ -1,6 +1,7 @@
 import { createRequestHandler, RouterContextProvider } from "react-router";
 import { cloudflare } from "../app/context";
 import { api } from "../server/api";
+import { comingSoonGate } from "./comingSoon";
 import { refreshHotScores } from "../server/services/maintenance";
 import { ingestNews, shouldRunDailyIngest } from "../server/services/news";
 
@@ -24,6 +25,11 @@ const requestHandler = createRequestHandler(
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    // Launch curtain. Off unless COMING_SOON is set, and transparent to anyone
+    // holding a preview cookie — so it gates the public without gating you.
+    const curtain = comingSoonGate(request, env);
+    if (curtain) return curtain;
 
     if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
       return api.fetch(request, env, ctx);
