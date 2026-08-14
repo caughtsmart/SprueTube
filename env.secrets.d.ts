@@ -48,4 +48,12 @@ declare interface Env {
   SHOP_STOREFRONT_DOMAIN: string;
   /** Shopify Storefront API access token (read-only). */
   SHOP_STOREFRONT_TOKEN: string;
+
+  /*
+   * Launch curtain (workers/comingSoon.ts). COMING_SOON is public config and
+   * lives in wrangler.jsonc, but can be overridden by a secret of the same name
+   * to flip the curtain without a redeploy. The bypass token is the credential.
+   */
+  /** Preview token. ?preview=<token> unlocks the curtain. Unset ⇒ no bypass. */
+  COMING_SOON_BYPASS: string;
 }

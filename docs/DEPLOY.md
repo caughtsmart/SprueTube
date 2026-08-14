@@ -168,6 +168,47 @@ If you would rather not point `spruetube.app` at anything yet, deploy to the
 `SITE_URL` to that host as well, or sign-in will refuse the request — the origin
 has to match what better-auth trusts.
 
+## 5b. Previewing behind the "coming soon" curtain
+
+Cloudflare Access is the thorough option, but it locks *you* out as much as
+everyone else — every visit, every device and every automated check has to
+authenticate. When all you want is a holding page over a still-live site that
+you can keep browsing normally, the built-in launch curtain
+(`workers/comingSoon.ts`) is the lighter tool. It is an env-gated no-op: with
+nothing set it does nothing.
+
+Set the preview token **first**, so you don't lock yourself out along with the
+public, then draw the curtain:
+
+```bash
+wrangler secret put COMING_SOON_BYPASS   # any hard-to-guess string
+wrangler secret put COMING_SOON          # value: true
+```
+
+Both take effect on the running Worker within seconds — no redeploy. (You can
+instead flip `COMING_SOON` to `"true"` in `wrangler.jsonc` and `npm run deploy`
+if you'd rather the state live in git.)
+
+- **The public** gets a branded holding page on every path — pages *and* the
+  `/api`, so nothing leaks — served as `503` with `Retry-After` so search
+  engines don't index the placeholder.
+- **You** open any URL with `?preview=<the token>` once, e.g.
+  `https://spruetube.app/?preview=hunter2`. That drops an `HttpOnly` cookie and
+  redirects to the clean URL; from then on that browser sees the real, fully
+  working site. Share that link with anyone who needs a look. `?preview=out`
+  leaves preview mode again.
+
+Take the curtain down when you launch:
+
+```bash
+wrangler secret delete COMING_SOON       # (leave COMING_SOON_BYPASS or delete it too)
+```
+
+Unlike Access, this does not stop crawlers, OAuth callbacks or the verification
+script the way step 5a warns about — while the curtain is up they all see the
+holding page too, so treat it as a pre-launch cover, not a security boundary.
+For a hard "no strangers get in under any circumstances" lock, use Access (5a).
+
 ## 6. Social sign-in
 
 Optional for web, **required before the iOS app can ship** — App Store guideline

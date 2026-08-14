@@ -88,6 +88,13 @@
     "CONTACT_RECIPIENTS": "graham@loadeddice.uk,leigh@loadeddice.uk",
     // Set once AdSense approves the site; unfilled slots fall back to house ads.
     "ADSENSE_CLIENT": "ca-pub-2476850287043544",
+    // Launch curtain — a holding page in front of the whole site, an
+    // alternative to Cloudflare Access that does not lock you out too. "false"
+    // (or unset) ⇒ off. Flip to "true" here and deploy, or override without a
+    // redeploy: `wrangler secret put COMING_SOON` with value "true". Requires
+    // COMING_SOON_BYPASS to be set first so a ?preview=<token> link can get in.
+    // See workers/comingSoon.ts and docs/DEPLOY.md.
+    "COMING_SOON": "false",
     "ENVIRONMENT": "production"
   }
 
@@ -108,4 +115,9 @@
   //                               names render as plain text, no lookups. Domain
   //                               is public config kept here so the pair move
   //                               together, mirroring the VAPID public key.
+  //   COMING_SOON_BYPASS        — preview token for the launch curtain. Opening
+  //                               any URL with ?preview=<token> drops a cookie
+  //                               and lets that browser see the real site while
+  //                               COMING_SOON is on. Unset ⇒ nobody can bypass,
+  //                               so set it before turning the curtain on.
 }
