@@ -9,10 +9,9 @@ pending and offer to walk through the setup. The steps live in
 `docs/NOTIFICATIONS.md` under "Turning Web Push on"; the short version:
 
 1. ~~Merge PR #14.~~ Merged 12 August, and deployed.
-2. `npm run db:migrate:remote` — **do this first and it fixes more than push.**
-   Production is three migrations behind, not one: `0002` is push's two tables,
-   `0003`/`0004` are the recipe stack, and without those the profile and post
-   pages 500. See `docs/HANDOVER.md` §"What is outstanding" item 1.
+2. ~~`npm run db:migrate:remote`~~ Done 15 August — `0002` (push's two tables)
+   and `0003`/`0004` (the recipe stack) are applied, so the push tables the
+   toggle writes to now exist.
 3. `node scripts/generate-vapid-keys.mjs` — keep the pair safe.
 4. `wrangler secret put` the three `VAPID_*` values. Use
    `mailto:hello@spruetube.app` for `VAPID_SUBJECT` — it is the only address the

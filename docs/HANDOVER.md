@@ -41,28 +41,23 @@ this file did not build it:
 Ranked by what actually blocks something. Items 1 and 2 were found on 15 August
 by querying production; everything under them was already known.
 
-1. **Production D1 is three migrations behind, and this breaks core pages.**
-   `d1_migrations` on the remote database records only `0000_init` and
-   `0001_fluffy_drax`. Unapplied:
+1. ~~**Production D1 is three migrations behind.**~~ Applied on 15 August, and
+   this is the one that mattered: `d1_migrations` recorded only `0000_init` and
+   `0001_fluffy_drax`, so `notification_pref`, `push_subscription`, `recipe`,
+   `recipe_step`, `post_recipe`, `recipe_save` and `profile.recipe_count` did
+   not exist. The loaders in `app/routes/profile.tsx` and `app/routes/post.tsx`
+   call `listRecipesByOwner` unconditionally, so every profile page and every
+   post page was 500ing against the live schema — invisible only because the
+   launch curtain returns 503 for every path.
 
-   | Migration | Creates | Shipped by |
-   | --- | --- | --- |
-   | `0002_brainy_stick` | `notification_pref`, `push_subscription` | PR #14 |
-   | `0003_sad_wolf_cub` | `recipe`, `recipe_step`, `post_recipe`, `profile.recipe_count` | PR #15 |
-   | `0004_overconfident_doctor_strange` | `recipe_save` | PR #15 |
+   `0002_brainy_stick`, `0003_sad_wolf_cub` and `0004_overconfident_doctor_strange`
+   are now applied and recorded in the ledger, and the loaders' query shapes
+   were run against production afterwards to confirm they resolve. Nothing was
+   dropped; all three were `CREATE TABLE`, `CREATE INDEX` and one
+   `ALTER TABLE … ADD COLUMN`.
 
-   The loaders in `app/routes/profile.tsx` and `app/routes/post.tsx` both call
-   `listRecipesByOwner` unconditionally, so **every profile page and every post
-   page 500s** against the current schema. Nobody has seen it because the launch
-   curtain (below) is returning 503 for every path, which masks it completely.
-   Fix, before the curtain comes down:
-
-   ```bash
-   npm run db:migrate:remote
-   ```
-
-   All three are additive — `CREATE TABLE`, `CREATE INDEX` and one
-   `ALTER TABLE … ADD COLUMN`. Nothing drops, so there is no data at risk.
+   **The first person through the curtain should still load a profile and a post
+   page**, because a clean SQL query is evidence and a rendered page is proof.
 
 2. **The cause is unfixed, so it will happen again.** Workers Builds deploys
    code without applying migrations — the trap already documented below, now hit
