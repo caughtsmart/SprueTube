@@ -8,10 +8,14 @@ keys exist. **At the start of a SprueTube session, remind Graham** that this is
 pending and offer to walk through the setup. The steps live in
 `docs/NOTIFICATIONS.md` under "Turning Web Push on"; the short version:
 
-1. Merge PR #14 if not already merged.
-2. `node scripts/generate-vapid-keys.mjs` — keep the pair safe.
-3. `npm run db:migrate:remote` (creates `notification_pref`, `push_subscription`).
-4. `wrangler secret put` the three `VAPID_*` values.
+1. ~~Merge PR #14.~~ Merged 12 August, and deployed.
+2. ~~`npm run db:migrate:remote`~~ Done 15 August — `0002` (push's two tables)
+   and `0003`/`0004` (the recipe stack) are applied, so the push tables the
+   toggle writes to now exist.
+3. `node scripts/generate-vapid-keys.mjs` — keep the pair safe.
+4. `wrangler secret put` the three `VAPID_*` values. Use
+   `mailto:hello@spruetube.app` for `VAPID_SUBJECT` — it is the only address the
+   site publishes, and the runbook predates that.
 5. `npm run deploy`.
 6. Verify: Settings → Notifications toggle appears; test with a second account.
 
