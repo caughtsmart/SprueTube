@@ -110,9 +110,10 @@ regardless of size. Small services have lighter duties, not no duties.
       one month. Decide who does it and how.
 - [ ] **A data breach process.** Serious breaches must reach the ICO within 72
       hours. Know in advance who makes that call.
-- [ ] **Cookie consent, if AdSense is enabled.** The session cookie is strictly
-      necessary and needs no consent. Advertising cookies do. A consent banner
-      is required *before* AdSense goes live, not after.
+- [x] **Cookie consent.** Not required: the only cookie is the strictly
+      necessary session cookie. There is no third-party ad network and no
+      advertising or analytics cookies, so no consent banner is owed. This
+      changes only if a network or analytics tool is ever added.
 - [ ] Confirm Cloudflare's data processing terms cover the setup (they publish a
       standard DPA).
 
@@ -127,11 +128,10 @@ regardless of size. Small services have lighter duties, not no duties.
 
 **Still to do:**
 
-- [ ] **Cookie consent before AdSense.** See above.
-- [ ] Read Google's Publisher Policies once there is real content. The relevant
-      risk here is UGC: an ad-serving site is responsible for the pages ads
-      appear on, which is another argument for the moderation queue being kept
-      clear.
+- [x] **No third-party ad network.** AdSense was removed; the only advertiser is
+      Loaded Dice, served as house ads. No Google Publisher Policies to meet and
+      no ad-cookie consent to gather. (UGC moderation still matters on its own
+      terms — keep the queue clear.)
 - [ ] If SprueTube ever accepts paid placement directly, UK CAP rules require it
       to be identifiable as advertising — the existing label covers this, keep
       it.

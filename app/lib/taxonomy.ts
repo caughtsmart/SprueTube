@@ -365,3 +365,31 @@ export function formatPriceRange(
   if (to) return `up to ${to}`;
   return null;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Feedback — bug reports and feature requests                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A distinct form from Contact on purpose. Contact routes a stranger's message
+ * to a shared inbox; feedback collects a bug or an idea in the shape that makes
+ * it actionable — a title, what happened, and (for a bug) where. The two kinds
+ * share one form and swap their prompts.
+ */
+export const FEEDBACK_KINDS = ["bug", "feature"] as const;
+export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
+
+export const FEEDBACK_KIND_LABELS: Record<FeedbackKind, string> = {
+  bug: "Something is broken",
+  feature: "An idea for the site",
+};
+
+export const MAX_FEEDBACK_TITLE = 120;
+export const MAX_FEEDBACK_BODY = 4000;
+
+/* -------------------------------------------------------------------------- */
+/* Pins — discovery-hub shortcuts                                             */
+/* -------------------------------------------------------------------------- */
+
+export const PIN_KINDS = ["system", "tag"] as const;
+export type PinKind = (typeof PIN_KINDS)[number];

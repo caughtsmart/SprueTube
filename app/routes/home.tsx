@@ -5,6 +5,7 @@ import { Highlights } from "../components/Highlights";
 import { Landing } from "../components/Landing";
 import { getScope } from "../lib/data.server";
 import { pickAd } from "../../server/services/ads";
+import { getActiveChallenges } from "../../server/services/challenges";
 import { getFeed, type FeedTab } from "../../server/services/feed";
 import { getHighlights } from "../../server/services/highlights";
 
@@ -38,7 +39,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       ? requested
       : "following";
 
-  const [page, ad, highlights] = await Promise.all([
+  const [page, ad, highlights, challenges] = await Promise.all([
     getFeed(scope.db, {
       tab,
       viewerId: scope.viewer?.userId ?? null,
@@ -49,6 +50,8 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       viewerId: scope.viewer?.userId ?? null,
       waitUntil: (promise) => scope.ctx.waitUntil(promise),
     }),
+    // The current prompt — a gentle "something to post" nudge, one at a time.
+    getActiveChallenges(scope.db, { limit: 1 }),
   ]);
 
   return {
@@ -58,6 +61,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     nextCursor: page.nextCursor,
     ad,
     highlights,
+    challenge: challenges[0] ?? null,
   };
 }
 
@@ -84,6 +88,26 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-2xl">
+      {loaderData.challenge ? (
+        <Link
+          to={`/tags/${loaderData.challenge.tag}`}
+          className="st-card mb-4 flex items-center gap-3 p-3 hover:st-raised"
+        >
+          <span aria-hidden className="text-xl">
+            🎯
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="st-text-muted block text-[0.625rem] font-semibold tracking-widest uppercase">
+              This month’s challenge
+            </span>
+            <span className="st-text-strong block truncate text-sm font-semibold">
+              {loaderData.challenge.title}
+            </span>
+          </span>
+          <span className="st-text-muted shrink-0 text-xs">#{loaderData.challenge.tag} ↗</span>
+        </Link>
+      ) : null}
+
       {/* Above the feed rather than inside it: the feed is the thing you came
           back for, and a highlight injected between posts would be an advert
           for other people's work in the middle of your friends'. */}

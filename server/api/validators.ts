@@ -1,8 +1,12 @@
 import { z } from "zod";
 import {
   CONTACT_TOPICS,
+  FEEDBACK_KINDS,
   GAME_SYSTEMS,
   MAX_BODY_LENGTH,
+  MAX_FEEDBACK_BODY,
+  MAX_FEEDBACK_TITLE,
+  PIN_KINDS,
   MAX_IMAGES_PER_POST,
   MAX_RECIPE_SUMMARY,
   MAX_RECIPE_TITLE,
@@ -287,3 +291,60 @@ export const notificationPrefSchema = z.object({
     .max(MUTABLE_NOTIFICATION_TYPES.length)
     .optional(),
 });
+
+/* -------------------------------------------------------------------------- */
+/* Feedback — bug reports and feature requests                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A dedicated form, not a contact topic. `website` is the same honeypot the
+ * contact form uses, and for the same reason: this is open to signed-out
+ * visitors so a bug can be reported by someone who cannot get in.
+ */
+export const feedbackSchema = z.object({
+  kind: z.enum(FEEDBACK_KINDS),
+  title: z.string().trim().min(3, "Give it a short title.").max(MAX_FEEDBACK_TITLE),
+  body: z
+    .string()
+    .trim()
+    .min(10, "A little more detail helps us act on it.")
+    .max(MAX_FEEDBACK_BODY),
+  /** The page they were on. Filled in by the client, so validated leniently. */
+  pageUrl: z.string().trim().max(400).nullish(),
+  /** Optional reply address; the form works signed-out and anonymous. */
+  email: z
+    .string()
+    .trim()
+    .email("That does not look like an email address.")
+    .max(254)
+    .nullish()
+    .or(z.literal("").transform(() => null)),
+  website: z.string().max(200).optional(),
+});
+
+/* -------------------------------------------------------------------------- */
+/* Pins — discovery-hub shortcuts                                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A pin names one browse axis. A system must be a real slug; a tag is the same
+ * shape the body parser and the tag table accept — lowercased here so a pin and
+ * the tag it points at can never disagree on case.
+ */
+export const pinSchema = z.object({
+  kind: z.enum(PIN_KINDS),
+  value: z.string().trim().min(1).max(40),
+});
+
+export function normalisePin(input: {
+  kind: (typeof PIN_KINDS)[number];
+  value: string;
+}): { kind: (typeof PIN_KINDS)[number]; value: string } | null {
+  if (input.kind === "system") {
+    return (GAME_SYSTEMS as readonly string[]).includes(input.value)
+      ? { kind: "system", value: input.value }
+      : null;
+  }
+  const tag = input.value.toLowerCase();
+  return /^[a-z0-9_]{2,30}$/.test(tag) ? { kind: "tag", value: tag } : null;
+}

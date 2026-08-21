@@ -33,8 +33,38 @@ this file did not build it:
   worker and the Settings toggle all shipped; every send is a no-op until the
   three `VAPID_*` keys are set. `docs/NOTIFICATIONS.md` has the go-live runbook
   and the design for email digests, which remain a design.
-- **AdSense** — `ADSENSE_CLIENT` is now a real publisher id, and the sidebar
-  unit sits in an xl-only right rail.
+- **AdSense** — was wired up with a real publisher id, then **removed** in the
+  engagement-features work below. See it there.
+
+## Engagement features (this session)
+
+A batch of community and discovery work landed together. Migration
+`0005_engagement_features` adds three tables (`pin`, `challenge`, `feedback`);
+apply it and re-run `scripts/seed.sql` in production (both idempotent).
+
+- **Discovery hub** — `/explore` is now the place to explore the site: a
+  "Top painters right now" board, current painting challenges, the trending
+  feed, and browse-by-game/theme. The board's ranking is a published formula in
+  `server/services/discovery.ts` — engagement over a 45-day window, lifted
+  gently by how many distinct weeks someone posted in (capped at six, never a
+  streak). Cached in KV like the homepage highlights.
+- **Pins** — signed-in people can pin games and themes (a ☆ on each chip) into
+  a "Your shortcuts" row. `pin` table, `services/pins.ts`, `/api/v1/pins`. It is
+  a personal reordering only, never a ranking signal.
+- **Painting challenges** — DB-driven prompts (`challenge` table,
+  `services/challenges.ts`), surfaced on the hub and as a one-line nudge on the
+  signed-in home feed. Entries are just posts carrying the challenge's tag —
+  no judging, no timer. Add one with an `INSERT`; two are seeded.
+- **Bug & feature form** — `/feedback`, distinct from `/contact`. Persists to
+  the `feedback` table (the durable record) and emails the shared inbox as a
+  nudge. Honeypotted, rate limited, open signed-out.
+- **Sharing** — a Share control on every post card: native share sheet where the
+  browser has it, else copy-link plus X/Facebook/Reddit/Bluesky/WhatsApp/email.
+  No SDKs, no cookies (`app/lib/share.ts`, `components/ShareButton.tsx`).
+- **AdSense removed** — no third-party ad network at all now. House ads only,
+  every one a Loaded Dice promo, including a brand ad linking to the homepage.
+  No ad cookies, so no consent banner owed. The sidebar ad fetches itself on the
+  client (`SelfFetchingAd`).
 
 ## What is outstanding
 
