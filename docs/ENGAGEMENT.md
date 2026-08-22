@@ -91,6 +91,30 @@ npx wrangler d1 execute spruetube --remote \
 `status` is `open` → `planned` / `done` / `declined`; update it by hand as you
 work through them. There is no admin screen yet.
 
+## Helpful marks & the Helpful badge
+
+Recognition for being useful in the comments — the place painting tips actually
+get given.
+
+- **Mark helpful.** Every comment has a 💡 "Helpful" control (the comment-like
+  endpoint under a clearer name). You cannot mark your own comment, so a
+  comment's count is always *other people* vouching, and marks are one per
+  person (the like table's primary key).
+- **The tally.** `profile.helpfulCount` is the running total of helpful marks a
+  person's comments have collected, shown as a "helpful marks" stat on their
+  profile. Denormalised, kept in the same batch as the mark.
+- **The badge.** `profile.helpfulBadge` — a small "💡 Helpful" chip by their
+  name on their profile and on their comments. It is **gated**: awarded only the
+  first time one of their comments is marked helpful by
+  `HELPFUL_BADGE_THRESHOLD` (3) distinct other people — three people finding one
+  comment useful, not three scattered marks. It is **sticky**: once earned it
+  stays (a badge you keep re-earning is a timer, which this site does not do).
+
+The threshold lives in `server/services/helpful.ts` (pure, tested); the award
+happens in `toggleCommentLike` (`server/api/routes/content.ts`). Surfaced today
+on the post page and profile; image/build-log comments use the same endpoint and
+count toward the badge, and can show the button later.
+
 ## Sharing
 
 Every post card has a Share control. On a device with the native share sheet it

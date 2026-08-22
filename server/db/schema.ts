@@ -136,6 +136,25 @@ export const profile = sqliteTable(
     followingCount: integer("following_count").notNull().default(0),
     postCount: integer("post_count").notNull().default(0),
     recipeCount: integer("recipe_count").notNull().default(0),
+    /**
+     * Helpfulness, earned only in the comments.
+     *
+     * `helpfulCount` is the running total of "helpful" marks this person's
+     * comments have collected from *other* people — you cannot mark your own
+     * comment helpful, so the number is always someone else vouching for a tip.
+     * It is a denormalised counter, kept in the same batch as the mark itself,
+     * carrying the same accepted drift as every other count on the site.
+     *
+     * `helpfulBadge` is the gated reward: set true the first time any one of
+     * their comments is marked helpful by enough distinct people (see
+     * HELPFUL_BADGE_THRESHOLD in server/services/helpful.ts). It is sticky —
+     * once earned it stays, because a badge you have to keep re-earning is a
+     * timer by another name, and this site does not do those.
+     */
+    helpfulCount: integer("helpful_count").notNull().default(0),
+    helpfulBadge: integer("helpful_badge", { mode: "boolean" })
+      .notNull()
+      .default(false),
     createdAt: integer("created_at").notNull().default(now),
     updatedAt: integer("updated_at").notNull().default(now),
   },

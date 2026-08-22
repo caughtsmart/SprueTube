@@ -43,6 +43,13 @@
       "when": 1787354181769,
       "tag": "0005_engagement_features",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1787407884010,
+      "tag": "0006_helpful_badge",
+      "breakpoints": true
     }
   ]
 }

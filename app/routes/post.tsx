@@ -14,8 +14,10 @@ import { useRoot } from "../root";
 import { pickAd } from "../../server/services/ads";
 import { getPost } from "../../server/services/feed";
 import { getPostRecipes, listRecipesByOwner } from "../../server/services/recipes";
-import { comment as commentTable, profile } from "../../server/db/schema";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { comment as commentTable, like, profile } from "../../server/db/schema";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { HelpfulBadge } from "../components/HelpfulBadge";
+import { HelpfulButton } from "../components/HelpfulButton";
 
 export function meta({ loaderData: loaded }: Route.MetaArgs) {
   if (!loaded?.post) return [{ title: "Post — SprueTube" }];
@@ -58,7 +60,7 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
   // attached; nobody else does.
   const isAuthor = scope.viewer?.userId === post.author.userId;
 
-  const [comments, ad, postRecipeRows] = await Promise.all([
+  const [commentRows, ad, postRecipeRows] = await Promise.all([
     scope.db
       .select({
         id: commentTable.id,
@@ -66,9 +68,11 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
         parentId: commentTable.parentId,
         likeCount: commentTable.likeCount,
         createdAt: commentTable.createdAt,
+        authorId: commentTable.authorId,
         authorUsername: profile.username,
         authorDisplayName: profile.displayName,
         authorAvatarImageId: profile.avatarImageId,
+        authorHelpfulBadge: profile.helpfulBadge,
       })
       .from(commentTable)
       .innerJoin(profile, eq(profile.userId, commentTable.authorId))
@@ -87,6 +91,33 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
     pickAd(scope.db, "post"),
     getPostRecipes(scope.db, params.postId, { includePrivate: isAuthor }),
   ]);
+
+  // Which of these comments the viewer has already marked helpful, so the
+  // buttons render in the right state. One query for the whole page.
+  const viewerId = scope.viewer?.userId ?? null;
+  let helpedSet = new Set<string>();
+  if (viewerId && commentRows.length) {
+    const marks = await scope.db
+      .select({ id: like.subjectId })
+      .from(like)
+      .where(
+        and(
+          eq(like.userId, viewerId),
+          eq(like.subjectType, "comment"),
+          inArray(
+            like.subjectId,
+            commentRows.map((row) => row.id),
+          ),
+        ),
+      );
+    helpedSet = new Set(marks.map((m) => m.id));
+  }
+
+  const comments = commentRows.map((row) => ({
+    ...row,
+    viewerIsAuthor: viewerId === row.authorId,
+    viewerFoundHelpful: helpedSet.has(row.id),
+  }));
 
   // The attach picker is the author's own recipes; the attach API refuses a
   // recipe that is not theirs regardless.
@@ -301,6 +332,7 @@ function CommentRow({
           >
             {comment.authorDisplayName}
           </Link>
+          {comment.authorHelpfulBadge ? <HelpfulBadge /> : null}
           <span className="st-text-muted text-xs">
             {timeAgo(comment.createdAt)}
           </span>
@@ -310,15 +342,23 @@ function CommentRow({
           {comment.body}
         </p>
 
-        {canReply ? (
-          <button
-            type="button"
-            onClick={onReply}
-            className="st-text-muted hover:st-text-strong mt-1.5 text-xs"
-          >
-            Reply
-          </button>
-        ) : null}
+        <div className="mt-1.5 flex items-center gap-4">
+          <HelpfulButton
+            commentId={comment.id}
+            initialCount={comment.likeCount}
+            initiallyMarked={comment.viewerFoundHelpful}
+            canMark={!comment.viewerIsAuthor}
+          />
+          {canReply ? (
+            <button
+              type="button"
+              onClick={onReply}
+              className="st-text-muted hover:st-text-strong text-xs"
+            >
+              Reply
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <ReportButton subjectType="comment" subjectId={comment.id} />

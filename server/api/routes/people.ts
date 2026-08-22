@@ -412,6 +412,8 @@ export function publicProfile(
     followerCount: row.followerCount,
     followingCount: row.followingCount,
     postCount: row.postCount,
+    helpfulCount: row.helpfulCount,
+    helpfulBadge: row.helpfulBadge,
     createdAt: row.createdAt,
     ...(options.self
       ? {
