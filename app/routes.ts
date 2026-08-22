@@ -78,6 +78,9 @@ export default [
   route("privacy", "routes/privacy.tsx"),
   route("terms", "routes/terms.tsx"),
   route("contact", "routes/contact.tsx"),
+  // Bug reports and feature requests — a purpose-built form, distinct from the
+  // general contact route.
+  route("feedback", "routes/feedback.tsx"),
 
   // Crawler files
   route("robots.txt", "routes/robots.tsx"),

@@ -136,6 +136,25 @@ export const profile = sqliteTable(
     followingCount: integer("following_count").notNull().default(0),
     postCount: integer("post_count").notNull().default(0),
     recipeCount: integer("recipe_count").notNull().default(0),
+    /**
+     * Helpfulness, earned only in the comments.
+     *
+     * `helpfulCount` is the running total of "helpful" marks this person's
+     * comments have collected from *other* people — you cannot mark your own
+     * comment helpful, so the number is always someone else vouching for a tip.
+     * It is a denormalised counter, kept in the same batch as the mark itself,
+     * carrying the same accepted drift as every other count on the site.
+     *
+     * `helpfulBadge` is the gated reward: set true the first time any one of
+     * their comments is marked helpful by enough distinct people (see
+     * HELPFUL_BADGE_THRESHOLD in server/services/helpful.ts). It is sticky —
+     * once earned it stays, because a badge you have to keep re-earning is a
+     * timer by another name, and this site does not do those.
+     */
+    helpfulCount: integer("helpful_count").notNull().default(0),
+    helpfulBadge: integer("helpful_badge", { mode: "boolean" })
+      .notNull()
+      .default(false),
     createdAt: integer("created_at").notNull().default(now),
     updatedAt: integer("updated_at").notNull().default(now),
   },
@@ -666,9 +685,10 @@ export const moderationAction = sqliteTable(
 /* -------------------------------------------------------------------------- */
 
 /**
- * House ads. These fill every slot until AdSense approves the domain, and stay
- * on afterwards as the fallback when the network returns nothing — an empty ad
- * slot is worse than a Loaded Dice promo.
+ * House ads — the only ads on SprueTube. Every slot is a Loaded Dice promotion
+ * served from here; there is no third-party ad network behind them. An empty ad
+ * slot is worse than a Loaded Dice promo, and a slot kept for the shop that
+ * funds the site is worth more than programmatic fill.
  */
 export const adPlacement = sqliteTable(
   "ad_placement",
@@ -1074,3 +1094,106 @@ export const recipeSave = sqliteTable(
     index("recipe_save_user_idx").on(t.userId, t.createdAt),
   ],
 );
+
+/* -------------------------------------------------------------------------- */
+/* Discovery: pins, and community challenges                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * User-curated shortcuts to the two browse axes on the discovery hub.
+ *
+ * Creators are already followed and posts already bookmarked; a pin is for the
+ * things that had no "keep this" — a game system or a theme (tag). It is not a
+ * recommendation signal and never feeds a ranking: it only reorders the browse
+ * chips for the person who set it, so the shortcuts they use are the ones they
+ * see first. The composite key makes a pin idempotent, the same shape as a
+ * like or a bookmark.
+ */
+export const pin = sqliteTable(
+  "pin",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["system", "tag"] }).notNull(),
+    /** A game-system slug, or a tag name (lowercase, no leading '#'). */
+    value: text("value").notNull(),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.kind, t.value] }),
+    index("pin_user_idx").on(t.userId, t.createdAt),
+  ],
+);
+
+/**
+ * Community painting prompts.
+ *
+ * A challenge is a reason to post, not a competition: it names a theme and a
+ * tag, and the entries are simply the posts carrying that tag. There is no
+ * entry table, no judging and no timer that punishes an absence — painting a
+ * model takes weeks, so a mechanic that penalises a quiet fortnight is wrong
+ * for this hobby (see docs/ROADMAP.md, "Things worth not doing"). `endsAt` is
+ * a soft close for display order, never a lockout.
+ *
+ * DB-driven with no admin UI yet, exactly like `ad_placement`: a new prompt is
+ * an INSERT, which is a fair trade until there are enough to need a screen.
+ */
+export const challenge = sqliteTable(
+  "challenge",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    prompt: text("prompt").notNull(),
+    /** The tag that collects entries, lowercase and without a leading '#'. */
+    tag: text("tag").notNull(),
+    startsAt: integer("starts_at"),
+    endsAt: integer("ends_at"),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex("challenge_slug_unique").on(t.slug),
+    index("challenge_active_idx").on(t.active, t.endsAt),
+  ],
+);
+
+/* -------------------------------------------------------------------------- */
+/* Feedback — bug reports and feature requests                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Bug reports and feature requests from the community.
+ *
+ * Kept rather than only emailed: a feature request is a backlog and a bug is
+ * worth still having after the reply, so both land in a table as well as the
+ * shared inbox. `userId` is `set null` rather than cascade — a report outlives
+ * the account that made it, because the bug it describes does. Nothing here is
+ * shown publicly; it is an operator queue.
+ */
+export const feedback = sqliteTable(
+  "feedback",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    kind: text("kind", { enum: ["bug", "feature"] }).notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    /** The page they were on, so a bug can be reproduced. */
+    pageUrl: text("page_url"),
+    /** A reply address, separate from the account email and optional. */
+    contactEmail: text("contact_email"),
+    status: text("status", {
+      enum: ["open", "planned", "done", "declined"],
+    })
+      .notNull()
+      .default("open"),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [index("feedback_status_idx").on(t.status, t.createdAt)],
+);
+
+export type Pin = typeof pin.$inferSelect;
+export type Challenge = typeof challenge.$inferSelect;
+export type Feedback = typeof feedback.$inferSelect;

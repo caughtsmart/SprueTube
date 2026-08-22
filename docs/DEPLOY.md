@@ -51,8 +51,8 @@ a tracked file leaves the working tree dirty after every run, and the next
 `git pull` then refuses — quietly enough that you deploy stale code without
 noticing.
 
-Leave `ADSENSE_CLIENT` empty. It stays empty until AdSense approves the site —
-see step 7.
+There is no `ADSENSE_CLIENT` to set — SprueTube serves house ads only. See
+step 7.
 
 ## 3. Set the secrets
 
@@ -136,7 +136,7 @@ redirect to `concat("https://spruetube.app", http.request.uri.path)`, 301.
 
 Putting Access in front of `spruetube.app` is the right way to preview a UGC
 platform before it is ready for the public: no crawlers, no strangers signing
-up, no AdSense review happening early, and nothing to un-launch afterwards.
+up, and nothing to un-launch afterwards.
 
 Zero Trust → Access → Applications → **Add a self-hosted application**, domain
 `spruetube.app` (add `www.spruetube.app` too if it is attached), then a policy
@@ -246,21 +246,15 @@ safe.
 
 ## 7. Advertising
 
-AdSense will not approve an empty site. The order that works:
+There is no third-party ad network. The only advertiser is Loaded Dice, and
+every slot is a house ad served from D1 (`ad_placement`), seeded by
+`scripts/seed.sql`. AdSense was removed on purpose: keeping the whole slot for
+the shop that funds the site is worth more than programmatic fill, and it means
+no ad cookies and so no cookie-consent banner.
 
-1. Launch with house ads only (`ADSENSE_CLIENT` empty). They are already seeded
-   by `scripts/seed.sql`.
-2. Get real content and real traffic — a few dozen posts and a few weeks.
-3. Apply to AdSense. Point it at `spruetube.app`.
-4. On approval: set `ADSENSE_CLIENT` to your `ca-pub-…` id in `wrangler.jsonc`.
-   This loads `<AdSenseScript />` (already wired into the `<head>` in
-   `app/root.tsx`) so the site is verified and Auto ads can run.
-5. When you have real ad units, fill in the three slot ids in
-   `app/components/AdSlot.tsx`. Each slot only renders a network unit once its
-   id is set; until then it keeps serving the house ad.
-
-House ads keep running underneath as the fallback for unfilled impressions and
-for any slot without a configured id.
+Nothing to switch on, then — house ads render from day one. To change what runs,
+edit the rows (see §9), and watch `impressions`/`clicks` on `ad_placement` to
+see which promos earn their place.
 
 ## 8. Make yourself an admin
 
@@ -272,13 +266,22 @@ npx wrangler d1 execute spruetube --remote \
 Do this immediately after your first sign-up. Until someone is an admin, reports
 pile up with nobody able to action them.
 
-## 9. Seed the house ads
+## 9. Seed the house ads and challenges
 
-Already applied to the remote database — four Loaded Dice promos across the
-feed, sidebar and post slots. Re-running is harmless (`INSERT OR IGNORE`):
+`scripts/seed.sql` holds the Loaded Dice house ads (a brand promo linking to the
+homepage, plus feed/sidebar/post promos) and the community painting challenges.
+It is all `INSERT OR IGNORE`, so re-running only adds rows that are not there
+yet — run it again after pulling changes that add an ad or a challenge:
 
 ```bash
 npx wrangler d1 execute spruetube --remote --file=./scripts/seed.sql
+```
+
+New tables (`pin`, `challenge`, `feedback`) ship in migration
+`0005_engagement_features`. Apply migrations before the seed:
+
+```bash
+npm run db:migrate:remote
 ```
 
 ## 10. Verify the deployment

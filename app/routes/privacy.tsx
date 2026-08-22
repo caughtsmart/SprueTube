@@ -97,25 +97,19 @@ export default function Privacy() {
           keeping the site up.
         </li>
         <li>
-          <strong>Consent:</strong> personalised advertising, where it applies.
-          You can withdraw it at any time.
+          <strong>Consent:</strong> optional third-party sign-in, if you choose
+          it. You can withdraw it at any time. We do not run personalised
+          advertising, so no consent is asked for that.
         </li>
       </ul>
 
       <h2>Advertising</h2>
       <p>
-        Ad slots are labelled as advertisements. Where Google AdSense serves an
-        ad, Google may set cookies and process data under its own privacy
-        policy; you can control this at{" "}
-        <a
-          href="https://adssettings.google.com"
-          rel="noopener"
-          target="_blank"
-        >
-          Google Ad Settings
-        </a>
-        . Where we serve our own promotions, we count impressions and clicks in
-        aggregate and nothing is tied to your account.
+        Ad slots are labelled as advertisements, and the only advertiser is
+        Loaded Dice, the hobby shop that funds SprueTube. There is no
+        third-party ad network, no programmatic advertising, and no advertising
+        cookies. We count impressions and clicks in aggregate so we know which
+        promotions are worth running; nothing is tied to your account.
       </p>
 
       <h2>Who else sees your data</h2>
@@ -125,7 +119,7 @@ export default function Privacy() {
           email that carries password resets. Our infrastructure provider.
         </li>
         <li>
-          <strong>Google</strong> — advertising, and sign-in if you choose it.
+          <strong>Google</strong> — sign-in, if you choose it.
         </li>
         <li>
           <strong>Apple</strong> — sign-in if you choose it.
@@ -172,8 +166,9 @@ export default function Privacy() {
       <h2>Cookies</h2>
       <p>
         A session cookie keeps you signed in — the site does not work without it.
-        Advertising cookies are only set where an ad network serves an ad, and
-        only where you have agreed to it. We do not use analytics cookies.
+        We do not use advertising cookies (the only advertiser is Loaded Dice,
+        served by us, with no third-party ad network) and we do not use
+        analytics cookies.
       </p>
     </Prose>
   );

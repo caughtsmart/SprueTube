@@ -9,7 +9,6 @@ import {
 } from "react-router";
 import type { Route } from "./+types/root";
 import "./app.css";
-import { AdSenseScript } from "./components/AdSlot";
 import { AppShell } from "./components/AppShell";
 import {
   getScope,
@@ -45,7 +44,6 @@ export function useRoot(): RootData {
         siteUrl: "https://spruetube.app",
         shopName: "Loaded Dice",
         shopUrl: "https://www.loadeddice.uk",
-        adsenseClient: null,
         imagesAccountHash: "",
         vapidPublicKey: null,
       },
@@ -61,9 +59,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {/* Loaded Dice charcoal — matches --surface-page. */}
         <meta name="theme-color" content="#333333" />
+
+        {/*
+          Installable web app. The manifest gives Android/desktop a real install
+          with a proper icon and standalone chrome; the apple-* tags do the same
+          for iOS, where "Add to Home Screen" is also the *only* way Web Push
+          works (Safari only delivers push to an installed PWA). Without a PNG
+          apple-touch-icon iOS would use a screenshot of the page as the icon.
+        */}
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="SprueTube" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
+
         <Meta />
         <Links />
-        <AdSenseScript />
       </head>
       <body>
         {children}

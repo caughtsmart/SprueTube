@@ -4,6 +4,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import type { Route } from "./+types/profile";
 import { Avatar } from "../components/Avatar";
 import { Feed } from "../components/Feed";
+import { HelpfulBadge } from "../components/HelpfulBadge";
 import { ReportButton } from "../components/ReportButton";
 import { api } from "../lib/api";
 import { getScope } from "../lib/data.server";
@@ -113,6 +114,8 @@ export async function loader({ context, request, params }: Route.LoaderArgs) {
       followerCount: row.followerCount,
       followingCount: row.followingCount,
       postCount: row.postCount,
+      helpfulCount: row.helpfulCount,
+      helpfulBadge: row.helpfulBadge,
       createdAt: row.createdAt,
       suspended: row.status === "suspended",
     },
@@ -242,7 +245,10 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
             </div>
           </div>
 
-          <h1 className="mt-3 text-xl font-bold">{person.displayName}</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-bold">{person.displayName}</h1>
+            {person.helpfulBadge ? <HelpfulBadge /> : null}
+          </div>
           <p className="st-text-muted text-sm">
             @{person.username}
             {person.pronouns ? ` · ${person.pronouns}` : ""}
@@ -285,10 +291,13 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
             </div>
           ) : null}
 
-          <dl className="mt-4 flex gap-5 text-sm">
+          <dl className="mt-4 flex flex-wrap gap-5 text-sm">
             <Stat label="posts" value={person.postCount} />
             <Stat label="followers" value={followerCount} />
             <Stat label="following" value={person.followingCount} />
+            {person.helpfulCount > 0 ? (
+              <Stat label="helpful marks" value={person.helpfulCount} />
+            ) : null}
           </dl>
         </div>
       </header>

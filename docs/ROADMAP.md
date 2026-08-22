@@ -35,7 +35,11 @@ static site with extra steps.
 - Seed genuinely. Ten real build logs from ten real painters beat a thousand
   fake accounts, and fake accounts poison a community permanently.
 - Weekly prompts ("show us your worst mould lines") give people a reason to post
-  when they have nothing finished.
+  when they have nothing finished. **Now supported:** painting challenges are
+  DB-driven prompts (`challenge` table, `server/services/challenges.ts`) shown on
+  `/explore` and nudged on the home feed; entries are posts carrying the tag.
+  Add or retire one with an `INSERT`/`active` flag — the "Mould Line Amnesty"
+  prompt is seeded. No admin screen yet, the same trade as house ads.
 - **Do not** buy traffic before the feed has content. It converts at nothing and
   burns the impression.
 

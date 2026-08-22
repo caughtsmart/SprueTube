@@ -1,6 +1,6 @@
 import { Link, NavLink, useLocation } from "react-router";
 import { useRoot } from "../root";
-import { AdSlot } from "./AdSlot";
+import { SelfFetchingAd } from "./AdSlot";
 import { Avatar } from "./Avatar";
 import { Logo } from "./Logo";
 
@@ -166,7 +166,7 @@ function SideRail() {
   return (
     <aside className="hidden w-[300px] shrink-0 py-5 xl:block">
       <div className="sticky top-20">
-        <AdSlot slot="sidebar" ad={null} />
+        <SelfFetchingAd slot="sidebar" />
       </div>
     </aside>
   );
@@ -195,6 +195,9 @@ function FooterLinks() {
         </Link>
         <Link to="/contact" className="hover:underline">
           Contact
+        </Link>
+        <Link to="/feedback" className="hover:underline">
+          Bugs &amp; ideas
         </Link>
       </div>
       {/*

@@ -40,10 +40,14 @@ production (roughly ten minutes, most of it the deploy):
    comment from a second account produces a push with the tab closed.
 
 Notes: HTTPS only (localhost counts); iPhone needs the site added to the Home
-Screen before it will push; the toggle is per-device, not per-account; a like or
-comment on your own post never notifies you, so test with a second account. To
-try it locally first, put the keys in `.dev.vars`, `npm run db:migrate:local`,
-`npm run dev`.
+Screen before it will push — a web app manifest (`public/manifest.webmanifest`),
+PNG app icons (`public/icons/`) and the apple-* head tags in `app/root.tsx` make
+that install a real standalone app with a proper icon, and Settings →
+Notifications shows an "Add to Home Screen" hint on an iPhone that has not done
+it yet (`iosNeedsInstall` in `app/lib/push.ts`). The toggle is per-device, not
+per-account; a like or comment on your own post never notifies you, so test with
+a second account. To try it locally first, put the keys in `.dev.vars`,
+`npm run db:migrate:local`, `npm run dev`.
 
 ## Principles
 

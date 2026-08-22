@@ -129,18 +129,24 @@ never updated, never deleted, including for dismissals. "We looked at this and
 decided to do nothing" is exactly the kind of thing you need to be able to
 prove.
 
-## Advertising in two layers
+## Advertising is house ads only
 
-House ads live in D1 and render from day one. AdSense, when configured, takes
-over the same slots.
+Every ad on SprueTube is a Loaded Dice house ad served from D1 (`ad_placement`).
+There is no third-party ad network — AdSense was tried and removed. On a small
+site a network fills nowhere near 100% of impressions, and the fill it does
+serve is worth a few pence against a slot that could have been a Loaded Dice
+referral; the shop is what funds the site, so it keeps the whole slot.
 
-House ads are not a placeholder. AdSense fills nowhere near 100% of impressions
-on a small site, and an empty ad box is space that could have been a Loaded Dice
-referral. Building against real ad-shaped boxes from the start also means the
-layout was never designed as if ads did not exist.
+Two things fall out of that. There are no ad cookies, so there is no
+cookie-consent banner to build and no third-party processor to name in the
+privacy notice beyond the ones the site already uses. And the layout is still
+built against real ad-shaped boxes, because the house ads are real — the design
+was never drawn as if ads did not exist.
 
 Slots are injected every six posts and never at index 0. The first thing a
-visitor sees should be a miniature somebody painted.
+visitor sees should be a miniature somebody painted. The sidebar ad fetches
+itself on the client (`SelfFetchingAd`) because the app chrome has no route
+loader to hand it one.
 
 ## Rendering user text
 
@@ -157,8 +163,9 @@ noticing it exists.
 
 Server rendering is not a preference here, it is load-bearing. "How to paint
 Death Guard rust" is a real query with real volume and every post is a potential
-answer, so organic search is the cheapest growth available. AdSense also will not
-approve a site that serves crawlers an empty shell.
+answer, so organic search is the cheapest growth available — a crawler that gets
+a rendered page instead of an empty shell is the difference between ranking and
+not.
 
 Hence: SSR on, per-route meta and Open Graph tags, a sitemap covering public
 posts and profiles, and `robots.txt` excluding the signed-in-only routes a
@@ -172,7 +179,12 @@ crawler could only ever see as a redirect.
   client is not blocked — but nothing is built for an app that does not exist.
 - **Direct messages.** A DM system on a platform with one moderator is a
   harassment vector with no supervision.
-- **A recommendation algorithm.** Discover is a published formula in one file.
-- **Analytics tracking.** Nothing beyond the ad network's own.
+- **A recommendation algorithm.** Discover is a published formula in one file,
+  and so is the discovery hub's top-creators board (`services/discovery.ts`):
+  engagement over a decayed window, lifted gently by how many weeks someone
+  posted in — never a black box, never a streak that punishes absence.
+- **Analytics tracking.** None. There is no ad network and no analytics
+  provider; the only counts kept are aggregate impressions and clicks on the
+  house ads.
 - **Email.** No verification or password reset yet; both need a provider wired
   in. Tracked in `docs/ROADMAP.md`.

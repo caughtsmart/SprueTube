@@ -4,6 +4,7 @@ import {
   apiError,
   badRequest,
   fieldErrors,
+  notFound,
   pushDelivery,
   rateLimit,
   requireAuth,
@@ -13,6 +14,7 @@ import type { Db } from "../../db/client";
 import { newId } from "../../db/id";
 import { slugify } from "../../../app/lib/slug";
 import { block, comment, like, post, profile, project } from "../../db/schema";
+import { earnsHelpfulBadge } from "../../services/helpful";
 import {
   getBookmarks,
   getFeed,
@@ -340,12 +342,41 @@ content.delete("/comments/:id/like", requireAuth, async (c) =>
   c.json(await toggleCommentLike(c.get("db"), c.get("user")!.id, c.req.param("id"), false)),
 );
 
+/**
+ * Mark a comment helpful, or take the mark back.
+ *
+ * A "helpful" mark is a comment like wearing a better name: it is how a useful
+ * tip in the comments gets recognised. Three rules make it mean something.
+ *
+ *   - You cannot mark your own comment. `helpfulCount` on a profile is therefore
+ *     always other people vouching, never self-promotion.
+ *   - Marks are one-per-person (the like table's primary key), so "three people
+ *     found this helpful" really is three people.
+ *   - The author's denormalised `helpfulCount` moves in the same batch as the
+ *     mark, and the first time one of their comments clears the badge threshold
+ *     the sticky `helpfulBadge` is set — never unset, even if a mark is later
+ *     withdrawn. Earned is earned.
+ */
 async function toggleCommentLike(
   db: Db,
   userId: string,
   commentId: string,
   liked: boolean,
 ) {
+  const target = await db.query.comment.findFirst({
+    where: eq(comment.id, commentId),
+    columns: {
+      id: true,
+      authorId: true,
+      likeCount: true,
+      status: true,
+      deletedAt: true,
+    },
+  });
+  if (!target || target.status !== "published" || target.deletedAt) {
+    throw notFound("That comment");
+  }
+
   const existing = await db.query.like.findFirst({
     where: and(
       eq(like.userId, userId),
@@ -355,6 +386,10 @@ async function toggleCommentLike(
   });
 
   if (liked && !existing) {
+    if (target.authorId === userId) {
+      throw badRequest("You can’t mark your own comment as helpful.");
+    }
+    const count = target.likeCount + 1;
     await db.batch([
       db
         .insert(like)
@@ -363,8 +398,19 @@ async function toggleCommentLike(
         .update(comment)
         .set({ likeCount: sql`${comment.likeCount} + 1` })
         .where(eq(comment.id, commentId)),
+      db
+        .update(profile)
+        .set({
+          helpfulCount: sql`${profile.helpfulCount} + 1`,
+          // Sticky: only ever turned on, and only when a single comment clears
+          // the threshold. Left untouched otherwise.
+          ...(earnsHelpfulBadge(count) ? { helpfulBadge: true } : {}),
+        })
+        .where(eq(profile.userId, target.authorId)),
     ]);
+    return { liked: true, count };
   } else if (!liked && existing) {
+    const count = Math.max(0, target.likeCount - 1);
     await db.batch([
       db
         .delete(like)
@@ -379,10 +425,16 @@ async function toggleCommentLike(
         .update(comment)
         .set({ likeCount: sql`max(0, ${comment.likeCount} - 1)` })
         .where(eq(comment.id, commentId)),
+      db
+        .update(profile)
+        .set({ helpfulCount: sql`max(0, ${profile.helpfulCount} - 1)` })
+        .where(eq(profile.userId, target.authorId)),
     ]);
+    return { liked: false, count };
   }
 
-  return { liked };
+  // Already in the desired state — report the current count, change nothing.
+  return { liked, count: target.likeCount };
 }
 
 /* -------------------------------------------------------------------------- */

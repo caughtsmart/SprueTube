@@ -86,7 +86,6 @@ export type PublicConfig = {
   siteUrl: string;
   shopName: string;
   shopUrl: string;
-  adsenseClient: string | null;
   imagesAccountHash: string;
   /** Public VAPID key for Web Push. Null ⇒ push is not configured, UI hides it. */
   vapidPublicKey: string | null;
@@ -106,7 +105,6 @@ export function publicConfig(env: Env): PublicConfig {
     siteUrl: env.SITE_URL,
     shopName: env.SHOP_NAME,
     shopUrl: env.SHOP_URL,
-    adsenseClient: env.ADSENSE_CLIENT || null,
     imagesAccountHash: env.CF_IMAGES_ACCOUNT_HASH,
     vapidPublicKey: env.VAPID_PUBLIC_KEY || null,
   };

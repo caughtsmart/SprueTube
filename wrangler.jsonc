@@ -86,8 +86,6 @@
     // secret: these addresses are already published on the site as the mailto
     // fallback for when the form itself is down.
     "CONTACT_RECIPIENTS": "graham@loadeddice.uk,leigh@loadeddice.uk",
-    // Set once AdSense approves the site; unfilled slots fall back to house ads.
-    "ADSENSE_CLIENT": "ca-pub-2476850287043544",
     // Launch curtain — a holding page in front of the whole site, an
     // alternative to Cloudflare Access that does not lock you out too. "false"
     // (or unset) ⇒ off. Flip to "true" here and deploy, or override without a

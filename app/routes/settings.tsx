@@ -8,6 +8,7 @@ import { imageSrc } from "../lib/media";
 import {
   disablePush,
   enablePush,
+  iosNeedsInstall,
   isSubscribed,
   pushPermission,
   pushSupported,
@@ -314,10 +315,12 @@ function NotificationSettings() {
   >("default");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [iosInstall, setIosInstall] = useState(false);
 
   useEffect(() => {
     setSupported(pushSupported());
     setPermission(pushPermission());
+    setIosInstall(iosNeedsInstall());
     void isSubscribed().then(setSubscribed);
   }, []);
 
@@ -357,10 +360,24 @@ function NotificationSettings() {
         follows or messages you — even when the tab is closed.
       </p>
 
-      {supported === false ? (
+      {supported === false && iosInstall ? (
+        <div className="st-well mt-3 rounded-md p-3">
+          <div className="mb-1 flex items-center gap-2">
+            <span aria-hidden>📲</span>
+            <h3 className="text-sm font-medium">One step first, on iPhone</h3>
+          </div>
+          <p className="st-text-muted text-sm leading-relaxed">
+            On iOS, notifications only work once SprueTube is on your Home
+            Screen. In Safari, tap{" "}
+            <span className="st-text-strong">Share</span> →{" "}
+            <span className="st-text-strong">Add to Home Screen</span>, then open
+            SprueTube from the new icon and come back here to turn them on.
+          </p>
+        </div>
+      ) : supported === false ? (
         <p className="st-text-muted mt-3 text-sm">
-          This browser cannot do push notifications. Try Chrome, Firefox, Edge,
-          or add SprueTube to your home screen on iOS.
+          This browser cannot do push notifications. Try Chrome, Firefox or Edge
+          on desktop or Android.
         </p>
       ) : blocked ? (
         <p className="st-text-muted mt-3 text-sm">

@@ -1,16 +1,12 @@
 /*
  * Advertising.
  *
- * Two layers, deliberately:
- *
- *   1. A network (AdSense on web, AdMob later on iOS). This is where the money
- *      comes from, but it cannot be switched on yet — AdSense will not approve
- *      a domain with no content and no traffic, and it will not approve one
- *      whose ad slots sit above nothing.
- *   2. House ads served from the database. These fill every slot from day one,
- *      so the layout is built and tested against real ad-shaped boxes rather
- *      than being retrofitted later, and they keep earning through Loaded Dice
- *      referrals if the network ever returns an empty response.
+ * One layer, on purpose: house ads served from D1, every one a Loaded Dice
+ * promotion. There is no third-party ad network — AdSense was removed in favour
+ * of keeping the whole slot for the shop that funds the site. That means the
+ * layout is built against real ad-shaped boxes, there are no ad cookies to ask
+ * consent for, and every impression is a referral rather than a few pence of
+ * programmatic fill.
  *
  * The feed injects a slot every AD_INTERVAL posts. Any denser and the feed
  * reads as an advert with posts in it.

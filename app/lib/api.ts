@@ -59,7 +59,10 @@ export const api = {
     request<T>(path, { method: "POST", json }),
   patch: <T>(path: string, json?: unknown) =>
     request<T>(path, { method: "PATCH", json }),
-  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  // A body is optional on DELETE — most deletes are addressed by the path, but
+  // a few (removing a pin) name the thing to delete in a small JSON payload.
+  delete: <T>(path: string, json?: unknown) =>
+    request<T>(path, { method: "DELETE", json }),
 };
 
 /* -------------------------------------------------------------------------- */

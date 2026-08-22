@@ -10,10 +10,11 @@
  * spruetube.app`, which writes the SPF and DKIM records into Cloudflare DNS
  * directly. Nothing to copy between two dashboards and nothing to get wrong.
  *
- * Three messages exist: two account links the recipient has to click, and the
- * contact form, which goes the other way — from a visitor to the people who run
- * the place. Marketing mail, digests and notification email are a different
- * problem with different rules — consent records, unsubscribe headers, send
+ * Four messages exist: two account links the recipient has to click, and the
+ * contact and feedback forms, which go the other way — from a visitor to the
+ * people who run the place. Marketing mail, digests and notification email are
+ * a different problem with different rules — consent records, unsubscribe
+ * headers, send
  * reputation — and do not belong in this file when they arrive. Cloudflare say
  * the same: Email Sending is for transactional mail only.
  */
@@ -335,5 +336,68 @@ export function contactEmail(options: {
       "Sent from the contact form on spruetube.app.",
       "Reply to this email and it goes straight back to them.",
     ].join("\n"),
+  };
+}
+
+/**
+ * A bug report or feature request, arriving in the Loaded Dice inbox.
+ *
+ * Everything except the kind is typed by the sender, so every field is escaped
+ * — the same rule the contact template follows. The subject carries the kind
+ * and title so the inbox sorts at a glance, and `replyTo` is set only when a
+ * reply address was given, so hitting reply reaches the right person.
+ */
+export function feedbackEmail(options: {
+  to: string[];
+  kind: "bug" | "feature";
+  title: string;
+  body: string;
+  pageUrl: string | null;
+  /** Reply address, if the sender gave one. */
+  email: string | null;
+  /** Set when the sender was signed in — worth knowing before replying. */
+  username: string | null;
+}): Message {
+  const label = options.kind === "bug" ? "Bug report" : "Feature request";
+  const title = escapeHtml(options.title);
+  const account = options.username
+    ? `<a href="https://spruetube.app/@${escapeHtml(options.username)}">@${escapeHtml(options.username)}</a>`
+    : "not signed in";
+  const where = options.pageUrl
+    ? `<p style="margin:0 0 16px;"><strong>Page:</strong> ${escapeHtml(options.pageUrl)}</p>`
+    : "";
+  const replyLine = options.email
+    ? `<p style="margin:0 0 16px;"><strong>Reply to:</strong> ${escapeHtml(options.email)}</p>`
+    : "";
+
+  return {
+    to: options.to,
+    ...(options.email ? { replyTo: options.email } : {}),
+    subject: `SprueTube — ${label} — ${options.title}`,
+    html: layout({
+      heading: `${label}: ${title}`,
+      body: [
+        `<p style="margin:0 0 16px;"><strong>Account:</strong> ${account}</p>`,
+        replyLine,
+        where,
+        `<p style="margin:0;white-space:pre-wrap;">${escapeHtml(options.body)}</p>`,
+      ].join("\n"),
+      footer:
+        "Sent from the feedback form on spruetube.app. A copy is kept in the feedback table.",
+    }),
+    text: [
+      `${label}: ${options.title}`,
+      "",
+      `Account: ${options.username ? `@${options.username}` : "not signed in"}`,
+      options.email ? `Reply to: ${options.email}` : "",
+      options.pageUrl ? `Page: ${options.pageUrl}` : "",
+      "",
+      options.body,
+      "",
+      "—",
+      "Sent from the feedback form on spruetube.app.",
+    ]
+      .filter(Boolean)
+      .join("\n"),
   };
 }

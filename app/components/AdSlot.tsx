@@ -1,41 +1,67 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import type { ServedAd } from "../../server/services/ads";
-import { useRoot } from "../root";
+import { api } from "../lib/api";
 
 /*
- * One component, two behaviours:
+ * Advertising on SprueTube is Loaded Dice, and only Loaded Dice.
  *
- *   - AdSense configured → render the network unit.
- *   - Not configured (or it returns nothing) → render a house ad from D1.
+ * There is no third-party ad network here — no AdSense, no Google script in the
+ * head, no `adsbygoogle`. House ads served from D1 fill every slot, and because
+ * they are ours the layout is built against real ad-shaped boxes rather than a
+ * network's iframe, there is no cookie-consent banner owed for third-party ad
+ * cookies, and every impression is a Loaded Dice referral rather than a few
+ * pence of programmatic fill.
  *
- * The house ad is not a placeholder to delete later. AdSense fills nowhere near
- * 100% of impressions on a small site, and an empty ad box is wasted space that
- * could have been a Loaded Dice referral.
- *
- * Everything here is labelled. Undisclosed advertising in a feed is both a
- * Google policy breach and, in the UK, an ASA/CAP problem.
+ * Everything here is labelled. Undisclosed advertising in a feed is both bad
+ * manners and, in the UK, an ASA/CAP problem — so the "Advertisement" rail and
+ * heading are not optional decoration.
  */
 
 export function AdSlot({
-  slot,
   ad,
   className = "",
 }: {
-  slot: "feed" | "sidebar" | "post";
+  slot?: "feed" | "sidebar" | "post";
   ad: ServedAd | null;
   className?: string;
 }) {
-  const { adsenseClient } = useRoot().config;
-
-  // A network unit only where AdSense is configured *and* this slot has a real
-  // slot id. Until the slot ids are filled in, keep serving the house ad rather
-  // than an empty box — the loader script in the head is already live for
-  // verification and Auto ads.
-  if (adsenseClient && SLOT_IDS[slot]) {
-    return <AdSenseUnit client={adsenseClient} slot={slot} className={className} />;
-  }
   if (!ad) return null;
+  return <HouseAd ad={ad} className={className} />;
+}
 
+/**
+ * A slot that fetches its own ad on the client.
+ *
+ * The sidebar lives in the app chrome, which has no route loader to hand it an
+ * ad, so it asks the API for one after mount. `/ads` records the impression
+ * server-side and returns a house ad; an empty response (or a blocked request)
+ * simply renders nothing and the rail collapses.
+ */
+export function SelfFetchingAd({
+  slot,
+  className = "",
+}: {
+  slot: "feed" | "sidebar" | "post";
+  className?: string;
+}) {
+  const [ad, setAd] = useState<ServedAd | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    api
+      .get<{ ad: ServedAd | null }>(`/ads?slot=${slot}`)
+      .then((result) => {
+        if (live) setAd(result.ad);
+      })
+      .catch(() => {
+        // A failed fetch leaves the rail empty, which is the right fallback.
+      });
+    return () => {
+      live = false;
+    };
+  }, [slot]);
+
+  if (!ad) return null;
   return <HouseAd ad={ad} className={className} />;
 }
 
@@ -85,91 +111,5 @@ function HouseAd({ ad, className }: { ad: ServedAd; className?: string }) {
         </a>
       </div>
     </aside>
-  );
-}
-
-const SLOT_IDS: Record<string, string> = {
-  // Slot ids from the AdSense dashboard. An empty slot keeps serving the house
-  // ad, so positions can be switched on one at a time.
-  feed: "2579941153",
-  sidebar: "8595323192",
-  post: "2659832205",
-};
-
-function AdSenseUnit({
-  client,
-  slot,
-  className,
-}: {
-  client: string;
-  slot: "feed" | "sidebar" | "post";
-  className?: string;
-}) {
-  const ref = useRef<HTMLModElement>(null);
-  const pushed = useRef(false);
-
-  useEffect(() => {
-    // React strict mode mounts twice in development; pushing the same slot
-    // twice makes AdSense log "already have ads in them" and blank the unit.
-    if (pushed.current || !ref.current) return;
-    pushed.current = true;
-    try {
-      const adsbygoogle =
-        ((window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle ??= []);
-      adsbygoogle.push({});
-    } catch {
-      // An ad blocker rejecting the push is expected and not worth reporting.
-    }
-  }, []);
-
-  const slotId = SLOT_IDS[slot];
-  if (!slotId) return null;
-
-  return (
-    <aside
-      className={`max-w-full overflow-hidden ${className}`}
-      aria-label="Advertisement"
-    >
-      <p className="st-text-muted mb-1 text-[0.625rem] font-semibold tracking-widest uppercase">
-        Advertisement
-      </p>
-      {slot === "sidebar" ? (
-        // Fixed 300x600 unit — no format/responsive attributes; the size is the
-        // whole point of a fixed unit, and the rail it sits in is 300px wide.
-        <ins
-          ref={ref}
-          className="adsbygoogle"
-          style={{ display: "inline-block", width: 300, height: 600 }}
-          data-ad-client={client}
-          data-ad-slot={slotId}
-        />
-      ) : (
-        <ins
-          ref={ref}
-          className="adsbygoogle block w-full max-w-full"
-          style={{ display: "block", textAlign: slot === "post" ? "center" : undefined }}
-          data-ad-client={client}
-          data-ad-slot={slotId}
-          data-ad-format="fluid"
-          data-ad-layout={slot === "post" ? "in-article" : undefined}
-          data-ad-layout-key={slot === "feed" ? "-fl+5z+3v-d0+94" : undefined}
-          data-full-width-responsive="true"
-        />
-      )}
-    </aside>
-  );
-}
-
-/** Loaded once in the document head when AdSense is configured. */
-export function AdSenseScript() {
-  const { adsenseClient } = useRoot().config;
-  if (!adsenseClient) return null;
-
-  return (
-    <script
-      async
-      src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClient}`}
-      crossOrigin="anonymous"
-    />
   );
 }

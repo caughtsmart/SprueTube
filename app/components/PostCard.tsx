@@ -13,6 +13,7 @@ import {
 import { useRoot } from "../root";
 import { Avatar } from "./Avatar";
 import { ReportButton } from "./ReportButton";
+import { ShareButton } from "./ShareButton";
 
 export function PostCard({ post }: { post: FeedPost }) {
   const { viewer, config } = useRoot();
@@ -168,6 +169,15 @@ export function PostCard({ post }: { post: FeedPost }) {
           <span aria-hidden>{saved ? "★" : "☆"}</span>
           {saved ? "Saved" : "Save"}
         </ActionButton>
+
+        <ShareButton
+          url={`${config.siteUrl}/posts/${post.id}`}
+          text={
+            post.title
+              ? `${post.title} — by @${post.author.username} on SprueTube`
+              : `${post.author.displayName}'s work on SprueTube`
+          }
+        />
       </footer>
     </article>
   );
