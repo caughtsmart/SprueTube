@@ -31,6 +31,30 @@ export function pushPermission(): NotificationPermission | "unsupported" {
   return Notification.permission;
 }
 
+/**
+ * True on an iPhone/iPad that is *not* running as an installed web app.
+ *
+ * iOS is the one platform where "unsupported" is really "not yet": Safari only
+ * exposes the Push API to a site added to the Home Screen and opened from that
+ * icon. So when push looks unsupported here, the right message is not "your
+ * browser can't" but "add it to your Home Screen first" — this tells the two
+ * apart. iPadOS reports itself as a Mac, hence the touch-points check.
+ */
+export function iosNeedsInstall(): boolean {
+  if (typeof navigator === "undefined" || typeof window === "undefined") {
+    return false;
+  }
+  const isIos =
+    /iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (!isIos) return false;
+
+  const standalone =
+    (navigator as unknown as { standalone?: boolean }).standalone === true ||
+    window.matchMedia("(display-mode: standalone)").matches;
+  return !standalone;
+}
+
 async function registration(): Promise<ServiceWorkerRegistration> {
   const existing = await navigator.serviceWorker.getRegistration();
   if (existing) return existing;

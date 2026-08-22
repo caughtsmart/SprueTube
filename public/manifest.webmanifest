@@ -1,0 +1,16 @@
+{
+  "name": "SprueTube",
+  "short_name": "SprueTube",
+  "description": "The social network for miniature painters and model makers. Post work in progress, follow build logs from sprue to finished, and find out exactly which paints someone used.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#333333",
+  "theme_color": "#333333",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
